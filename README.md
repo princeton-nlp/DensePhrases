@@ -76,7 +76,7 @@ The minimum resource requirement for running the demo is:
 * 125GB RAM
 * 100GB HDD
 
-Note that you no longer need any SSDs to run the demo unlike previous phrase retrieval models ([DenSPI](https://github.com/uwnlp/denspi), [DenSPI+Sparc](https://github.com/jhyuklee/sparc)), but setting `$DPH_SAVE_DIR` to an SSD can reduce the loading time of the demo. The following commands serve exactly the same demo as [here](princeton.edu) on your `http://localhost:51997`.
+Note that you no longer need any SSDs to run the demo unlike previous phrase retrieval models ([DenSPI](https://github.com/uwnlp/denspi), [DenSPI+Sparc](https://github.com/jhyuklee/sparc)), but setting `$DPH_SAVE_DIR` to an SSD can reduce the loading time of the demo. The following commands serve exactly the same demo as [here](http://sparc.korea.ac.kr) on your `http://localhost:51997`.
 ```bash
 # Serve a query encoder on port 1111
 make q-serve MODEL_NAME=dph-nqsqd-pb2_pq96-multi6 Q_PORT=1111
