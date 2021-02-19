@@ -4,21 +4,21 @@
   <img alt="DensePhrases Demo" src="https://github.com/jhyuklee/DensePhrases/blob/main/densephrases/demo/static/files/preview.gif" width="750px">
 </div>
 
-<em>DensePhrases</em> provides answers to your natural language questions from the entire Wikipedia in real-time. While it efficiently searches the answers out of 60 billion phrases in Wikipedia, it is also very accurate having competitive accuracy with state-of-the-art open-domain QA models. You can also try the [demo] of DensePhrases. Please see our paper [Dense Representations of Phrases at Scale (Lee et al., 2021)](https://arxiv.org/abs/2012.12624) for more details.
-* Try out our [demo]!
+<em>DensePhrases</em> provides answers to your natural language questions from the entire Wikipedia in real-time. While it efficiently searches the answers out of 60 billion phrases in Wikipedia, it is also very accurate having competitive accuracy with state-of-the-art open-domain QA models.  Please see our paper [Dense Representations of Phrases at Scale (Lee et al., 2021)](https://arxiv.org/abs/2012.12624) for more details.
+
+**\*\*\*\*\* You can try out our online demo of DensePhrases [here](http://sparc.korea.ac.kr/)! \*\*\*\*\***
 
 ## Quick Links
 * [Installation](#installation)
 * [Playing with a DensePhrases Demo](#playing-with-a-densephrases-demo)
-* [Training DensePhrases](#training-densephrases-creating-phrase-index)
-* [Creating Phrase Index](#2-creating-phrase-dumps-and-indexes)
+* [Traning, Indexing and Inference](#densephrases-training-indexing-and-inference)
 * [Pre-processing](#pre-processing)
 
 ## Installation
 ```bash
 # Use conda & pip
 conda create -n dph python=3.7
-conda activate dph 
+conda activate dph
 conda install pytorch cudatoolkit=11.0 -c pytorch
 pip install faiss-gpu==1.6.5 h5py tqdm transformers==2.9.0 blosc ujson rouge wandb nltk flask flask_cors tornado requests-futures
 
@@ -64,7 +64,7 @@ ls $DPH_SAVE_DIR
 ```
 Since hosting the 320GB phrase index (+500GB original vectors for query-side fine-tuning) - the phrase index described in our paper - is costly, we provide an index with a much smaller size, which includes our recent efforts to reduce the size of the phrase index with [Product Quantization](https://lear.inrialpes.fr/pubs/2011/JDS11/jegou_searching_with_quantization.pdf) (IVFPQ). With IVFPQ, you do not need any SSDs for the real-time inference (the index is loaded on RAM), and you can also reconstruct the phrase vectors from it for the query-side fine-tuning (hence do not need the additional 500GB).
 
-For the reimplementation of DensePhrases with IVFSQ4 as described in the paper, see [Training DensePhrases](#training-densephrases-creating-phrase-index). 
+For the reimplementation of DensePhrases with IVFSQ4 as described in the paper, see [Training DensePhrases](#training-densephrases-creating-phrase-index).
 
 ## Playing with a DensePhrases Demo
 There are two ways of using DensePhrases.
@@ -96,7 +96,7 @@ INFO - densephrases.experiments.run_open -   Saving prediction file to $DPH_SAVE
 ```
 For more details (e.g., changing the test set), please see the targets in `Makefile` (`q-serve`, `p-serve`, `eval-od-req`, etc).
 
-## Training DensePhrases, Creating Phrase Index
+## DensePhrases: Training, Indexing and Inference
 In this section, we introduce the steps to train DensePhrases from scratch, create phrase dumps and indexes, and running inferences with the trained model (which can be also used as a demo described above). The minimum requirement is as follows:
 - Single 24GB GPU (for training)
 - up to 150GB RAM (for creating a phrase index of the entire Wikipedia)
@@ -115,7 +115,7 @@ make draft MODEL_NAME=test
 
 - A figure summarizing the overall process below
 
-### 1. Single-passage Training + Normalization
+### 1. Training phrase and query encoders
 To train DensePhrase from scratch, use `train-single-nq`, which trains DensePhrases on NQ (pre-processed for the reading comprehension setting). You can simply change the training set by modifying the dependencies of `train-single-nq` (e.g., `nq-single-data` => `sqd-single-data` and `nq-param` => `sqd-param` for training on SQuAD).
 ```bash
 # Train DensePhrases on NQ with Eq. 9
@@ -126,11 +126,11 @@ make train-single-nq MODEL_NAME=dph-nq
 1. `make train-single ...`: Train DensePhrases on NQ with Eq. 9 (L = lambda1 L\_single + lambda2 L\_distill + lambda3 L\_neg) with in-batch negatives and generated questions.
 2. `make train-single ...`: Load trained DensePhrases in the previous step and further train it with Eq. 9 with pre-batch negatives (dump D\_small at the end).
 3. `make index-sod`: Create a phrase index for D\_small
-4. `make eval-sod ...`: Evaluate the development set with D\_small 
+4. `make eval-sod ...`: Evaluate the development set with D\_small
 
 At the end of step 2, you will see the performance on the reading comprehension setting where a gold passage is given (72.0 EM on NQ dev). Step 4 gives the performance on the semi-open-domain setting (denoted as D\_small; see Table 6 in the paper.) where the entire passages from the NQ development set is used for the indexing (64.0 EM with NQ dev questions). The trained model will be saved under `$DPH_SAVE_DIR/$MODEL_NAME`. Note that during the single-passage training on NQ, we exclude some questions in the development set, whose annotated answers are found from a list or a table.
 
-###  2. Creating Phrase Dumps and Indexes
+###  2. Creating a phrase index
 Now let's assume that you have a model trained on NQ + SQuAD named `dph-nqsqd-pb2`, which can also be downloaded from [here](#2-pre-trained-models).
 You can make a bigger phrase dump using `dump-large` as follows:
 ```bash
@@ -167,7 +167,7 @@ Optionally, you may want to compress the metadata (phrase dumps saved as hdf5 fi
 make compress-meta DUMP_DIR=$DPH_SAVE_DIR/dph-nqsqd-pb2_20181220_concat/dump
 ```
 
-### 3. Query-side Fine-tuning
+### 3. Query-side fine-tuning
 With a single 11GB GPU, you can easily train a query encoder to retrieve phrase-level knowledge from Wikipedia. First, you need a phrase index for the full Wikipedia (`20181220_concat`), which can be obtained by simply downloading from [here](#3-phrase-index) (`dph-nqsqd-pb2_20181220_concat`) or by creating a custom phrase index as described above.
 
 The following command query-side fine-tunes `dph-nqsqd-pb2` on NQ.
@@ -185,7 +185,7 @@ For IVFPQ, training takes 2 to 3 hours per epoch for large datasets (NQ, TQA, SQ
 With a pre-trained DensePhrases encoder (e.g., `dph-nqsqd-pb2_pq96-nq-10`) and a phrase index (e.g., `dph-nqsqd-pb2_20181220_concat`), you can test your queries as follows:
 
 ```bash
-# Evaluate on Natural Questions 
+# Evaluate on Natural Questions
 make eval-od MODEL_NAME=dph-nqsqd-pb2_pq96-nq-10 DUMP_DIR=$DPH_SAVE_DIR/dph-nqsqd-pb2_20181220_concat/dump/
 
 # If the demo is being served on http://localhost:51997
@@ -196,7 +196,7 @@ make eval-od-req I_PORT=51997
 At the bottom of `Makefile`, we list commands that we used for pre-processing the datasets and Wikipedia. For training question generation models (T5-large), we used [https://github.com/patil-suraj/question\_generation](https://github.com/patil-suraj/question_generation) (see also [here](https://github.com/jhyuklee/DensePhrases/blob/main/densephrases/scripts/question_generation/generate_squad.py) for QG). Note that all datasets are already pre-processed including the generated questions, so you do not need to run most of these scripts. For creating test sets for custom (open-domain) questions, see `preprocess-openqa` in `Makefile`.
 
 ## Reference
-For now, please cite the arXiv paper if you use DensePhrases in your work:
+Please cite our paper if you use DensePhrases in your work:
 ```bibtex
 @article{lee2021learning,
   title={Learning Dense Representations of Phrases at Scale},
