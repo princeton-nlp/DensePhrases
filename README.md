@@ -160,7 +160,7 @@ For evaluating the performance of DensePhrases on these larger phrase indexes, u
 make eval-dump MODEL_NAME=dph-nqsqd-pb2 DUMP_DIR=$DPH_SAVE_DIR/dph-nqsqd-pb2_dev_wiki/dump/
 ```
 
-Optionally, you may want to compress the metadata in hdf5 files (phrase dumps) for a faster inference by loading it on RAM. This is only supported for the PQ index.
+Optionally, you may want to compress the metadata (phrase dumps saved as hdf5 files) for a faster inference by loading it on RAM. This is only supported for the PQ index.
 ```bash
 # Compress metadata of the entire Wikipedia (20181220_concat)
 make compress-meta DUMP_DIR=$DPH_SAVE_DIR/dph-nqsqd-pb2_20181220_concat/dump
