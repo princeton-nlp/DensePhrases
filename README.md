@@ -4,7 +4,7 @@
   <img alt="DensePhrases Demo" src="https://github.com/jhyuklee/DensePhrases/blob/main/densephrases/demo/static/files/preview.gif" width="750px">
 </div>
 
-<em>DensePhrases</em> provides answers to your natural language questions from the entire Wikipedia in real-time. While it efficiently searches the answers out of 60 billion phrases in Wikipedia, it is also very accurate having competitive accuracy with state-of-the-art open-domain QA models. You can also try the [demo] of DensePhrases. Please see our paper [Dense Representations of Phrases at Scale (Lee et al., 2020)](https://arxiv.org/abs/2012.12624) for more details.
+<em>DensePhrases</em> provides answers to your natural language questions from the entire Wikipedia in real-time. While it efficiently searches the answers out of 60 billion phrases in Wikipedia, it is also very accurate having competitive accuracy with state-of-the-art open-domain QA models. You can also try the [demo] of DensePhrases. Please see our paper [Dense Representations of Phrases at Scale (Lee et al., 2021)](https://arxiv.org/abs/2012.12624) for more details.
 * Try out our [demo]!
 
 ## Quick Links
@@ -198,11 +198,11 @@ At the bottom of `Makefile`, we list commands that we used for pre-processing th
 ## Reference
 For now, please cite the arXiv paper if you use DensePhrases in your work:
 ```bibtex
-@article{lee2020learning,
+@article{lee2021learning,
   title={Learning Dense Representations of Phrases at Scale},
   author={Lee, Jinhyuk and Sung, Mujeen and Kang, Jaewoo and Chen, Danqi},
   journal={arXiv preprint arXiv:2012.12624},
-  year={2020}
+  year={2021}
 }
 ```
 
