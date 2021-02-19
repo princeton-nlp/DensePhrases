@@ -27,7 +27,7 @@ git clone https://www.github.com/nvidia/apex
 cd apex
 python setup.py install
 ```
-Please check your CUDA version before the installation and modify it accordingly. Since it can be tricky to install a recent version of PyTorch together with the GPU version of Faiss, please post Github issues if you have any problem (See [Training DensePhrases](#training-densephrases-creating-phrase-index) to check whether the installation is complete).
+Please check your CUDA version before the installation and modify it accordingly. Since it can be tricky to install a recent version of PyTorch together with the GPU version of Faiss, please post Github issues if you have any problem (See [Training DensePhrases](#densephrases-training-indexing-and-inference) to check whether the installation is complete).
 
 Before downloading the required files below, please set the default directories as follows and ensure that you have enough storage to download and unzip the files:
 ```bash
@@ -64,7 +64,7 @@ ls $DPH_SAVE_DIR
 ```
 Since hosting the 320GB phrase index (+500GB original vectors for query-side fine-tuning) - the phrase index described in our paper - is costly, we provide an index with a much smaller size, which includes our recent efforts to reduce the size of the phrase index with [Product Quantization](https://lear.inrialpes.fr/pubs/2011/JDS11/jegou_searching_with_quantization.pdf) (IVFPQ). With IVFPQ, you do not need any SSDs for the real-time inference (the index is loaded on RAM), and you can also reconstruct the phrase vectors from it for the query-side fine-tuning (hence do not need the additional 500GB).
 
-For the reimplementation of DensePhrases with IVFSQ4 as described in the paper, see [Training DensePhrases](#training-densephrases-creating-phrase-index).
+For the reimplementation of DensePhrases with IVFSQ4 as described in the paper, see [Training DensePhrases](#densephrases-training-indexing-and-inference).
 
 ## Playing with a DensePhrases Demo
 There are two ways of using DensePhrases.
