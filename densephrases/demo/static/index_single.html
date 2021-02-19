@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+<title>DensePhrases</title>
+
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css">
+<link rel="stylesheet" href="files/style.css">
+<link rel="shortcut icon" href="files/favicon.ico">
+
+<script src="static/files/all.js"></script>
+<script src="static/files/jquery-3.3.1.min.js"></script>
+<script src="static/files/popper.min.js"></script>
+<script src="static/files/bootstrap.min.js"></script>
+
+<body>
+<nav class="navbar navbar-expand-md navbar-dark bg-dark">
+	<a class="navbar-brand" href="">DensePhrases</a>
+    <ul class="navbar-nav">
+        <li class="nav-item"><a class="nav-link" href="">Home</a>
+        </li>
+        <li class="nav-item"><a class="nav-link" target="_blank" href="https://arxiv.org/abs/2012.12624">Paper</a>
+        </li>
+        <li class="nav-item"><a class="nav-link" target="_blank" href="https://github.com/jhyuklee/DensePhrases">GitHub</a>
+        </li>
+    </ul>
+</nav>
+<div class="container" id="container">
+    <!-- Default inline 1-->
+
+    <div class="input-group mb-1 mt-4">
+        <div class="input-group-prepend">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-toggle="dropdown"
+                    aria-haspopup="true" aria-expanded="false">Examples
+            </button>
+            <div class="dropdown-menu" id="examples">
+                <!--
+                <a class="dropdown-item" href="#">Another action</a>
+                <a class="dropdown-item" href="#">Something else here</a>
+                <div role="separator" class="dropdown-divider"></div>
+                <a class="dropdown-item" href="#">Separated link</a>
+                -->
+            </div>
+        </div>
+
+        <input id="question" type="text" class="form-control" placeholder="Write a question"
+               aria-label="Write a question"
+               autofocus>
+        <div class="input-group-append">
+            <button id="search" class="btn btn-secondary" type="button">
+                <i class="fa fa-search"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="row">
+        <div id="ret-time" class="text-secondary small ml-2 col">Latency:</div>
+        <div class="custom-control custom-checkbox mr-3">
+            <!--
+            <input type="checkbox" class="custom-control-input small" id="realtime_chk">
+            <label class="custom-control-label small" for="realtime_chk">Real-time Search</label>
+            !-->
+            Single passage
+        </div>
+    </div>
+
+    <div class="card">
+        <ul id="ret-results" class="list-group list-group-flush">
+            <li class="list-group-item"></li>
+        </ul>
+    </div>
+
+</div>
+
+<footer class="footer">
+    <div class="container">
+			<span class="text-muted">
+				<strong>Learning Dense Representations of Phrases at Scale</strong><br/>
+                                Jinhyuk Lee, Mujeen Sung, Jaewoo Kang, Danqi Chen<br/>
+			</span>
+    </div>
+</footer>
+
+
+<script>
+    var tout_id = 0;
+    var context = "";
+    $("#realtime_chk").prop('checked', true);
+
+    $("#question").bind("input", function () {
+        var query = $("#question").val();
+        clearTimeout(tout_id);
+        var is_real = $("#realtime_chk").is(":checked") == true;
+        if (is_real) {
+            if (query.trim().length > 0) {
+                tout_id = window.setTimeout(execute, 100, query);
+            } else {
+                init_result();
+            }
+        }
+    });
+
+    $("#question").keydown(function (e) {
+        // $("#search").click();
+        if (e.which == 13) {
+            $("#search").click();
+        }
+    });
+
+    $("#search").click(function () {
+        var query = $("#question").val();
+        if (query.trim().length > 0) {
+            execute(query);
+        } else {
+            init_result();
+        }
+    });
+
+    function init_result() {
+        $("#ret-time").text("Latency: ");
+        $("#ret-results").html("<li class=\"list-group-item\"></li>");
+    }
+
+    function highlight(text, start, end) {
+        new_text = text.split("");
+        new_text[start] = "<strong>" + new_text[start];
+        new_text[end - 1] = new_text[end - 1] + "</strong>";
+        return new_text.join("");
+    }
+
+
+    function indexOfMax(arr) {
+        var max = arr[0];
+        var maxIndex = 0;
+
+        for (var i = 1; i < arr.length; i++) {
+            if (arr[i] > max) {
+                maxIndex = i;
+                max = arr[i];
+            }
+        }
+        return maxIndex;
+    }
+
+    function color_context(text, logits) {
+        new_text = text.split(" ");
+	maxIndex = indexOfMax(logits);
+	new_text[maxIndex] = "<strong>" + new_text[maxIndex] + "</strong>";
+	for (var i = 0; i < new_text.length; i++) {
+            new_text[i] = "<span style=\"background-color: #FF" + logits[i] + logits[i] + "\">" + new_text[i] + "</span>";
+	}
+        return new_text.join(" ");
+    }
+
+    function execute(text) {
+        $("#ret-time").text("Latency: ");
+        var start_time = +new Date();
+        if ($('#dense_first').is(':checked')) {
+            var strat = "dense_first";
+        } else if ($('#sparse_first').is(':checked')) {
+            var strat = "sparse_first";
+        } else if ($('#hybrid').is(':checked')) {
+            var strat = "hybrid";
+        }
+        $.get("/single_api?strat=" + strat + "&query=" + encodeURIComponent(text) + "&context=" + encodeURIComponent(context), function (out) {
+            var end_time = +new Date();
+            var total_latency = end_time - start_time;
+            $("#ret-time").text("Latency: " + out['time'] + "ms");
+            $("#ret-results").empty();
+            result = out['ret']
+            for (var i = 0; i < result.length; i++) {
+                $("#ret-results").append("<li class=\"list-group-item\"><div class=\"row\">"
+                    + "<div class=\"col-10\">" + color_context(result[i]["context"], result[i]["start_logits"]) + "</div>"
+                    + "<div class=\"col-2 text-right\">" + result[i]["title"] + "</div>"
+                    + "</div></li>")
+            }
+        });
+    }
+
+    $.getJSON("/get_examples", function (examples) {
+        for (let example of examples) {
+            $('#examples').append("<a class=\"dropdown-item\" href=\"#\">" + example + "</a>");
+        }
+    });
+
+    $("#container").on("click", ".dropdown-item", function (event) {
+        //$('#question').val($(event.target).text());
+        //$('#question').focus();
+	context = $(event.target).text();
+        $("#ret-results").empty();
+	$("#ret-results").append("<li class=\"list-group-item\"><div class=\"row\">"
+	    + "<div class=\"col-10\">" + context + "</div>"
+	    + "<div class=\"col-2 text-right\">please type question</div>"
+	    + "</div></li>")
+    });
+
+    $(".strat").click(function() {
+        $('#question').focus();
+    });
+
+
+</script>
+
+</body>
+
+</html>
