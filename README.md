@@ -6,7 +6,7 @@
 
 <em>DensePhrases</em> provides answers to your natural language questions from the entire Wikipedia in real-time. While it efficiently searches the answers out of 60 billion phrases in Wikipedia, it is also very accurate having competitive accuracy with state-of-the-art open-domain QA models.  Please see our paper [Dense Representations of Phrases at Scale (Lee et al., 2020)](https://arxiv.org/abs/2012.12624) for more details.
 
-**\*\*\*\*\* You can try out our online demo of DensePhrases [here](http://sparc.korea.ac.kr/)! \*\*\*\*\***
+**\*\*\*\*\* You can try out our online demo of DensePhrases [here](http://densephrases.korea.ac.kr)! \*\*\*\*\***
 
 ## Quick Links
 * [Installation](#installation)
@@ -76,7 +76,7 @@ The minimum resource requirement for running the demo is:
 * 125GB RAM
 * 100GB HDD
 
-Note that you no longer need any SSDs to run the demo unlike previous phrase retrieval models ([DenSPI](https://github.com/uwnlp/denspi), [DenSPI+Sparc](https://github.com/jhyuklee/sparc)), but setting `$DPH_SAVE_DIR` to an SSD can reduce the loading time of the demo. The following commands serve exactly the same demo as [here](http://sparc.korea.ac.kr) on your `http://localhost:51997`.
+Note that you no longer need any SSDs to run the demo unlike previous phrase retrieval models ([DenSPI](https://github.com/uwnlp/denspi), [DenSPI+Sparc](https://github.com/jhyuklee/sparc)), but setting `$DPH_SAVE_DIR` to an SSD can reduce the loading time of the demo. The following commands serve exactly the same demo as [here](http://densephrases.korea.ac.kr) on your `http://localhost:51997`.
 ```bash
 # Serve a query encoder on port 1111
 make q-serve MODEL_NAME=dph-nqsqd-pb2_pq96-multi6 Q_PORT=1111
@@ -173,7 +173,7 @@ With a single 11GB GPU, you can easily train a query encoder to retrieve phrase-
 The following command query-side fine-tunes `dph-nqsqd-pb2` on NQ.
 ```bash
 # Query-side fine-tune on Natural Questions (model will be saved as MODEL_NAME)
-make train-query MODEL_NAME=dph-nqsqd-pb2-nq DUMP_DIR=$DPH_SAVE_DIR/dph-nqsqd-pb2_20181220_concat
+make train-query MODEL_NAME=dph-nqsqd-pb2-nq DUMP_DIR=$DPH_SAVE_DIR/dph-nqsqd-pb2_20181220_concat/dump/
 ```
 Note that the pre-trained encoder is specified in `train-query` as `--query_encoder_path $(DPH_SAVE_DIR)/dph-nqsqd-pb2` and a new model will be saved as `dph-nqsqd-pb2-nq` as specified above. You can also train on different datasets by changing the dependency `nq-open-data` to `*-open-data` (e.g., `trec-open-data`).
 
@@ -209,4 +209,4 @@ Please cite our paper if you use DensePhrases in your work:
 ## License
 Please see LICENSE for details.
 
-[demo]: http://sparc.korea.ac.kr
+[demo]: http://densephrases.korea.ac.kr
