@@ -150,7 +150,7 @@ The `dev_wiki*` corpora contain passages from the NQ development set, so that yo
 After creating the phrase dump, you need to create a phrase index (or a MIPS index) for the sublinear time search of phrases. In our paper, we used IVFSQ4 for the phrase index.
 ```bash
 # Create IVFSQ4 index for large indexes
-make large-index DUMP_DIR=$DPH_SAVE_DIR/dph-nqsqd-pb2_dev_wiki/dump/
+make index-large DUMP_DIR=$DPH_SAVE_DIR/dph-nqsqd-pb2_dev_wiki/dump/
 ```
 
 For `dev_wiki_noise` and `20181220_concat`, you need to modify the number of clusters to 101,372 and 1,048,576, respectively, and also use `index-add` and `index-merge` to add phrase representations to the index (see `Makefile` for details). If you want to use IVFPQ, using `index-large-pq` is enough in any case.
