@@ -1,7 +1,7 @@
 # DensePhrases
 
 <div align="center">
-  <img alt="DensePhrases Demo" src="https://github.com/jhyuklee/DensePhrases/blob/main/densephrases/demo/static/files/preview.gif" width="750px">
+  <img alt="DensePhrases Demo" src="https://github.com/princeton-nlp/DensePhrases/blob/main/densephrases/demo/static/files/preview.gif" width="750px">
 </div>
 
 <em>DensePhrases</em> provides answers to your natural language questions from the entire Wikipedia in real-time. While it efficiently searches the answers out of 60 billion phrases in Wikipedia, it is also very accurate having competitive accuracy with state-of-the-art open-domain QA models.  Please see our paper [Dense Representations of Phrases at Scale (Lee et al., 2020)](https://arxiv.org/abs/2012.12624) for more details.
@@ -110,7 +110,7 @@ make draft MODEL_NAME=test
 ```
 
 <div align="center">
-  <img alt="DensePhrases Steps" src="https://github.com/jhyuklee/DensePhrases/blob/main/densephrases/demo/static/files/steps.png" width="850px">
+  <img alt="DensePhrases Steps" src="https://github.com/princeton-nlp/DensePhrases/blob/main/densephrases/demo/static/files/steps.png" width="850px">
 </div>
 
 - A figure summarizing the overall process below
@@ -193,7 +193,7 @@ make eval-od-req I_PORT=51997
 ```
 
 ## Pre-processing
-At the bottom of `Makefile`, we list commands that we used for pre-processing the datasets and Wikipedia. For training question generation models (T5-large), we used [https://github.com/patil-suraj/question\_generation](https://github.com/patil-suraj/question_generation) (see also [here](https://github.com/jhyuklee/DensePhrases/blob/main/densephrases/scripts/question_generation/generate_squad.py) for QG). Note that all datasets are already pre-processed including the generated questions, so you do not need to run most of these scripts. For creating test sets for custom (open-domain) questions, see `preprocess-openqa` in `Makefile`.
+At the bottom of `Makefile`, we list commands that we used for pre-processing the datasets and Wikipedia. For training question generation models (T5-large), we used [https://github.com/patil-suraj/question\_generation](https://github.com/patil-suraj/question_generation) (see also [here](https://github.com/princeton-nlp/DensePhrases/blob/main/densephrases/scripts/question_generation/generate_squad.py) for QG). Note that all datasets are already pre-processed including the generated questions, so you do not need to run most of these scripts. For creating test sets for custom (open-domain) questions, see `preprocess-openqa` in `Makefile`.
 
 ## Reference
 Please cite our paper if you use DensePhrases in your work:
