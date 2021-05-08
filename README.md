@@ -202,11 +202,11 @@ Feel free to email Jinhyuk Lee `(jl5167@princeton.edu)` for any questions relate
 ## Reference
 Please cite our paper if you use DensePhrases in your work:
 ```bibtex
-@article{lee2020learning,
-  title={Learning Dense Representations of Phrases at Scale},
-  author={Lee, Jinhyuk and Sung, Mujeen and Kang, Jaewoo and Chen, Danqi},
-  journal={arXiv preprint arXiv:2012.12624},
-  year={2020}
+@inproceedings{lee2021learning,
+   title={Learning Dense Representations of Phrases at Scale},
+   author={Lee, Jinhyuk and Sung, Mujeen and Kang, Jaewoo and Chen, Danqi},
+   booktitle={Association for Computational Linguistics (ACL)},
+   year={2021}
 }
 ```
 
