@@ -3,12 +3,13 @@ import heapq
 import json
 import functools
 import operator
-from dataclasses import dataclass
+import pickle as pkl
 import shutil
+from dataclasses import dataclass
+
 from hashlib import sha224
 from pathlib import Path
-from typing import Iterable, List, Set, Union
-
+from typing import Dict, Iterable, List, Set, Union
 import numpy as np
 from joblib import delayed, Parallel
 import pandas as pd
@@ -45,6 +46,17 @@ class Paragraph:
             if self.article == other.article
             else self.article < other.article
         )
+
+
+@dataclass
+class WikiParagraph:
+    paragraph: Paragraph
+    title: str
+    text: str
+    article_paragraph_cnt: int
+
+    def __hash__(self) -> int:
+        return hash(self.paragraph)
 
 
 @dataclass
@@ -139,7 +151,8 @@ class QAWikiDumpSampler:
     Steps:
     1- Build a BM25 index of the Wikipedia dump
     2- Retrieve top paragraphs for each question in the QA dataset
-    3- Repeat 2 until the union of all retrieved paragraphs hits a target count.
+    3- Do this for `n` questions and make sure that we get at least `target_paragraph_cnt` paragraphs.
+    4- Write the new dump in chunks following the format used by DPH.
 
     Note: for step 2 we'll actually retrieve the union of two queries:
     - `top_k_questions` paragraphs retrieved by querying the question
@@ -184,20 +197,38 @@ class QAWikiDumpSampler:
         self.index = self._build_index_wiki_paragraphs()
         print("done building the index. you can use the `query` method now.")
 
-    def _query_top_indices(self, query: str, top_n: int) -> Iterable[int]:
-        query_tokenized = self._tokenize(query)
-        top = heapq.nlargest(
-            top_n,
-            (
-                (score, idx)
-                for idx, score in enumerate(self.index.get_scores(query_tokenized))
-                if score > 0
-            ),
-        )
-        return [x[1] for x in top]
+    def write_wiki_dump(
+        self,
+        n: int,
+        cache: bool = True,
+        n_jobs: int = -1,
+        match_pkl_path: str = "wiki_matches.pkl",
+        dump_folder: str = "wiki_dump",
+        dump_chunk_size: int = 1_000,
+    ) -> None:
+        matches = self.process_queries(n, cache=cache, n_jobs=n_jobs)
+        pkl.dump(matches, open(match_pkl_path, "wb"))
+        dump = self.create_wiki_dump(matches.matches_global)
+        self._write_dump_chunks(dump, dump_chunk_size, dump_folder)
 
-    def _query_top_indices_sklearn(self, query: str, top_n: int) -> Iterable[int]:
-        return self.index.transform(query, top_n)
+    def create_wiki_dump(self, matches: Set[Paragraph]) -> Dict:
+        dump_matches = filter(
+            lambda wp: wp.paragraph in matches, self._read_wiki_paragraph_iter()
+        )
+        grouped_by_article = functools.reduce(
+            self._group_matches_by_article, dump_matches, []
+        )
+        return {
+            "data": [
+                {
+                    "title": paragraphs[0].title,
+                    "paragraphs": [
+                        {"context": paragraph.text} for paragraph in paragraphs
+                    ],
+                }
+                for paragraphs in grouped_by_article
+            ]
+        }
 
     def query(
         self, query: str, top_n: int, cache: bool = True, return_df: bool = True
@@ -220,6 +251,48 @@ class QAWikiDumpSampler:
             if cache:
                 df_res.to_csv(path, index=False)
         return df_res if return_df else self._extract_paragraphs_set(df_res)
+
+    def process_queries(
+        self,
+        n: int,
+        cache: bool = True,
+        n_jobs: int = 1,
+        sharedmem=True,
+    ) -> QuestionMatches:
+        iterable = zip(
+            range(n), self.df_qa["question"].iloc[:n], self.df_qa["answers"].iloc[:n]
+        )
+        init = QuestionMatches.empty()
+        fn = self._retrieve_for_single_query
+        par = Parallel(n_jobs=n_jobs, require="sharedmem" if sharedmem else None)
+        results = par(delayed(fn)(*params, cache=cache) for params in iterable)
+        return functools.reduce(operator.add, results, init)
+
+    @staticmethod
+    def _write_dump_chunks(dump: dict, chunk_size: int, dump_folder: str) -> None:
+        rows = dump["data"]
+        n = len(rows)
+        Path(dump_folder).mkdir(exist_ok=True)
+        for start in range(n // chunk_size + int(n % chunk_size > 0)):
+            dump_chunk = {
+                "data": rows[start * chunk_size : min((start + 1) * chunk_size, n)]
+            }
+            json.dump(dump_chunk, open(f"{dump_folder}/{start}", "w"))
+
+    def _query_top_indices(self, query: str, top_n: int) -> Iterable[int]:
+        query_tokenized = self._tokenize(query)
+        top = heapq.nlargest(
+            top_n,
+            (
+                (score, idx)
+                for idx, score in enumerate(self.index.get_scores(query_tokenized))
+                if score > 0
+            ),
+        )
+        return [x[1] for x in top]
+
+    def _query_top_indices_sklearn(self, query: str, top_n: int) -> Iterable[int]:
+        return self.index.transform(query, top_n)
 
     @property
     def path_cache_abs(self) -> Path:
@@ -253,21 +326,49 @@ class QAWikiDumpSampler:
             for row in qa
         )
 
-    def _read_wiki_df(self) -> pd.DataFrame:
-        df = pd.DataFrame(
-            {
-                "file": file,
-                "file_idx": file_idx,
-                "article_idx": article_idx,
-                "paragraph_idx": paragraph_idx,
-                "title": row["title"],
-                "paragraph_cnt": len(row["paragraphs"]),
-                "paragraph": par["context"],
-                "paragraph_char_cnt": len(par["context"]),
-            }
+    def _read_wiki_paragraph_iter(self) -> Iterable[WikiParagraph]:
+        return (
+            WikiParagraph(
+                paragraph=Paragraph(
+                    article=Article(
+                        file=file, file_idx=file_idx, article_idx=article_idx
+                    ),
+                    paragraph_idx=paragraph_idx,
+                ),
+                title=row["title"],
+                text=par["context"],
+                article_paragraph_cnt=len(row["paragraphs"]),
+            )
             for file_idx, file in enumerate(sorted(glob.glob(f"{self.path_wiki}/*")))
             for article_idx, row in enumerate(self._load_json(file)["data"])
             for paragraph_idx, par in enumerate(row["paragraphs"])
+        )
+
+    @staticmethod
+    def _group_matches_by_article(
+        so_far: List[List[WikiParagraph]], wiki_paragraph: WikiParagraph
+    ) -> List[List[WikiParagraph]]:
+        if len(so_far) == 0:
+            return [[wiki_paragraph]]
+        elif so_far[-1][-1].paragraph.article != wiki_paragraph.paragraph.article:
+            return so_far + [[wiki_paragraph]]
+        else:
+            so_far[-1].append(wiki_paragraph)
+            return so_far
+
+    def _read_wiki_df(self) -> pd.DataFrame:
+        df = pd.DataFrame(
+            {
+                "file": wiki_paragraph.paragraph.article.file,
+                "file_idx": wiki_paragraph.paragraph.article.file_idx,
+                "article_idx": wiki_paragraph.paragraph.article.article_idx,
+                "paragraph_idx": wiki_paragraph.paragraph.paragraph_idx,
+                "title": wiki_paragraph.title,
+                "paragraph_cnt": wiki_paragraph.article_paragraph_cnt,
+                "paragraph": wiki_paragraph.text,
+                "paragraph_char_cnt": len(wiki_paragraph.text),
+            }
+            for wiki_paragraph in self._read_wiki_paragraph_iter()
         )
         return (
             df.sample(
@@ -316,19 +417,3 @@ class QAWikiDumpSampler:
                 answers_str, top_n=self.top_k_answers, cache=cache, return_df=False
             ),
         )
-
-    def process_queries(
-        self,
-        n: int,
-        cache: bool = True,
-        n_jobs: int = 1,
-        sharedmem=True,
-    ) -> QuestionMatches:
-        iterable = zip(
-            range(n), self.df_qa["question"].iloc[:n], self.df_qa["answers"].iloc[:n]
-        )
-        init = QuestionMatches.empty()
-        fn = self._retrieve_for_single_query
-        par = Parallel(n_jobs=n_jobs, require="sharedmem" if sharedmem else None)
-        results = par(delayed(fn)(*params, cache=cache) for params in iterable)
-        return functools.reduce(operator.add, results, init)
