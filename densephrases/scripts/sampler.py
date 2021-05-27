@@ -316,5 +316,5 @@ class QAWikiDumpSampler:
         init = QuestionMatches.empty()
         fn = self._retrieve_for_single_query
         par = Parallel(n_jobs=n_jobs, require="sharedmem")
-        results = par(delayed(fn)(*x, cache=cache) for x in iterable)
+        results = par(delayed(fn)(*params, cache=cache) for params in iterable)
         return functools.reduce(operator.add, results, init)
