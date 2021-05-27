@@ -1,7 +1,6 @@
 import glob
 import heapq
 import json
-import logging
 import functools
 import operator
 from dataclasses import dataclass
@@ -15,9 +14,6 @@ from joblib import delayed, Parallel
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from rank_bm25 import BM25Okapi
-
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
 
 
 @dataclass
@@ -165,21 +161,28 @@ class QAWikiDumpSampler:
     target_paragraph_cnt: int = 1_000_000
     clear_cache: bool = False
     use_sklearn = True
+    wiki_sample: float = 1
+    random_state: int = 0
+    n_jobs: int = -1
+    index = None
 
     def __post_init__(self):
         path_cache = Path(self.path_cache)
         if self.clear_cache and path_cache.exists():
             shutil.rmtree(path_cache)
         path_cache.mkdir(exist_ok=True)
-        logger.info("reading QA dataset into a dataframe...")
+        print("reading QA dataset into a dataframe...")
         self.df_qa = self._read_qa_df()
-        logger.info(f"QA df has {len(self.df_qa)} rows")
-        logger.info("reading wiki dump into a dataframe...")
+        print(f"QA df has {len(self.df_qa)} rows")
+        print("reading wiki dump into a dataframe...")
         self.df_wiki = self._read_wiki_df()
-        logger.info(f"wiki df has {len(self.df_wiki)} rows")
-        logger.info("building BM25 index of the wiki paragraphs")
+        print(f"wiki df has {len(self.df_wiki)} rows")
+        print("run `build_index` next before running queries")
+
+    def build_index(self):
+        print("building BM25 index of the wiki paragraphs")
         self.index = self._build_index_wiki_paragraphs()
-        logger.info("done building the index. you can use the `query` method now.")
+        print("done building the index. you can use the `query` method now.")
 
     def _query_top_indices(self, query: str, top_n: int) -> Iterable[int]:
         query_tokenized = self._tokenize(query)
@@ -251,7 +254,7 @@ class QAWikiDumpSampler:
         )
 
     def _read_wiki_df(self) -> pd.DataFrame:
-        return pd.DataFrame(
+        df = pd.DataFrame(
             {
                 "file": file,
                 "file_idx": file_idx,
@@ -265,6 +268,13 @@ class QAWikiDumpSampler:
             for file_idx, file in enumerate(sorted(glob.glob(f"{self.path_wiki}/*")))
             for article_idx, row in enumerate(self._load_json(file)["data"])
             for paragraph_idx, par in enumerate(row["paragraphs"])
+        )
+        return (
+            df.sample(
+                n=int(len(df) * self.wiki_sample), random_state=self.random_state
+            ).reset_index(drop=True)
+            if self.wiki_sample < 1
+            else df
         )
 
     @staticmethod
@@ -308,13 +318,17 @@ class QAWikiDumpSampler:
         )
 
     def process_queries(
-        self, n: int, cache: bool = True, n_jobs: int = 1
+        self,
+        n: int,
+        cache: bool = True,
+        n_jobs: int = 1,
+        sharedmem=True,
     ) -> QuestionMatches:
         iterable = zip(
             range(n), self.df_qa["question"].iloc[:n], self.df_qa["answers"].iloc[:n]
         )
         init = QuestionMatches.empty()
         fn = self._retrieve_for_single_query
-        par = Parallel(n_jobs=n_jobs, require="sharedmem")
+        par = Parallel(n_jobs=n_jobs, require="sharedmem" if sharedmem else None)
         results = par(delayed(fn)(*params, cache=cache) for params in iterable)
         return functools.reduce(operator.add, results, init)
