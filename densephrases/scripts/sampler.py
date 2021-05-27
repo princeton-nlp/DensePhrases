@@ -10,8 +10,10 @@ from hashlib import sha224
 from pathlib import Path
 from typing import Iterable, List, Set, Union
 
+import numpy as np
 from joblib import delayed, Parallel
 import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
 from rank_bm25 import BM25Okapi
 
 logger = logging.getLogger()
@@ -103,6 +105,36 @@ class QuestionMatches:
         )
 
 
+class BM25Sklearn(object):
+    """
+    Taken from https://gist.github.com/koreyou/f3a8a0470d32aa56b32f198f49a9f2b8
+    """
+
+    def __init__(self, b=0.75, k1=1.6):
+        self.vectorizer = TfidfVectorizer(norm=None, smooth_idf=False)
+        self.b = b
+        self.k1 = k1
+
+    def fit(self, X):
+        """Fit IDF to documents X"""
+        self.vectorizer.fit(X)
+        y = super(TfidfVectorizer, self.vectorizer).transform(X)
+        self.avdl = y.sum(1).mean()
+        self.len_y = y.sum(1).A1
+        self.y_csc = y.tocsc()
+
+    def transform(self, q, n: int):
+        """Calculate BM25 between query q and documents X"""
+        b, k1, avdl = self.b, self.k1, self.avdl
+        (q,) = super(TfidfVectorizer, self.vectorizer).transform([q])
+        X = self.y_csc[:, q.indices]
+        den = X + (k1 * (1 - b + b * self.len_y / avdl))[:, None]
+        idf = self.vectorizer._tfidf.idf_[None, q.indices] - 1.0
+        num = X.multiply(np.broadcast_to(idf, X.shape)) * (k1 + 1)
+        res = (num / den).sum(1).A1
+        return (np.argsort(res)[-n:])[::-1]
+
+
 @dataclass
 class QAWikiDumpSampler:
     """
@@ -132,6 +164,7 @@ class QAWikiDumpSampler:
     top_k_answers: int = 5
     target_paragraph_cnt: int = 1_000_000
     clear_cache: bool = False
+    use_sklearn = True
 
     def __post_init__(self):
         path_cache = Path(self.path_cache)
@@ -148,6 +181,21 @@ class QAWikiDumpSampler:
         self.index = self._build_index_wiki_paragraphs()
         logger.info("done building the index. you can use the `query` method now.")
 
+    def _query_top_indices(self, query: str, top_n: int) -> Iterable[int]:
+        query_tokenized = self._tokenize(query)
+        top = heapq.nlargest(
+            top_n,
+            (
+                (score, idx)
+                for idx, score in enumerate(self.index.get_scores(query_tokenized))
+                if score > 0
+            ),
+        )
+        return [x[1] for x in top]
+
+    def _query_top_indices_sklearn(self, query: str, top_n: int) -> Iterable[int]:
+        return self.index.transform(query, top_n)
+
     def query(
         self, query: str, top_n: int, cache: bool = True, return_df: bool = True
     ) -> Union[pd.DataFrame, Set[Paragraph]]:
@@ -159,16 +207,12 @@ class QAWikiDumpSampler:
         if cache and path.exists():
             df_res = pd.read_csv(path)
         else:
-            query_tokenized = self._tokenize(query)
-            top = heapq.nlargest(
-                top_n,
-                (
-                    (score, idx)
-                    for idx, score in enumerate(self.index.get_scores(query_tokenized))
-                    if score > 0
-                ),
+            top_indices_fn = (
+                self._query_top_indices_sklearn
+                if self.use_sklearn
+                else self._query_top_indices
             )
-            top_indices = [x[1] for x in top]
+            top_indices = top_indices_fn(query, top_n)
             df_res = self.df_wiki.iloc[top_indices]
             if cache:
                 df_res.to_csv(path, index=False)
@@ -181,14 +225,18 @@ class QAWikiDumpSampler:
     def _hash_key_path(self, key: str) -> Path:
         return self.path_cache_abs / Path(f"{key}.csv")
 
-    def _build_index_wiki_paragraphs(self) -> BM25Okapi:
+    def _build_index_wiki_paragraphs(self) -> Union[BM25Okapi, BM25Sklearn]:
         paragraphs = self.df_wiki["paragraph"]
         return self._build_index(paragraphs)
 
-    @classmethod
-    def _build_index(cls, corpus: Iterable[str]) -> BM25Okapi:
-        tokenized_corpus = [cls._tokenize(doc) for doc in corpus]
-        return BM25Okapi(tokenized_corpus)
+    def _build_index(self, corpus: Iterable[str]) -> Union[BM25Okapi, BM25Sklearn]:
+        if self.use_sklearn:
+            bm25 = BM25Sklearn()
+            bm25.fit(corpus)
+            return bm25
+        else:
+            tokenized_corpus = [self._tokenize(doc) for doc in corpus]
+            return BM25Okapi(tokenized_corpus)
 
     def _read_qa_df(self) -> pd.DataFrame:
         qa = self._load_json(self.path_qa)["data"]
