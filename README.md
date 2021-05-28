@@ -1,5 +1,26 @@
 # DensePhrases
 
+## New Wikipedia dump
+Selected 7,500 Natural Questions (NQ) questions to construct a new dataset for our experimentation.
+
+Process:
+1. Built a BM25 index of the `20181220_concat` Wikipedia dump
+2. For each question retrieved the top 200 paragraphs given the question
+3. For the same question concatenated all the answers with a space in between and retrieved the top 5 paragraphs querying that string
+4. Took the union of the two sets of paragraphs
+5. Repeated #2 and #3 for all 7,500 NQ questions and took the union of all the retrieved paragraphs
+6. Wrote a new dump in the same format as the Wikipedia dumps in this repo
+
+Resources:
+- Logic is in [`densePhrases.scripts.sampler.py`](densephrases/scripts/sampler.py).
+- Notebook with EDA is at [wikidump-sampler.ipynb](wikidump-sampler.ipynb)
+- Data can be downloaded [here](https://www.dropbox.com/s/m1j6mry32o55j2i/wiki7500.tar.gz?dl=0) or just use `wget`:
+```
+wget https://www.dropbox.com/s/m1j6mry32o55j2i/wiki7500.tar.gz?raw=1
+```
+
+## Original README starts here
+
 <div align="center">
   <img alt="DensePhrases Demo" src="https://github.com/princeton-nlp/DensePhrases/blob/main/densephrases/demo/static/files/preview.gif" width="750px">
 </div>
