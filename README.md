@@ -11,7 +11,12 @@ Process:
 5- Repeated #2 and #3 for all 7,500 NQ questions and took the union of all the retrieved paragraphs
 6- Wrote a new dump in the same format as the Wikipedia dumps in this repo
 
-Logic is in [`densePhrases.scripts.sampler.py`](densephrases/scripts/sampler.py).
+- Logic is in [`densePhrases.scripts.sampler.py`](densephrases/scripts/sampler.py).
+- Notebook with EDA is at [wikidump-sampler.ipynb](wikidump-sampler.ipynb)
+- Data can be downloaded [here](https://www.dropbox.com/s/m1j6mry32o55j2i/wiki7500.tar.gz?dl=0) or just use `wget`:
+```
+wget https://www.dropbox.com/s/m1j6mry32o55j2i/wiki7500.tar.gz?raw=1
+```
 
 ## Original README starts here
 
