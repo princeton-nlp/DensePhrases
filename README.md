@@ -78,7 +78,7 @@ You can use your own text corpus with DensePhrases. Basically, DensePhrases uses
             "title": "Percy Fawcett",
             "paragraphs": [
                 {
-                    "context": " Lieutenant Colonel Percy Harrison Fawcett (18 August 1867during or after 1925) was a British geographer, (...)"
+                    "context": " Lieutenant Colonel Percy Harrison Fawcett (18 August 1867 - during or after 1925) was a British geographer, ..."
                 },
                 {
                     "context": " Fawcett attended the Royal Military Academy, Woolwich as a cadet, ..."
@@ -117,11 +117,22 @@ python -m densephrases.experiments.create_index \
     --cuda
 ```
 The phrase index (with IVFSQ4) will be saved under `$DPH_SAVE_DIR/dph-nqsqd2-pb2_sample/dump/start`. You can use this phrase index to run a [demo](#playing-with-a-densephrases-demo) or evaluate your set of queries.
+For instance, you can ask a set of questions (`sample_qs.json`) to the phrase index as follows:
+```python
+python -m densephrases.experiments.run_open \
+    --run_mode eval_inmemory \
+    --cuda \
+    --dump_dir $DPH_SAVE_DIR/dph-nqsqd2-pb2_sample/dump \
+    --index_dir start/256_flat_SQ4 \
+    --query_encoder_path $DPH_SAVE_DIR/dph-nqsqd2-pb2 \
+    --test_path sample_qs.json \
+    --truecase
+```
 
 ## Playing with a DensePhrases Demo
 There are two ways of using DensePhrases.
 1. You can simply use the [demo] that we are serving on our server. The running demo is using `dph-nqsqd-pb2_pq96-multi6` (NQ=40.3 EM) as a query encoder and `dph-nqsqd-pb2_20181220_concat` as a phrase index.
-2. You can install the demo on your own server, which enables you to change the query encoder (e.g., to `dph-nqsqd-pb2_pq96-nq-10`) or to process multiple queries in parallel (using HTTP POST). We recommend installing your own demo as described below since our demo can be unstable due to a large number of requests. Also, [query-side fine-tuning](#3-query-side-fine-tuning) is only available to those who installed DensePhrases on their server.
+2. You can install the demo on your own server, which enables you to change the phrase index (obtained from [here](#using-densephrases-with-a-custom-text-corpus)) or the query encoder (e.g., to `dph-nqsqd-pb2_pq96-nq-10`). We recommend installing your own demo as described below since our demo can be unstable due to a large number of requests. Also, [query-side fine-tuning](#3-query-side-fine-tuning) is only available to those who installed DensePhrases on their server.
 
 The minimum resource requirement for running the demo is:
 * Single 11GB GPU
