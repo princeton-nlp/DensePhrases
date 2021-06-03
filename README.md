@@ -128,6 +128,25 @@ python -m densephrases.experiments.run_open \
     --test_path sample_qs.json \
     --truecase
 ```
+The prediction file will be saved as `$DPH_SAVE_DIR/dph-nqsqd2-pb2/pred/sample_qs_4.pred`, which shows the answer phrases and the passages the contain the phrases:
+```bash
+{
+    "7184325478917544179": {
+        "question": "Who won season 4 of America's got talent",
+        "answer": [
+            "Kevin Skinner"
+        ],
+        "prediction": [
+            "Kevin Skinner",
+            ...
+        ],
+        "evidence": [
+            "The fourth season of \"America's Got Talent\", an American television reality show talent competition, premiered on the NBC network on June 23, 2009. Country singer Kevin Skinner was named the winner on September 16, 2009.",
+            ,,,
+        ],
+    }
+}
+```
 
 ## Playing with a DensePhrases Demo
 There are two ways of using DensePhrases.
