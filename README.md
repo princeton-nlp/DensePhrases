@@ -70,7 +70,7 @@ Since hosting the 320GB phrase index (+500GB original vectors for query-side fin
 For the reimplementation of DensePhrases with IVFSQ4 as described in the paper, see [Training DensePhrases](#densephrases-training-indexing-and-inference).
 
 ## Using DensePhrases with a Custom Text Corpus
-You can use your own text corpus with DensePhrases. Basically, DensePhrases uses text corpus pre-processed in the following format (borrowed from SQuAD dataset):
+You can use your own text corpus with DensePhrases. Basically, DensePhrases uses text corpus pre-processed in the following format (borrowed from SQuAD):
 ```json
 {
     "data": [
@@ -192,7 +192,7 @@ make draft MODEL_NAME=test
 ```
 
 <div align="center">
-  <img alt="DensePhrases Steps" src="https://github.com/princeton-nlp/DensePhrases/blob/main/densephrases/demo/static/files/steps.png" width="850px">
+  <img alt="DensePhrases Steps" src="https://github.com/princeton-nlp/DensePhrases/blob/main/densephrases/demo/static/files/overview_new.pdf" width="850px">
 </div>
 
 - A figure summarizing the overall process below
