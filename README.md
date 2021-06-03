@@ -75,13 +75,13 @@ You can use your own text corpus with DensePhrases. Basically, DensePhrases uses
 {
     "data": [
         {
-            "title": "Percy Fawcett",
+            "title": "List of Full House and Fuller House characters",
             "paragraphs": [
                 {
-                    "context": " Lieutenant Colonel Percy Harrison Fawcett (18 August 1867 - during or after 1925) was a British geographer, ..."
+                    "context": " This is a list of the characters from the American television sitcom \"Full House\" and its sequel series \"Fuller House\". ..."
                 },
                 {
-                    "context": " Fawcett attended the Royal Military Academy, Woolwich as a cadet, ..."
+                    "context": " In contrast with Danny, Jesse is portrayed as being irresponsible most of the time, ..."
                 },
             ]
         },
