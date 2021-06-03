@@ -88,7 +88,7 @@ You can use your own text corpus with DensePhrases. Basically, DensePhrases uses
     ]
 }
 ```
-Each context contains a single natural paragraph of a variable length and see `sample_text.json` for example. The following command creates phrase vectors for the custom corpus with the `dph-nqsqd-pb2` model.
+Each context contains a single natural paragraph of a variable length and see `sample_text.json` for example. The following command creates phrase vectors for the custom corpus (`sample_text.json`) with the `dph-nqsqd-pb2` model.
 
 ```bash
 python -m densephrases.experiments.run_single \
@@ -153,7 +153,7 @@ There are two ways of using DensePhrases.
 1. You can simply use the [demo] that we are serving on our server. The running demo is using `dph-nqsqd-pb2_pq96-multi6` (NQ=40.3 EM) as a query encoder and `dph-nqsqd-pb2_20181220_concat` as a phrase index.
 2. You can install the demo on your own server, which enables you to change the phrase index (obtained from [here](#using-densephrases-with-a-custom-text-corpus)) or the query encoder (e.g., to `dph-nqsqd-pb2_pq96-nq-10`). We recommend installing your own demo as described below since our demo can be unstable due to a large number of requests. Also, [query-side fine-tuning](#3-query-side-fine-tuning) is only available to those who installed DensePhrases on their server.
 
-The minimum resource requirement for running the demo is:
+The minimum resource requirement for running the full Wikipedia scale demo is:
 * Single 11GB GPU
 * 125GB RAM
 * 100GB HDD
