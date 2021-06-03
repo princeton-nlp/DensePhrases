@@ -128,7 +128,7 @@ python -m densephrases.experiments.run_open \
     --test_path sample_qs.json \
     --truecase
 ```
-The prediction file will be saved as `$DPH_SAVE_DIR/dph-nqsqd2-pb2/pred/sample_qs_4.pred`, which shows the answer phrases and the passages the contain the phrases:
+The prediction file will be saved as `$DPH_SAVE_DIR/dph-nqsqd2-pb2/pred/sample_qs_4.pred`, which shows the answer phrases and the passages that contain the phrases:
 ```bash
 {
     "7184325478917544179": {
