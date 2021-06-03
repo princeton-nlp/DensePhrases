@@ -80,10 +80,11 @@ You can use your own text corpus with DensePhrases. Basically, DensePhrases uses
                 {
                     "context": " Lieutenant Colonel Percy Harrison Fawcett (18 August 1867during or after 1925) was a British geographer, (...)"
                 },
-                ...
+                {
+                    "context": " Fawcett attended the Royal Military Academy, Woolwich as a cadet, ..."
+                },
             ]
         },
-        ...
     ]
 }
 ```
@@ -94,28 +95,28 @@ python -m densephrases.experiments.run_single \
     --model_type bert \
     --pretrained_name_or_path SpanBERT/spanbert-base-cased \
     --data_dir ./ \
-    --cache_dir $(DPH_CACHE_DIR) \
-    --predict_file $(DEV_DATA) \
+    --cache_dir $DPH_CACHE_DIR \
+    --predict_file sample_text.json \
     --do_dump \
     --max_seq_length 512 \
     --doc_stride 500 \
     --fp16 \
     --filter_threshold -2.0 \
     --append_title \
-    --load_dir $(DPH_SAVE_DIR)/dph-nqsqd2-pb2 \
-    --output_dir $(DPH_SAVE_DIR)/dph-nqsqd2-pb2 \
+    --load_dir $DPH_SAVE_DIR/dph-nqsqd2-pb2 \
+    --output_dir $DPH_SAVE_DIR/dph-nqsqd2-pb2_sample \
     --overwrite_cache
 ```
-The phrase vectors (and their metadata) will be saved under `$(DPH_SAVE_DIR)/dph-nqsqd2-pb2/dump/phrase`. Now you need to create a faiss index as follows:
+The phrase vectors (and their metadata) will be saved under `$DPH_SAVE_DIR/dph-nqsqd2-pb2_sample/dump/phrase`. Now you need to create a faiss index as follows:
 ```bash
 python -m densephrases.experiments.create_index \
-    $(DPH_SAVE_DIR)/dph-nqsqd2-pb2/dump all \
+    $DPH_SAVE_DIR/dph-nqsqd2-pb2_sample/dump all \
     --replace \
     --num_clusters 256 \
     --fine_quant SQ4 \
     --cuda
 ```
-The phrase index (with IVFSQ4) will be saved under `$(DPH_SAVE_DIR)/dph-nqsqd2-pb2/dump/start`. You can use this phrase index to run a [demo](#playing-with-a-densephrases-demo) or evaluate your set of queries.
+The phrase index (with IVFSQ4) will be saved under `$DPH_SAVE_DIR/dph-nqsqd2-pb2_sample/dump/start`. You can use this phrase index to run a [demo](#playing-with-a-densephrases-demo) or evaluate your set of queries.
 
 ## Playing with a DensePhrases Demo
 There are two ways of using DensePhrases.
