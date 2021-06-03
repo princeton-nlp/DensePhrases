@@ -192,7 +192,7 @@ make draft MODEL_NAME=test
 ```
 
 <div align="center">
-  <img alt="DensePhrases Steps" src="https://github.com/princeton-nlp/DensePhrases/blob/refactor/densephrases/demo/static/files/overview_new.pdf" width="850px">
+  <img alt="DensePhrases Steps" src="https://github.com/princeton-nlp/DensePhrases/blob/refactor/densephrases/demo/static/files/overview_new.png" width="850px">
 </div>
 
 - A figure summarizing the overall process below
