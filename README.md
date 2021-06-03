@@ -11,6 +11,7 @@ Learning Dense Representations of Phrases at Scale (Lee et al., 2020)](https://a
 
 ## Quick Links
 * [Installation](#installation)
+* [Using DensePhrases with a Custom Text Corpus](#using-densephrases-with-a-custom-text-corpus)
 * [Playing with a DensePhrases Demo](#playing-with-a-densephrases-demo)
 * [Traning, Indexing and Inference](#densephrases-training-indexing-and-inference)
 * [Pre-processing](#pre-processing)
@@ -58,6 +59,7 @@ dph-nqsqd-pb2  dph-nqsqd-pb2_pq96-multi6  dph-nqsqd-pb2_pq96-nq-10  spanbert-bas
 - `spanbert-base-cased-*`             : cross-encoder teacher models trained on \*
 
 ### 3. Phrase Index
+Please note that you don't need to download this phrase index unless you want to work on the full Wikipedia scale.
 * [DensePhrases-IVFPQ96](https://nlp.cs.princeton.edu/projects/densephrases/dph-nqsqd-pb2_20181220_concat.tar.gz) (88GB) - Phrase index for the 20181220 version of Wikipedia. Download and unzip it under `DPH_SAVE_DIR`.
 ```bash
 ls $DPH_SAVE_DIR
@@ -66,6 +68,54 @@ ls $DPH_SAVE_DIR
 Since hosting the 320GB phrase index (+500GB original vectors for query-side fine-tuning) - the phrase index described in our paper - is costly, we provide an index with a much smaller size, which includes our recent efforts to reduce the size of the phrase index with [Product Quantization](https://lear.inrialpes.fr/pubs/2011/JDS11/jegou_searching_with_quantization.pdf) (IVFPQ). With IVFPQ, you do not need any SSDs for the real-time inference (the index is loaded on RAM), and you can also reconstruct the phrase vectors from it for the query-side fine-tuning (hence do not need the additional 500GB).
 
 For the reimplementation of DensePhrases with IVFSQ4 as described in the paper, see [Training DensePhrases](#densephrases-training-indexing-and-inference).
+
+## Using DensePhrases with a Custom Text Corpus
+You can use your own text corpus with DensePhrases. Basically, DensePhrases uses text corpus pre-processed in the following format (borrowed from SQuAD dataset):
+```json
+{
+    "data": [
+        {
+            "title": "Percy Fawcett",
+            "paragraphs": [
+                {
+                    "context": " Lieutenant Colonel Percy Harrison Fawcett (18 August 1867during or after 1925) was a British geographer, (...)"
+                },
+                ...
+            ]
+        },
+        ...
+    ]
+}
+```
+Each context contains a single natural paragraph of a variable length and see `sample_text.json` for example. The following command creates a phrase index for the custom corpuswith `dph-nqsqd-pb2` model.
+
+```bash
+python -m densephrases.experiments.run_single \
+    --model_type bert \
+    --pretrained_name_or_path SpanBERT/spanbert-base-cased \
+    --data_dir ./ \
+    --cache_dir $(DPH_CACHE_DIR) \
+    --predict_file $(DEV_DATA) \
+    --do_dump \
+    --max_seq_length 512 \
+    --doc_stride 500 \
+    --fp16 \
+    --filter_threshold -2.0 \
+    --append_title \
+    --load_dir $(DPH_SAVE_DIR)/dph-nqsqd2-pb2 \
+    --output_dir $(DPH_SAVE_DIR)/dph-nqsqd2-pb2 \
+    --overwrite_cache
+```
+The phrase vectors (and their metadata) will be saved under `$(DPH_SAVE_DIR)/dph-nqsqd2-pb2/dump/phrase`. Now you need to create a faiss index as follows:
+```bash
+python -m densephrases.experiments.create_index \
+    $(DPH_SAVE_DIR)/dph-nqsqd2-pb2/dump all \
+    --replace \
+    --num_clusters 256 \
+    --fine_quant SQ4 \
+    --cuda
+```
+The phrase index (with IVFSQ4) will be saved under `$(DPH_SAVE_DIR)/dph-nqsqd2-pb2/dump/start`. You can use this phrase index to run a [demo](#playing-with-a-densephrases-demo) or evaluate your set of queries.
 
 ## Playing with a DensePhrases Demo
 There are two ways of using DensePhrases.
