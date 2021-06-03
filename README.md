@@ -112,18 +112,18 @@ The phrase vectors (and their metadata) will be saved under `$DPH_SAVE_DIR/dph-n
 python -m densephrases.experiments.create_index \
     $DPH_SAVE_DIR/dph-nqsqd2-pb2_sample/dump all \
     --replace \
-    --num_clusters 256 \
+    --num_clusters 32 \
     --fine_quant SQ4 \
     --cuda
 ```
 The phrase index (with IVFSQ4) will be saved under `$DPH_SAVE_DIR/dph-nqsqd2-pb2_sample/dump/start`. You can use this phrase index to run a [demo](#playing-with-a-densephrases-demo) or evaluate your set of queries.
 For instance, you can ask a set of questions (`sample_qs.json`) to the phrase index as follows:
-```python
+```bash
 python -m densephrases.experiments.run_open \
     --run_mode eval_inmemory \
     --cuda \
     --dump_dir $DPH_SAVE_DIR/dph-nqsqd2-pb2_sample/dump \
-    --index_dir start/256_flat_SQ4 \
+    --index_dir start/32_flat_SQ4 \
     --query_encoder_path $DPH_SAVE_DIR/dph-nqsqd2-pb2 \
     --test_path sample_qs.json \
     --truecase
