@@ -88,7 +88,7 @@ You can use your own text corpus with DensePhrases. Basically, DensePhrases uses
     ]
 }
 ```
-Each context contains a single natural paragraph of a variable length and see `sample_text.json` for example. The following command creates a phrase index for the custom corpuswith `dph-nqsqd-pb2` model.
+Each context contains a single natural paragraph of a variable length and see `sample_text.json` for example. The following command creates phrase vectors for the custom corpus with the `dph-nqsqd-pb2` model.
 
 ```bash
 python -m densephrases.experiments.run_single \
