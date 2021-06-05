@@ -5,7 +5,7 @@
 </div>
 
 <em>DensePhrases</em> provides answers to your natural language questions from the entire Wikipedia in real-time. While it efficiently searches the answers out of 60 billion phrases in Wikipedia, it is also very accurate having competitive accuracy with state-of-the-art open-domain QA models.  Please see our paper [
-Learning Dense Representations of Phrases at Scale (Lee et al., 2020)](https://arxiv.org/abs/2012.12624) for more details.
+Learning Dense Representations of Phrases at Scale (Lee et al., 2021)](https://arxiv.org/abs/2012.12624) for more details.
 
 **\*\*\*\*\* You can try out our online demo of DensePhrases [here](http://densephrases.korea.ac.kr)! \*\*\*\*\***
 
