@@ -6,18 +6,18 @@ ifeq ($(MODEL_NAME),)
 endif
 
 # Dataset paths for single-passage training (QG, train, dev, semi-od)
-nq-single-data:
+nq-rc-data:
 	$(eval TRAIN_QG_DATA=nq/train_wiki3_na_filtered_qg_t5l35-sqd_filtered.json)
 	$(eval TRAIN_DATA=nq/train_wiki3.json)
 	$(eval DEV_DATA=nq/dev_wiki3.json)
 	$(eval SOD_DATA=open-qa/nq-open/dev_wiki3_open.json)
 	$(eval OPTIONS=--truecase)
-sqd-single-data:
+sqd-rc-data:
 	$(eval TRAIN_QG_DATA=squad/train-v1.1_qg_ents_t5large_3500_filtered.json)
 	$(eval TRAIN_DATA=squad/train-v1.1.json)
 	$(eval DEV_DATA=squad/dev-v1.1.json)
 	$(eval SOD_DATA=open-qa/squad/test_preprocessed.json)
-nqsqd-single-data:
+nqsqd-rc-data:
 	$(eval TRAIN_QG_DATA=squad-nq/train-sqdqg_nqqg_filtered.json)
 	$(eval TRAIN_DATA=squad-nq/train-sqd_nq.json)
 	$(eval DEV_DATA=nq/dev_wiki3.json)
@@ -49,9 +49,24 @@ nqsqd-param:
 	$(eval LAMBDA_NEG=4.0)
 	$(eval TEACHER_NAME=spanbert-base-cased-sqdnq)
 
-# Command with default setting. Use train-single-nq instead.
-train-single:
-	python -m densephrases.experiments.run_single \
+# Choose index type
+small-index:
+	$(eval NUM_CLUSTERS=256)
+	$(eval INDEX_NAME=OPQ96)
+medium1-index:
+	$(eval NUM_CLUSTERS=16384)
+	$(eval INDEX_NAME=OPQ96)
+medium2-index:
+	$(eval NUM_CLUSTERS=131072)
+	$(eval INDEX_NAME=OPQ96)
+large-index:
+	$(eval NUM_CLUSTERS=1048576)
+	$(eval INDEX_NAME=OPQ96)
+
+# Followings are template commands. See 'train-rc-nq' for a detailed use.
+# 1) Training phrase and question encoders on reading comprehension.
+train-rc:
+	python train_rc.py \
 		--model_type bert \
 		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
 		--data_dir $(DPH_DATA_DIR)/single-qa \
@@ -73,79 +88,11 @@ train-single:
 		--evaluate_during_training \
 		--teacher_dir $(DPH_SAVE_DIR)/$(TEACHER_NAME) \
 		--output_dir $(DPH_SAVE_DIR)/$(MODEL_NAME) \
-		--overwrite_cache \
 		$(OPTIONS)
 
-# Sample usage (If this runs without an error, you are all set!)
-draft: model-name nq-single-data nq-param pbn-param
-	make train-single \
-		TRAIN_DATA=$(TRAIN_DATA) DEV_DATA=$(DEV_DATA) \
-		TEACHER_NAME=$(TEACHER_NAME) MODEL_NAME=$(MODEL_NAME) \
-		BS=$(BS) LR=$(LR) MAX_SEQ_LEN=$(MAX_SEQ_LEN) \
-		LAMBDA_KL=$(LAMBDA_KL) LAMBDA_NEG=$(LAMBDA_NEG) \
-		OPTIONS='$(PBN_OPTIONS) --do_dump --draft'
-	make index-sod
-	make eval-sod SOD_DATA=$(SOD_DATA) OPTIONS=$(OPTIONS)
-
-# Single-passage training + normalization for NQ (simply change 'nq' to 'sqd' for SQuAD)
-train-single-nq: model-name nq-single-data nq-param pbn-param
-	make train-single \
-		TRAIN_DATA=$(TRAIN_QG_DATA) DEV_DATA=$(DEV_DATA) \
-		TEACHER_NAME=$(TEACHER_NAME) MODEL_NAME=$(MODEL_NAME)_tmp \
-		BS=$(BS) LR=$(LR) MAX_SEQ_LEN=$(MAX_SEQ_LEN) \
-		LAMBDA_KL=$(LAMBDA_KL) LAMBDA_NEG=$(LAMBDA_NEG)
-	make train-single \
-		TRAIN_DATA=$(TRAIN_DATA) DEV_DATA=$(DEV_DATA) \
-		TEACHER_NAME=$(TEACHER_NAME) MODEL_NAME=$(MODEL_NAME) \
-		BS=$(BS) LR=$(LR) MAX_SEQ_LEN=$(MAX_SEQ_LEN) \
-		LAMBDA_KL=$(LAMBDA_KL) LAMBDA_NEG=$(LAMBDA_NEG) \
-		OPTIONS='$(PBN_OPTIONS) --do_dump --load_dir $(DPH_SAVE_DIR)/$(MODEL_NAME)_tmp'
-	make index-sod
-	make eval-sod SOD_DATA=$(SOD_DATA) OPTIONS=$(OPTIONS)
-
-# Create IVFSQ index for Semi-OD
-index-sod: model-name
-	python -m densephrases.experiments.create_index \
-		$(DPH_SAVE_DIR)/$(MODEL_NAME)/dump all \
-		--replace \
-		--num_clusters 256 \
-		--fine_quant SQ4 \
-		--cuda
-
-# Evaluate IVFSQ index for Semi-OD
-eval-sod: model-name
-	python -m densephrases.experiments.run_open \
-		--run_mode eval_inmemory \
-		--cuda \
-		--dump_dir $(DPH_SAVE_DIR)/$(MODEL_NAME)/dump \
-		--index_dir start/256_flat_SQ4 \
-		--query_encoder_path $(DPH_SAVE_DIR)/$(MODEL_NAME) \
-		--test_path $(DPH_DATA_DIR)/$(SOD_DATA) \
-		$(OPTIONS)
-
-# Create IVFPQ index for Semi-OD
-index-sod-pq: model-name
-	python -m densephrases.experiments.create_index \
-		$(DPH_SAVE_DIR)/$(MODEL_NAME)/dump all \
-		--replace \
-		--num_clusters 256 \
-		--fine_quant PQ96_8 \
-		--cuda
-
-# Evaluate IVFPQ index for Semi-OD
-eval-sod-pq: model-name
-	python -m densephrases.experiments.run_open \
-		--run_mode eval_inmemory \
-		--cuda \
-		--dump_dir $(DPH_SAVE_DIR)/$(MODEL_NAME)/dump \
-		--index_dir start/256_flat_PQ96_8 \
-		--query_encoder_path $(DPH_SAVE_DIR)/$(MODEL_NAME) \
-		--test_path $(DPH_DATA_DIR)/$(SOD_DATA) \
-		$(OPTIONS)
-
-# Create phrase dump
-dump-sod: model-name nq-single-data
-	python -m densephrases.experiments.run_single \
+# 2) Trained phrase encoders can be used to generate phrase vectors
+gen-vecs:
+	python generate_phrase_vecs.py \
 		--model_type bert \
 		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
 		--data_dir $(DPH_DATA_DIR)/single-qa \
@@ -159,11 +106,60 @@ dump-sod: model-name nq-single-data
 		--append_title \
 		--load_dir $(DPH_SAVE_DIR)/$(MODEL_NAME) \
 		--output_dir $(DPH_SAVE_DIR)/$(MODEL_NAME) \
-		--overwrite_cache
+		$(OPTIONS)
+
+# 3) Build an IVFOPQ index for generated phrase vectors
+index-vecs:
+	python build_phrase_index.py \
+		$(DPH_SAVE_DIR)/$(MODEL_NAME)/dump all \
+		--replace \
+		--num_clusters $(NUM_CLUSTERS) \
+		--fine_quant $(INDEX_NAME) \
+		--cuda
+
+# 4) Evaluate the phrase index for phrase retrieval
+eval-index: model-name
+	python -m densephrases.experiments.run_open \
+		--run_mode eval_inmemory \
+		--cuda \
+		--dump_dir $(DPH_SAVE_DIR)/$(MODEL_NAME)/dump \
+		--index_dir start/$(NUM_CLUSTERS)_flat_$(INDEX_NAME) \
+		--query_encoder_path $(DPH_SAVE_DIR)/$(MODEL_NAME) \
+		--test_path $(DPH_DATA_DIR)/$(EVAL_DATA) \
+		$(OPTIONS)
+
+# Sample usage (If this runs without an error, you are all set!)
+draft: model-name nq-rc-data nq-param pbn-param small-index
+	make train-rc \
+		TRAIN_DATA=$(TRAIN_DATA) DEV_DATA=$(DEV_DATA) \
+		TEACHER_NAME=$(TEACHER_NAME) MODEL_NAME=$(MODEL_NAME) \
+		BS=$(BS) LR=$(LR) MAX_SEQ_LEN=$(MAX_SEQ_LEN) \
+		LAMBDA_KL=$(LAMBDA_KL) LAMBDA_NEG=$(LAMBDA_NEG) \
+		OPTIONS='$(PBN_OPTIONS) --draft'
+	make gen-vecs \
+		DEV_DATA=$(DEV_DATA) MODEL_NAME=$(MODEL_NAME)
+	make index-vecs NUM_CLUSTERS=$(NUM_CLUSTERS) INDEX_TYPE=$(INDEX_TYPE)
+	make eval-index EVAL_DATA=$(SOD_DATA) OPTIONS=$(OPTIONS)
+
+# Single-passage training + additional negatives for NQ (simply change 'nq' to 'sqd' for SQuAD)
+train-rc-nq: model-name nq-rc-data nq-param pbn-param
+	make train-rc \
+		TRAIN_DATA=$(TRAIN_QG_DATA) DEV_DATA=$(DEV_DATA) \
+		TEACHER_NAME=$(TEACHER_NAME) MODEL_NAME=$(MODEL_NAME)_tmp \
+		BS=$(BS) LR=$(LR) MAX_SEQ_LEN=$(MAX_SEQ_LEN) \
+		LAMBDA_KL=$(LAMBDA_KL) LAMBDA_NEG=$(LAMBDA_NEG)
+	make train-rc \
+		TRAIN_DATA=$(TRAIN_DATA) DEV_DATA=$(DEV_DATA) \
+		TEACHER_NAME=$(TEACHER_NAME) MODEL_NAME=$(MODEL_NAME) \
+		BS=$(BS) LR=$(LR) MAX_SEQ_LEN=$(MAX_SEQ_LEN) \
+		LAMBDA_KL=$(LAMBDA_KL) LAMBDA_NEG=$(LAMBDA_NEG) \
+		OPTIONS='$(PBN_OPTIONS) --do_dump --load_dir $(DPH_SAVE_DIR)/$(MODEL_NAME)_tmp'
+	make index-sod
+	make eval-sod SOD_DATA=$(SOD_DATA) OPTIONS=$(OPTIONS)
 
 # Test filter thresholds
-filter-test: model-name nq-single-data
-	python -m densephrases.experiments.run_single \
+filter-test: model-name nq-rc-data
+	python train_rc.py \
 		--model_type bert \
 		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
 		--data_dir $(DPH_DATA_DIR)/single-qa \
@@ -174,7 +170,6 @@ filter-test: model-name nq-single-data
 		--filter_threshold_list " -4,-3,-2,-1,-0.5,0" \
 		--load_dir $(DPH_SAVE_DIR)/$(MODEL_NAME) \
 		--output_dir $(DPH_SAVE_DIR)/$(MODEL_NAME) \
-		--overwrite_cache \
 		--draft
 
 ############################## Large-scale Dump & Indexing ###############################
@@ -243,7 +238,7 @@ index-large-pq: dump-dir
 		--cuda
 
 # Use if for large-scale dump evaluation
-eval-dump: model-name dump-dir nq-single-data
+eval-dump: model-name dump-dir nq-rc-data
 	python -m densephrases.experiments.run_open \
 		--run_mode eval_inmemory \
 		--cuda \
