@@ -63,7 +63,7 @@ large-index:
 	$(eval NUM_CLUSTERS=1048576)
 	$(eval INDEX_TYPE=OPQ96)
 
-# Followings are template commands. See 'train-rc-nq' for a detailed use.
+# Followings are template commands. See 'run-rc-nq' for a detailed use.
 # 1) Training phrase and question encoders on reading comprehension.
 train-rc:
 	python train_rc.py \
@@ -157,7 +157,7 @@ draft: model-name nq-rc-data nq-param pbn-param small-index
 # Single-passage training + additional negatives for NQ
 # Available datasets: NQ (nq-rc-data), SQuAD (sqd-rc-data), NQ+SQuAD (nqsqd-rc-data)
 # Should change hyperparams (e.g., nq-param) accordingly
-train-rc-nq: model-name nq-rc-data nq-param pbn-param
+run-rc-nq: model-name nq-rc-data nq-param pbn-param small-index
 	make train-rc \
 		TRAIN_DATA=$(TRAIN_QG_DATA) DEV_DATA=$(DEV_DATA) \
 		TEACHER_NAME=$(TEACHER_NAME) MODEL_NAME=$(MODEL_NAME)_tmp \
