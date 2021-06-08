@@ -104,7 +104,7 @@ def evaluate_results(predictions, qids, questions, answers, args, evidences, sco
         top1_preds = [a[0] for a in predictions]
     no_ans = sum([a == '' for a in top1_preds])
     logger.info(f'no_ans/all: {no_ans}, {len(top1_preds)}')
-    logger.info(f'Evaluating {len(top1_preds)} answers.')
+    logger.info(f'Evaluating {len(top1_preds)} answers')
 
     # Get em/f1
     f1s, ems = [], []
@@ -116,7 +116,8 @@ def evaluate_results(predictions, qids, questions, answers, args, evidences, sco
         f1s.append(max([f1_score(prediction, gt)[0] for gt in groundtruth]))
         ems.append(max([exact_match_score(prediction, gt) for gt in groundtruth]))
     final_f1, final_em = np.mean(f1s), np.mean(ems)
-    logger.info('EM: %.2f, F1: %.2f'%(final_em * 100, final_f1 * 100))
+    if not args.regex:
+        logger.info('EM: %.2f, F1: %.2f'%(final_em * 100, final_f1 * 100))
 
     # Top 1/k em (or regex em)
     exact_match_topk = 0

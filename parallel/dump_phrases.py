@@ -8,7 +8,7 @@ def run_dump_phrase(args):
     do_lower_case = '--do_lower_case' if args.do_lower_case else ''
     append_title = '--append_title' if args.append_title else ''
     def get_cmd(start_doc, end_doc):
-        return ["python", "-m" "densephrases.experiments.run_single",
+        return ["python", "generate_phrase_vecs.py",
                 "--model_type", f"{args.model_type}",
                 "--pretrained_name_or_path", f"{args.pretrained_name_or_path}",
                 "--data_dir", f"{args.phrase_data_dir}",

@@ -154,12 +154,10 @@ def train_query_encoder(args, mips=None):
         )
 
         # Evaluation
-        logger.setLevel(logging.WARNING)
         new_args = copy.deepcopy(args)
         new_args.top_k = 10
         new_args.test_path = args.dev_path
         dev_em = evaluate(new_args, mips, target_encoder, tokenizer)
-        logger.setLevel(logging.INFO)
         logger.info(f"Develoment set acc@1: {dev_em:.3f}")
 
         # Save best model

@@ -25,8 +25,8 @@ def bin_names(dir_, names, num_bins):
 
 def run_add_to_index(args):
     def get_cmd(dump_paths, offset_):
-        return ["python", "-m"
-                "densephrases.experiments.create_index",
+        return ["python",
+                "build_phrase_index.py",
                 f"{args.dump_dir}",
                 "add",
                 "--fine_quant", "SQ4",

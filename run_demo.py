@@ -20,8 +20,8 @@ from tornado.httpserver import HTTPServer
 from tornado.ioloop import IOLoop
 from requests_futures.sessions import FuturesSession
 
-from densephrases.experiments.run_open import load_query_encoder, load_phrase_index, load_qa_pairs, evaluate_results, \
-        get_query2vec, evaluate_results_kilt
+from eval_phrase_retrieval import evaluate_results, evaluate_results_kilt
+from densephrases.utils.open_utils import load_query_encoder, load_phrase_index, load_qa_pairs, get_query2vec
 from densephrases.utils.squad_utils import get_cq_dataloader, TrueCaser
 from densephrases.utils.embed_utils import get_cq_results
 
@@ -314,7 +314,7 @@ class DensePhrasesInterface(object):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # QueryEncoder
-    parser.add_argument('--model_type', default=None, type=str)
+    parser.add_argument('--model_type', default='bert', type=str)
     parser.add_argument("--pretrained_name_or_path", default='SpanBERT/spanbert-base-cased', type=str)
     parser.add_argument("--config_name", default="", type=str)
     parser.add_argument("--tokenizer_name", default="", type=str)
