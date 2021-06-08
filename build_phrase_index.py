@@ -115,13 +115,9 @@ def sample_data(dump_paths, doc_sample_ratio=0.2, vec_sample_ratio=0.2, seed=29,
         dump.close()
 
     avg_vec = np.mean(start_out, axis=0, keepdims=True)
-    # start_out = start_out - avg_vec
     std_vec = np.std(start_out, axis=0, keepdims=True)
-    # start_out = start_out / std_vec
 
-    # U, s, Vt = np.linalg.svd(start_out, full_matrices=False)
-
-    return start_out, avg_vec, std_vec # W or std_vec
+    return start_out, avg_vec, std_vec
 
 
 def train_index(start_data, quantizer_path, trained_index_path, num_clusters,
@@ -129,14 +125,15 @@ def train_index(start_data, quantizer_path, trained_index_path, num_clusters,
     ds = start_data.shape[1]
     quantizer = faiss.IndexFlatIP(ds)
 
+    # Will be deprecated
     if fine_quant == 'SQ4':
         start_index = faiss.IndexIVFScalarQuantizer(
             quantizer, ds, num_clusters, faiss.ScalarQuantizer.QT_4bit, faiss.METRIC_INNER_PRODUCT
         )
-    elif 'PQ' in fine_quant:
-        code_size = int(fine_quant.split('_')[0][2:])
-        # bits_per_sub = int(fine_quant.split('_')[1])
-        # assert bits_per_sub == 8
+
+    # Default index type
+    elif 'OPQ' in fine_quant:
+        code_size = int(fine_quant[fine_quant.index('OPQ')+3:])
         if hnsw:
             start_index = faiss.IndexHNSWPQ(ds, "HNSW32,PQ96", faiss.METRIC_INNER_PRODUCT)
         else:
@@ -144,7 +141,6 @@ def train_index(start_data, quantizer_path, trained_index_path, num_clusters,
             opq_matrix.niter = 10
             sub_index = faiss.IndexIVFPQ(quantizer, ds, num_clusters, code_size, 8, faiss.METRIC_INNER_PRODUCT)
             start_index = faiss.IndexPreTransform(opq_matrix, sub_index)
-            # start_index = faiss.IndexIVFPQ(quantizer, ds, num_clusters, code_size, 8, faiss.METRIC_INNER_PRODUCT)
     elif 'none' in fine_quant:
         start_index = faiss.IndexFlatIP(ds)
     else:
@@ -232,11 +228,6 @@ def add_to_index(dump_paths, trained_index_path, target_index_path, idx2id_path,
             start = int8_to_float(
                 doc_group['start'][:], doc_group.attrs['offset'], doc_group.attrs['scale']
             )
-            if avg_vec is not None:
-                # start = start - avg_vec
-                if std_vec is not None:
-                    # start = start / std_vec
-                    pass
             start_valid = np.linalg.norm(start, axis=1) <= norm_th
 
             starts.append(start)

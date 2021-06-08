@@ -49,19 +49,19 @@ nqsqd-param:
 	$(eval LAMBDA_NEG=4.0)
 	$(eval TEACHER_NAME=spanbert-base-cased-sqdnq)
 
-# Choose index type
+# Choose index size
 small-index:
 	$(eval NUM_CLUSTERS=256)
-	$(eval INDEX_NAME=OPQ96)
+	$(eval INDEX_TYPE=OPQ96)
 medium1-index:
 	$(eval NUM_CLUSTERS=16384)
-	$(eval INDEX_NAME=OPQ96)
+	$(eval INDEX_TYPE=OPQ96)
 medium2-index:
 	$(eval NUM_CLUSTERS=131072)
-	$(eval INDEX_NAME=OPQ96)
+	$(eval INDEX_TYPE=OPQ96)
 large-index:
 	$(eval NUM_CLUSTERS=1048576)
-	$(eval INDEX_NAME=OPQ96)
+	$(eval INDEX_TYPE=OPQ96)
 
 # Followings are template commands. See 'train-rc-nq' for a detailed use.
 # 1) Training phrase and question encoders on reading comprehension.
@@ -114,16 +114,22 @@ index-vecs:
 		$(DPH_SAVE_DIR)/$(MODEL_NAME)/dump all \
 		--replace \
 		--num_clusters $(NUM_CLUSTERS) \
-		--fine_quant $(INDEX_NAME) \
+		--fine_quant $(INDEX_TYPE) \
 		--cuda
 
-# 4) Evaluate the phrase index for phrase retrieval
-eval-index: model-name
+# 4) Compress metadata
+compress-meta:
+	python -m densephrases.scripts.preprocess.compress_metadata \
+		--input_dump_dir $(DUMP_DIR)/phrase \
+		--output_dir $(DUMP_DIR)
+
+# 5) Evaluate the phrase index for phrase retrieval
+eval-index:
 	python -m densephrases.experiments.run_open \
 		--run_mode eval_inmemory \
 		--cuda \
-		--dump_dir $(DPH_SAVE_DIR)/$(MODEL_NAME)/dump \
-		--index_dir start/$(NUM_CLUSTERS)_flat_$(INDEX_NAME) \
+		--dump_dir $(DUMP_DIR) \
+		--index_dir start/$(NUM_CLUSTERS)_flat_$(INDEX_TYPE) \
 		--query_encoder_path $(DPH_SAVE_DIR)/$(MODEL_NAME) \
 		--test_path $(DPH_DATA_DIR)/$(EVAL_DATA) \
 		$(OPTIONS)
@@ -138,10 +144,19 @@ draft: model-name nq-rc-data nq-param pbn-param small-index
 		OPTIONS='$(PBN_OPTIONS) --draft'
 	make gen-vecs \
 		DEV_DATA=$(DEV_DATA) MODEL_NAME=$(MODEL_NAME)
-	make index-vecs NUM_CLUSTERS=$(NUM_CLUSTERS) INDEX_TYPE=$(INDEX_TYPE)
-	make eval-index EVAL_DATA=$(SOD_DATA) OPTIONS=$(OPTIONS)
+	make index-vecs \
+		NUM_CLUSTERS=$(NUM_CLUSTERS) INDEX_TYPE=$(INDEX_TYPE)
+	make compress-meta \
+		DUMP_DIR=$(DPH_SAVE_DIR)/$(MODEL_NAME)/dump
+	make eval-index \
+		DUMP_DIR=$(DPH_SAVE_DIR)/$(MODEL_NAME)/dump \
+		NUM_CLUSTERS=$(NUM_CLUSTERS) INDEX_TYPE=$(INDEX_TYPE) \
+		MODEL_LANE=$(MODEL_NAME) EVAL_DATA=$(SOD_DATA) \
+		OPTIONS=$(OPTIONS)
 
-# Single-passage training + additional negatives for NQ (simply change 'nq' to 'sqd' for SQuAD)
+# Single-passage training + additional negatives for NQ
+# Available datasets: NQ (nq-rc-data), SQuAD (sqd-rc-data), NQ+SQuAD (nqsqd-rc-data)
+# Should change hyperparams (e.g., nq-param) accordingly
 train-rc-nq: model-name nq-rc-data nq-param pbn-param
 	make train-rc \
 		TRAIN_DATA=$(TRAIN_QG_DATA) DEV_DATA=$(DEV_DATA) \
@@ -153,11 +168,20 @@ train-rc-nq: model-name nq-rc-data nq-param pbn-param
 		TEACHER_NAME=$(TEACHER_NAME) MODEL_NAME=$(MODEL_NAME) \
 		BS=$(BS) LR=$(LR) MAX_SEQ_LEN=$(MAX_SEQ_LEN) \
 		LAMBDA_KL=$(LAMBDA_KL) LAMBDA_NEG=$(LAMBDA_NEG) \
-		OPTIONS='$(PBN_OPTIONS) --do_dump --load_dir $(DPH_SAVE_DIR)/$(MODEL_NAME)_tmp'
-	make index-sod
-	make eval-sod SOD_DATA=$(SOD_DATA) OPTIONS=$(OPTIONS)
+		OPTIONS='$(PBN_OPTIONS) --load_dir $(DPH_SAVE_DIR)/$(MODEL_NAME)_tmp'
+	make gen-vecs \
+		DEV_DATA=$(DEV_DATA) MODEL_NAME=$(MODEL_NAME)
+	make index-vecs \
+		NUM_CLUSTERS=$(NUM_CLUSTERS) INDEX_TYPE=$(INDEX_TYPE)
+	make compress-meta \
+		DUMP_DIR=$(DPH_SAVE_DIR)/$(MODEL_NAME)/dump
+	make eval-index \
+		DUMP_DIR=$(DPH_SAVE_DIR)/$(MODEL_NAME)/dump \
+		NUM_CLUSTERS=$(NUM_CLUSTERS) INDEX_TYPE=$(INDEX_TYPE) \
+		MODEL_LANE=$(MODEL_NAME) EVAL_DATA=$(SOD_DATA) \
+		OPTIONS=$(OPTIONS)
 
-# Test filter thresholds
+# Testing filter thresholds
 filter-test: model-name nq-rc-data
 	python train_rc.py \
 		--model_type bert \
@@ -248,11 +272,6 @@ eval-dump: model-name dump-dir nq-rc-data
 		--test_path $(DPH_DATA_DIR)/$(SOD_DATA) \
 		$(OPTIONS)
 
-# Compressed metadata to load it on RAM (only use for PQ)
-compress-meta: dump-dir
-	python -m densephrases.scripts.preprocess.compress_metadata \
-		--input_dump_dir $(DUMP_DIR)/phrase \
-		--output_dir $(DUMP_DIR)
 
 ############################## Open-domain Search & Query-side Fine-tuning ###################################
 

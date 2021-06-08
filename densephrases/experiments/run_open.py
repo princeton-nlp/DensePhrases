@@ -196,7 +196,7 @@ def eval_inmemory(args, mips=None, query_encoder=None, tokenizer=None):
         result = mips.search(
             query_vec[q_idx:q_idx+step],
             q_texts=questions[q_idx:q_idx+step], nprobe=args.nprobe,
-            top_k=args.top_k, max_answer_length=args.max_answer_length,
+            top_k=args.top_k, max_answer_length=args.max_answer_length, aggregate=args.aggregate,
         )
         prediction = [[ret['answer'] for ret in out] if len(out) > 0 else [''] for out in result]
         evidence = [[ret['context'] for ret in out] if len(out) > 0 else [''] for out in result]
@@ -580,7 +580,7 @@ def get_top_phrases(mips, questions, answers, query_encoder, tokenizer, batch_si
             query_vec,
             q_texts=questions[q_idx:q_idx+step], nprobe=args.nprobe,
             top_k=args.top_k, return_idxs=True,
-            max_answer_length=args.max_answer_length,
+            max_answer_length=args.max_answer_length, aggregate=args.aggregate,
         )
         yield questions[q_idx:q_idx+step], answers[q_idx:q_idx+step], outs
 
@@ -659,6 +659,7 @@ if __name__ == '__main__':
     parser.add_argument('--max_answer_length', default=10, type=int)
     parser.add_argument('--top_k', default=10, type=int)
     parser.add_argument('--nprobe', default=256, type=int)
+    parser.add_argument('--aggregate', default=False, action='store_true')
     parser.add_argument('--truecase', default=False, action='store_true')
     parser.add_argument("--truecase_path", default='truecase/english_with_questions.dist', type=str)
 
