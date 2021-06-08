@@ -11,6 +11,7 @@ Learning Dense Representations of Phrases at Scale (Lee et al., 2020)](https://a
 
 ## Quick Links
 * [Installation](#installation)
+* [Resources](#resources)
 * [Using DensePhrases with a Custom Text Corpus](#using-densephrases-with-a-custom-text-corpus)
 * [Playing with a DensePhrases Demo](#playing-with-a-densephrases-demo)
 * [Traning, Indexing and Inference](#densephrases-training-indexing-and-inference)
@@ -18,19 +19,29 @@ Learning Dense Representations of Phrases at Scale (Lee et al., 2020)](https://a
 
 ## Installation
 ```bash
-# Use conda & pip
+# Install torch with conda
 conda create -n dph python=3.7
 conda activate dph
-conda install pytorch cudatoolkit=11.0 -c pytorch
-pip install faiss-gpu==1.6.5 h5py tqdm transformers==2.9.0 blosc ujson rouge wandb nltk flask flask_cors tornado requests-futures
+conda install pytorch=1.7.1 cudatoolkit=11.0 -c pytorch
 
 # Install apex
 git clone https://www.github.com/nvidia/apex
 cd apex
 python setup.py install
-```
-Please check your CUDA version before the installation and modify it accordingly. Since it can be tricky to install a recent version of PyTorch together with the GPU version of Faiss, please post Github issues if you have any problem (See [Training DensePhrases](#densephrases-training-indexing-and-inference) to check whether the installation is complete).
+cd ..
 
+# Install DensePhrases
+git clone https://github.com/princeton-nlp/DensePhrases.git
+pip install -r requirements.txt
+python setup.py develop
+```
+Please check your CUDA version before the installation and modify it accordingly. If following test run completes without an error, you are good to go!
+```bash
+# Test run for checking installation (ignore the performance)
+make draft MODEL_NAME=test
+```
+
+## Resources
 Before downloading the required files below, please set the default directories as follows and ensure that you have enough storage to download and unzip the files:
 ```bash
 # Running config.sh will set the following three environment variables:
@@ -185,11 +196,6 @@ In this section, we introduce the steps to train DensePhrases from scratch, crea
 - up to 500GB storage (for creating a phrase dump of the entire Wikipedia)
 
 All of our commands below are specified as `Makefile` targets, which include dataset paths, hyperparameter settings, etc.
-Before training DensePhrases, run the following command to check whether the installation is complete. If this command runs without an error, you are good to go!
-```bash
-# Test run for checking installation (ignore the performance)
-make draft MODEL_NAME=test
-```
 
 <div align="center">
   <img alt="DensePhrases Steps" src="https://github.com/princeton-nlp/DensePhrases/blob/refactor/densephrases/demo/static/files/overview_new.png" width="850px">
