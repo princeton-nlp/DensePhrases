@@ -36,7 +36,7 @@ cd DensePhrases
 pip install -r requirements.txt
 python setup.py develop
 ```
-Please check your CUDA version before the installation and modify it accordingly. If following test run completes without an error, you are good to go!
+Please check your CUDA version before the installation and modify it accordingly. If the following test run completes without an error, you are good to go!
 ```bash
 # Test run for checking installation (ignore the performance)
 make draft MODEL_NAME=test
