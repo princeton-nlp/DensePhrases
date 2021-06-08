@@ -62,6 +62,9 @@ medium2-index:
 large-index:
 	$(eval NUM_CLUSTERS=1048576)
 	$(eval INDEX_TYPE=OPQ96)
+large-index-sq:
+	$(eval NUM_CLUSTERS=1048576)
+	$(eval INDEX_TYPE=SQ4)
 
 # Followings are template commands. See 'run-rc-nq' for a detailed use.
 # 1) Training phrase and question encoders on reading comprehension.
@@ -109,9 +112,9 @@ gen-vecs:
 		$(OPTIONS)
 
 # 3) Build an IVFOPQ index for generated phrase vectors
-index-vecs:
+index-vecs: dump-dir medium1-index
 	python build_phrase_index.py \
-		$(DPH_SAVE_DIR)/$(MODEL_NAME)/dump all \
+		$(DUMP_DIR) all \
 		--replace \
 		--num_clusters $(NUM_CLUSTERS) \
 		--fine_quant $(INDEX_TYPE) \
@@ -119,19 +122,20 @@ index-vecs:
 
 # 4) Compress metadata
 compress-meta:
-	python -m densephrases.scripts.preprocess.compress_metadata \
+	python scripts/preprocess/compress_metadata.py \
 		--input_dump_dir $(DUMP_DIR)/phrase \
 		--output_dir $(DUMP_DIR)
 
 # 5) Evaluate the phrase index for phrase retrieval
-eval-index:
-	python -m densephrases.experiments.run_open \
-		--run_mode eval_inmemory \
+eval-index: dump-dir model-name large-index nq-open-data
+	python eval_phrase_retrieval.py \
+		--run_mode eval \
 		--cuda \
 		--dump_dir $(DUMP_DIR) \
 		--index_dir start/$(NUM_CLUSTERS)_flat_$(INDEX_TYPE) \
 		--query_encoder_path $(DPH_SAVE_DIR)/$(MODEL_NAME) \
-		--test_path $(DPH_DATA_DIR)/$(EVAL_DATA) \
+		--test_path $(DPH_DATA_DIR)/$(TEST_DATA) \
+		--save_pred \
 		$(OPTIONS)
 
 # Sample usage (If this runs without an error, you are all set!)
@@ -145,13 +149,14 @@ draft: model-name nq-rc-data nq-param pbn-param small-index
 	make gen-vecs \
 		DEV_DATA=$(DEV_DATA) MODEL_NAME=$(MODEL_NAME)
 	make index-vecs \
+		DUMP_DIR=$(DPH_SAVE_DIR)/$(MODEL_NAME)/dump \
 		NUM_CLUSTERS=$(NUM_CLUSTERS) INDEX_TYPE=$(INDEX_TYPE)
 	make compress-meta \
 		DUMP_DIR=$(DPH_SAVE_DIR)/$(MODEL_NAME)/dump
 	make eval-index \
 		DUMP_DIR=$(DPH_SAVE_DIR)/$(MODEL_NAME)/dump \
 		NUM_CLUSTERS=$(NUM_CLUSTERS) INDEX_TYPE=$(INDEX_TYPE) \
-		MODEL_LANE=$(MODEL_NAME) EVAL_DATA=$(SOD_DATA) \
+		MODEL_LANE=$(MODEL_NAME) TEST_DATA=$(SOD_DATA) \
 		OPTIONS=$(OPTIONS)
 
 # Single-passage training + additional negatives for NQ
@@ -172,13 +177,14 @@ run-rc-nq: model-name nq-rc-data nq-param pbn-param small-index
 	make gen-vecs \
 		DEV_DATA=$(DEV_DATA) MODEL_NAME=$(MODEL_NAME)
 	make index-vecs \
+		DUMP_DIR=$(DPH_SAVE_DIR)/$(MODEL_NAME)/dump \
 		NUM_CLUSTERS=$(NUM_CLUSTERS) INDEX_TYPE=$(INDEX_TYPE)
 	make compress-meta \
 		DUMP_DIR=$(DPH_SAVE_DIR)/$(MODEL_NAME)/dump
 	make eval-index \
 		DUMP_DIR=$(DPH_SAVE_DIR)/$(MODEL_NAME)/dump \
 		NUM_CLUSTERS=$(NUM_CLUSTERS) INDEX_TYPE=$(INDEX_TYPE) \
-		MODEL_LANE=$(MODEL_NAME) EVAL_DATA=$(SOD_DATA) \
+		MODEL_LANE=$(MODEL_NAME) TEST_DATA=$(SOD_DATA) \
 		OPTIONS=$(OPTIONS)
 
 # Testing filter thresholds
@@ -203,14 +209,13 @@ ifeq ($(DUMP_DIR),)
 	echo "Please set DUMP_DIR before dumping/indexing (e.g., DUMP_DIR=test)"; exit 2;
 endif
 
-# Wikipedia dumps in diffent sizes and their recommended number of clusters for IVF
-# - dev_wiki: 1/100 Wikpedia scale (sampled), num_clusters=16384
-# - dev_wiki_noise: 1/10 Wikipedia scale (sampled), num_clusters=131072
-# - 20181220_concat: full Wikipedia scale, num_clusters=1048576
+# Wikipedia dumps (specified as 'data_name') in diffent sizes and their recommended number of clusters for IVF
+# - dev_wiki: 1/100 Wikpedia scale (sampled), num_clusters=16384 (medium1-index)
+# - dev_wiki_noise: 1/10 Wikipedia scale (sampled), num_clusters=131072 (medium2-index)
+# - 20181220_concat: full Wikipedia scale, num_clusters=1048576 (large-index)
 
-# Dump phrase reps in parallel. Dump will be saved in $(DPH_SAVE_DIR)/$(MODEL_NAME)_(data_name)/dump.
-# Please move the dump to an SSD $(DUMP_DIR) for a faster indexing.
-dump-large: model-name
+# Dump phrase vectors in parallel. Dump will be saved in $(DPH_SAVE_DIR)/$(MODEL_NAME)_(data_name)/dump.
+gen-vecs-parallel: model-name
 	nohup python -m densephrases.experiments.parallel.dump_phrases \
 		--model_type bert \
 		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
@@ -219,65 +224,31 @@ dump-large: model-name
 		--data_name dev_wiki \
 		--load_dir $(DPH_SAVE_DIR)/$(MODEL_NAME) \
 		--output_dir $(DPH_SAVE_DIR)/$(MODEL_NAME) \
-		--filter_threshold 0.0 \
+		--filter_threshold 1.0 \
 		--append_title \
 		--start $(START) \
 		--end $(END) \
 		> $(DPH_SAVE_DIR)/logs/$(MODEL_NAME)_$(START)-$(END).log &
 
-# IVFSQ indexing: for 131072 or 1048576, stop the process after training the quantizer and use index-add below
-index-large: dump-dir
-	python -m densephrases.experiments.create_index \
-		$(DUMP_DIR) all \
-		--replace \
-		--num_clusters 16384 \
-		--fine_quant SQ4 \
-		--cuda
-
 # Parallel add for large-scale on-disk IVFSQ (start, end = file idx)
-index-add: dump-dir
+index-add: dump-dir large-index-sq
 	export MKL_SERVICE_FORCE_INTEL=1
 	python -m densephrases.experiments.parallel.add_to_index \
 		--dump_dir $(DUMP_DIR) \
-		--num_clusters 1048576 \
+		--num_clusters $(NUM_CLUSTERS) \
 		--cuda \
 		--start $(START) \
 		--end $(END)
 
 # Merge for large-scale on-disk IVFSQ
-index-merge: dump-dir
-	python -m densephrases.experiments.create_index \
-	$(DUMP_DIR) merge \
-	--num_clusters 1048576 \
-	--replace \
-	--fine_quant SQ4
-
-# IVFPQ indexing (currently do not support parallelized add/merge)
-index-large-pq: dump-dir
-	python -m densephrases.experiments.create_index \
-		$(DUMP_DIR) all \
+index-merge: dump-dir large-index-sq
+	python build_phrase_index.py \
+		$(DUMP_DIR) merge \
 		--replace \
-		--num_clusters 1048576 \
-		--fine_quant PQ96_8 \
-		--cuda
-
-# Use if for large-scale dump evaluation
-eval-dump: model-name dump-dir nq-rc-data
-	python -m densephrases.experiments.run_open \
-		--run_mode eval_inmemory \
-		--cuda \
-		--dump_dir $(DUMP_DIR) \
-		--index_dir start/16384_flat_SQ4 \
-		--query_encoder_path $(DPH_SAVE_DIR)/$(MODEL_NAME) \
-		--test_path $(DPH_DATA_DIR)/$(SOD_DATA) \
-		$(OPTIONS)
-
+		--num_clusters $(NUM_CLUSTERS) \
+		--fine_quant $(INDEX_TYPE)
 
 ############################## Open-domain Search & Query-side Fine-tuning ###################################
-
-# Useful when runnig multiple query-side fine-tuning on the same server
-limit-threads:
-	$(eval OMP_NUM_THREADS=5)
 
 # Dataset paths for open-domain QA and slot filling (with options)
 nq-open-data:
@@ -316,26 +287,11 @@ zsre-open-data: kilt-options
 	$(eval TEST_DATA=kilt/zsre/structured_zeroshot-dev-kilt_open.json)
 	$(eval OPTIONS=$(OPTIONS) --kilt_gold_path $(DPH_DATA_DIR)/kilt/zsre/structured_zeroshot-dev-kilt.jsonl)
 benchmark-data:
-	$(eval TEST_DATA=densephrases/scripts/benchmark/data/nq_1000_dev_denspi.json)
+	$(eval TEST_DATA=scripts/benchmark/data/nq_1000_dev_denspi.json)
 
-eval-od: dump-dir model-name nq-open-data
-	python -m densephrases.experiments.run_open \
-		--run_mode eval_inmemory \
-		--model_type bert \
-		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
-		--cuda \
-		--eval_batch_size 12 \
-		--dump_dir $(DUMP_DIR) \
-		--index_dir start/1048576_flat_PQ96_8 \
-		--query_encoder_path $(DPH_SAVE_DIR)/$(MODEL_NAME) \
-		--test_path $(DPH_DATA_DIR)/$(TEST_DATA) \
-		$(OPTIONS)
-
-train-query: dump-dir model-name nq-open-data
-	python -m densephrases.experiments.run_open \
+train-query: dump-dir model-name trec-open-data large-index
+	python train_query.py \
 		--run_mode train_query \
-		--model_type bert \
-		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
 		--cache_dir $(DPH_CACHE_DIR) \
 		--train_path $(DPH_DATA_DIR)/$(TRAIN_DATA) \
 		--dev_path $(DPH_DATA_DIR)/$(DEV_DATA) \
@@ -345,8 +301,8 @@ train-query: dump-dir model-name nq-open-data
 		--learning_rate 3e-5 \
 		--num_train_epochs 5 \
 		--dump_dir $(DUMP_DIR) \
-		--index_dir start/1048576_flat_PQ96_8 \
-		--query_encoder_path $(DPH_SAVE_DIR)/dph-nqsqd-pb2 \
+		--index_dir start/$(NUM_CLUSTERS)_flat_$(INDEX_TYPE) \
+		--query_encoder_path $(DPH_SAVE_DIR)/dph-nqsqd3-multi5-pb2 \
 		--output_dir $(DPH_SAVE_DIR)/$(MODEL_NAME) \
 		--top_k 100 \
 		--cuda \
@@ -400,7 +356,7 @@ eval-od-req: nq-open-data
 ############################## Data Pre/Post-processing ###################################
 
 preprocess-openqa:
-	python densephrases/scripts/preprocess/create_openqa.py \
+	python scripts/preprocess/create_openqa.py \
 		$(DPH_DATA_DIR)/single-qa/squad/train-v1.1.json \
 		$(DPH_DATA_DIR)/open-qa/squad \
 		--input_type SQuAD
@@ -417,113 +373,113 @@ data-config:
 	$(eval WIKI_DIR=$(DPH_DATA_DIR)/wikidump)
 
 nq-reader-to-wiki:
-	python densephrases/scripts/create_nq_reader_wiki.py \
+	python scripts/preprocess/create_nq_reader_wiki.py \
 		$(DPH_DATA_DIR)/single-qa/nq/train.json,$(DPH_DATA_DIR)/single-qa/nq/dev.json \
 		$(DPH_DATA_DIR)/single-qa/nq \
 		$(DPH_DATA_DIR)/wikidump/20181220_concat/
 
 download-wiki: data-config
-	python densephrases/scripts/download_wikidump.py \
+	python scripts/preprocess/download_wikidump.py \
 		--output_dir $(WIKI_DIR)
 
 nq-reader-train: data-config
-	python densephrases/scripts/create_nq_reader.py \
+	python scripts/preprocess/create_nq_reader.py \
 		--nq_orig_path_pattern "$(NQORIG_DIR)/train/nq-train-*.jsonl.gz" \
 		--nq_open_path $(NQOPEN_DIR)/train.json \
 		--output_path $(NQREADER_DIR)/train_79168.json
 
 nq-reader-dev: data-config
-	python densephrases/scripts/create_nq_reader.py \
+	python scripts/preprocess/create_nq_reader.py \
 		--nq_orig_path_pattern "$(NQORIG_DIR)/train/nq-train-*.jsonl.gz" \
 		--nq_open_path $(NQOPEN_DIR)/dev.json \
 		--output_path $(NQREADER_DIR)/dev_8757.json
 
 nq-reader-dev-sample: data-config
-	python densephrases/scripts/create_nq_reader.py \
+	python scripts/preprocess/create_nq_reader.py \
 		--nq_orig_path_pattern "$(NQORIG_DIR)/sample/nq-train-sample.jsonl.gz" \
 		--nq_open_path $(NQOPEN_DIR)/dev.json \
 		--output_path $(NQREADER_DIR)/dev_sample.json
 
 nq-reader-train-docs: data-config
-	python densephrases/scripts/create_nq_reader_doc.py \
+	python scripts/preprocess/create_nq_reader_doc.py \
 		--nq_orig_path_pattern "$(NQORIG_DIR)/train/nq-train-*.jsonl.gz" \
 		--nq_open_path $(NQOPEN_DIR)/train.json \
 		--output_dir $(NQREADER_DOC_DIR)/train
 
 nq-reader-dev-docs: data-config
-	python densephrases/scripts/create_nq_reader_doc.py \
+	python scripts/preprocess/create_nq_reader_doc.py \
 		--nq_orig_path_pattern "$(NQORIG_DIR)/train/nq-train-*.jsonl.gz" \
 		--nq_open_path $(NQOPEN_DIR)/dev.json \
 		--output_dir $(NQREADER_DOC_DIR)/dev
 
 nq-reader-dev-docs-sample: data-config
-	python densephrases/scripts/create_nq_reader_doc.py \
+	python scripts/preprocess/create_nq_reader_doc.py \
 		--nq_orig_path_pattern "$(NQORIG_DIR)/sample/nq-train-sample.jsonl.gz" \
 		--nq_open_path $(NQOPEN_DIR)/dev.json \
 		--output_dir $(NQREADER_DOC_DIR)-sample
 
 nq-_reader-train-docs-wiki: data-config
-	python densephrases/scripts/create_nq_reader_doc_wiki.py \
+	python scripts/preprocess/create_nq_reader_doc_wiki.py \
 		--wiki_dir $(WIKI_DIR)/20181220_concat \
 		--nq_reader_docs_dir $(NQREADER_DOC_DIR)/train \
 		--output_dir $(NQREADER_DOC_DIR)/train_wiki
 
 nq-reader-dev-docs-wiki: data-config
-	python densephrases/scripts/create_nq_reader_doc_wiki.py \
+	python scripts/preprocess/create_nq_reader_doc_wiki.py \
 		--wiki_dir $(WIKI_DIR)/20181220_concat \
 		--nq_reader_docs_dir $(NQREADER_DOC_DIR)/dev \
 		--output_dir $(NQREADER_DOC_DIR)/dev_wiki
 
 squad-reader-train-docs-wiki: data-config
-	python densephrases/scripts/create_nq_reader_doc_wiki.py \
+	python scripts/preprocess/create_nq_reader_doc_wiki.py \
 		--wiki_dir $(WIKI_DIR)/20181220_concat \
 		--nq_reader_docs_dir $(SQUAD_DIR)/train-v1.1.json \
 		--output_dir $(SQUADREADER_DOC_DIR)/train_wiki \
 		--is_squad
 
 squad-reader-dev-docs-wiki: data-config
-	python densephrases/scripts/create_nq_reader_doc_wiki.py \
+	python scripts/preprocess/create_nq_reader_doc_wiki.py \
 		--wiki_dir $(WIKI_DIR)/20181220_concat \
 		--nq_reader_docs_dir $(SQUAD_DIR)/dev-v1.1.json \
 		--output_dir $(SQUADREADER_DOC_DIR)/dev_wiki \
 		--is_squad
 
 build-db: data-config
-	python densephrases/scripts/build_db.py \
+	python scripts/preprocess/build_db.py \
 		--data_path $(WIKI_DIR)/extracted \
 		--save_path $(WIKI_DIR)/docs_20181220_nolist.db \
-		--preprocess densephrases/scripts/prep_wikipedia.py \
+		--preprocess scripts/preprocess/prep_wikipedia.py \
 		--overwrite
 
 build-wikisquad: data-config
-	python densephrases/scripts/build_wikisquad.py \
+	python scripts/preprocess/build_wikisquad.py \
 		--db_path $(WIKI_DIR)/docs_20181220_nolist.db \
 		--out_dir $(WIKI_DIR)/20181220_nolist
 
 concat-wikisquad: data-config
-	python densephrases/scripts/concat_wikisquad.py \
+	python scripts/preprocess/concat_wikisquad.py \
 		--input_dir $(WIKI_DIR)/20181220_nolist \
 		--output_dir $(WIKI_DIR)/20181220_nolist_concat
 
 first-para-wikisquad: data-config
-	python densephrases/scripts/first_para_wikisquad.py \
+	python scripts/preprocess/first_para_wikisquad.py \
 		--input_dir $(WIKI_DIR)/20181220_nolist \
 		--output_dir $(WIKI_DIR)/20181220_nolist_first
 
 compare-db: data-config
-	python densephrases/scripts/compare_db.py \
+	python scripts/preprocess/compare_db.py \
 		--db1 $(DPH_DATA_DIR)/denspi/docs.db \
 		--db2 $(WIKI_DIR)/docs_20181220.db
 		
 sample-nq-reader-doc-wiki-train: data-config
-	python densephrases/scripts/sample_nq_reader_doc_wiki.py \
+	python scripts/preprocess/sample_nq_reader_doc_wiki.py \
 		--sampling_ratio 0.15 \
 		--wiki_dir $(WIKI_DIR)/20181220_concat \
 		--docs_wiki_dir $(NQREADER_DOC_DIR)/train_wiki \
 		--output_dir $(NQREADER_DOC_DIR)/train_wiki_noise
 
 sample-nq-reader-doc-wiki-dev: data-config
-	python densephrases/scripts/sample_nq_reader_doc_wiki.py \
+	python scripts/preprocess/sample_nq_reader_doc_wiki.py \
 		--sampling_ratio 0.1 \
 		--wiki_dir $(WIKI_DIR)/20181220_concat \
 		--docs_wiki_dir $(NQREADER_DOC_DIR)/dev_wiki \
