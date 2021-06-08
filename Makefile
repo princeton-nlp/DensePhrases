@@ -216,7 +216,7 @@ endif
 
 # Dump phrase vectors in parallel. Dump will be saved in $(DPH_SAVE_DIR)/$(MODEL_NAME)_(data_name)/dump.
 gen-vecs-parallel: model-name
-	nohup python -m densephrases.experiments.parallel.dump_phrases \
+	nohup python parallel/dump_phrases.py \
 		--model_type bert \
 		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
 		--cache_dir $(DPH_CACHE_DIR) \
@@ -233,7 +233,7 @@ gen-vecs-parallel: model-name
 # Parallel add for large-scale on-disk IVFSQ (start, end = file idx)
 index-add: dump-dir large-index-sq
 	export MKL_SERVICE_FORCE_INTEL=1
-	python -m densephrases.experiments.parallel.add_to_index \
+	python parallel/add_to_index.py \
 		--dump_dir $(DUMP_DIR) \
 		--num_clusters $(NUM_CLUSTERS) \
 		--cuda \
@@ -312,10 +312,8 @@ train-query: dump-dir model-name trec-open-data large-index
 
 # Serve question encoder
 q-serve:
-	nohup python -m densephrases.demo.serve \
+	nohup python run_demo.py \
 		--run_mode q_serve \
-		--model_type bert \
-		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
 		--cache_dir $(DPH_CACHE_DIR) \
 		--query_encoder_path $(DPH_SAVE_DIR)/$(MODEL_NAME) \
 		--cuda \
@@ -323,35 +321,34 @@ q-serve:
 		--query_port $(Q_PORT) > $(DPH_SAVE_DIR)/logs/q-serve_$(Q_PORT).log &
 
 # Serve phrase index (Q_PORT may change)
-p-serve: dump-dir
-	nohup python -m densephrases.demo.serve \
+p-serve: dump-dir large-index
+	nohup python run_demo.py \
 		--run_mode p_serve \
-		--index_dir start/1048576_flat_PQ96_8 \
+		--index_dir start/$(NUM_CLUSTERS)_flat_$(INDEX_TYPE) \
 		--cuda \
 		--truecase \
 		--dump_dir $(DUMP_DIR) \
 		--query_port $(Q_PORT) \
 		--index_port $(I_PORT) > $(DPH_SAVE_DIR)/logs/p-serve_$(I_PORT).log &
 
-# (Optional) Serve single-passage RC demo
-single-serve:
-	nohup python -m densephrases.demo.serve \
-		--run_mode single_serve \
-		--model_type bert \
-		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
-		--cuda \
-		--cache_dir $(DPH_CACHE_DIR) \
-		--query_encoder_path $(DPH_SAVE_DIR)/$(MODEL_NAME) \
-		--query_port $(Q_PORT) > $(DPH_SAVE_DIR)/logs/s-serve_$(Q_PORT).log &
-
 # Evaluation using the open QA demo (used for benchmark)
-eval-od-req: nq-open-data
-	python -m densephrases.demo.serve \
+eval-od-req: trec-open-data
+	python run_demo.py \
 		--run_mode eval_request \
 		--index_port $(I_PORT) \
 		--test_path $(DPH_DATA_DIR)/$(TEST_DATA) \
 		--eval_batch_size 64 \
+		--save_pred \
 		$(OPTIONS)
+
+# (Optional) Serve single-passage RC demo
+single-serve:
+	nohup python run_demo.py \
+		--run_mode single_serve \
+		--cuda \
+		--cache_dir $(DPH_CACHE_DIR) \
+		--query_encoder_path $(DPH_SAVE_DIR)/$(MODEL_NAME) \
+		--query_port $(Q_PORT) > $(DPH_SAVE_DIR)/logs/s-serve_$(Q_PORT).log &
 
 ############################## Data Pre/Post-processing ###################################
 

@@ -8,7 +8,6 @@ import requests
 import logging
 import math
 import copy
-import wandb
 import string
 
 from tqdm import tqdm
@@ -69,7 +68,7 @@ class DensePhrasesInterface(object):
         args.examples_path = os.path.join('densephrases/demo/static', args.examples_path)
 
         # Load mips
-        mips = load_phrase_index(args, load_light=args.load_light)
+        mips = load_phrase_index(args)
         app = Flask(__name__, static_url_path='/static')
         app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
         CORS(app)
@@ -271,7 +270,7 @@ class DensePhrasesInterface(object):
 
     def eval_request(self, args):
         # Load dataset
-        qids, questions, answers = load_qa_pairs(args.test_path, args)
+        qids, questions, answers, _ = load_qa_pairs(args.test_path, args)
 
         # Run batch_query and evaluate
         step = args.eval_batch_size
@@ -302,12 +301,11 @@ class DensePhrasesInterface(object):
             evidences += evidence
             titles += title
             scores += score
-            all_tokens += q_tokens
         latency = time()-start_time
         logger.info(f'{time()-start_time:.3f} sec for {num_q} questions => {num_q/(time()-start_time):.1f} Q/Sec')
         eval_fn = evaluate_results if not args.is_kilt else evaluate_results_kilt
         eval_fn(
-            predictions, qids, questions, answers, args, evidences=evidences, scores=scores, titles=titles, q_tokens=all_tokens,
+            predictions, qids, questions, answers, args, evidences=evidences, scores=scores, titles=titles,
         )
 
 
@@ -360,8 +358,7 @@ if __name__ == '__main__':
     parser.add_argument('--cuda', default=False, action='store_true')
     parser.add_argument('--draft', default=False, action='store_true')
     parser.add_argument('--debug', default=False, action='store_true')
-    parser.add_argument('--wandb', default=False, action='store_true')
-    parser.add_argument('--load_light', default=False, action='store_true')
+    parser.add_argument('--save_pred', default=False, action='store_true')
     parser.add_argument('--seed', default=1992, type=int)
     args = parser.parse_args()
 
