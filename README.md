@@ -25,13 +25,14 @@ conda activate dph
 conda install pytorch=1.7.1 cudatoolkit=11.0 -c pytorch
 
 # Install apex
-git clone https://www.github.com/nvidia/apex
+git clone https://www.github.com/nvidia/apex.git
 cd apex
 python setup.py install
 cd ..
 
 # Install DensePhrases
 git clone https://github.com/princeton-nlp/DensePhrases.git
+cd DensePhrases
 pip install -r requirements.txt
 python setup.py develop
 ```
