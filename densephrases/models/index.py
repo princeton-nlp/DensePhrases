@@ -258,7 +258,6 @@ class MIPS(object):
                 reconsts = []
                 for ii in range(start_idx, start_idx+max_answer_length):
                     try:
-                        # reconst = self.index.reconstruct(ii)
                         reconst = self.reconst_fn(ii)
                     except:
                         reconst = np.zeros(768)
@@ -269,7 +268,6 @@ class MIPS(object):
                 reconsts = []
                 for ii in range(end_idx-max_answer_length+1, end_idx+1):
                     try:
-                        # reconst = self.index.reconstruct(ii)
                         reconst = self.reconst_fn(ii)
                     except:
                         reconst = np.zeros(768)
@@ -277,7 +275,7 @@ class MIPS(object):
                 groups_end.append({'start': np.array(reconsts)})
                 
             self.dequant = lambda offset, scale, x: x # no need for dequantization when using reconstruct()
-        logger.debug(f'1) {time()-start_time:.3f}s: disk access')
+        logger.debug(f'1) {time()-start_time:.3f}s: reconstruct vecs')
 
         def valid_phrase(start_idx, end_idx, doc_idx, max_ans_len):
             if doc_idx < 0:

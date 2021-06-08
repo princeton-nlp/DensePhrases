@@ -125,7 +125,7 @@ def train_index(start_data, quantizer_path, trained_index_path, num_clusters,
     ds = start_data.shape[1]
     quantizer = faiss.IndexFlatIP(ds)
 
-    # Will be deprecated
+    # Used only for reimplementation
     if fine_quant == 'SQ4':
         start_index = faiss.IndexIVFScalarQuantizer(
             quantizer, ds, num_clusters, faiss.ScalarQuantizer.QT_4bit, faiss.METRIC_INNER_PRODUCT
