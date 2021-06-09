@@ -252,7 +252,7 @@ INFO - densephrases.experiments.run_open -   Saving prediction file to $DPH_SAVE
 For more details (e.g., changing the test set), please see the targets in `Makefile` (`q-serve`, `p-serve`, `eval-demo`, etc).
 
 ## DensePhrases: Training, Indexing and Inference
-In this section, we introduce a step-by-step procedure to train DensePhrases, create phrase vectors and indexes, and running inferences with the trained model (which can be used as a demo described above).
+In this section, we introduce a step-by-step procedure to train DensePhrases, create phrase vectors and indexes, and run inferences with the trained model.
 All of our commands below are specified as `Makefile` targets, which include dataset paths, hyperparameter settings, etc.
 
 <div align="center">
