@@ -12,14 +12,14 @@ Learning Dense Representations of Phrases at Scale (Lee et al., 2020)](https://a
 ## Quick Links
 * [Installation](#installation)
 * [Resources](#resources)
-* [Using DensePhrases with a Custom Text Corpus](#using-densephrases-with-a-custom-text-corpus)
+* [Creating a Custom Phrase Index with DensePhrases](#creating-a-custom-phrase-index-with-densephrases)
 * [Playing with a DensePhrases Demo](#playing-with-a-densephrases-demo)
 * [Traning, Indexing and Inference](#densephrases-training-indexing-and-inference)
 * [Pre-processing](#pre-processing)
 
 ## Installation
 ```bash
-# Install torch with conda
+# Install torch with conda (please check your CUDA version)
 conda create -n dph python=3.7
 conda activate dph
 conda install pytorch=1.7.1 cudatoolkit=11.0 -c pytorch
@@ -36,7 +36,6 @@ cd DensePhrases
 pip install -r requirements.txt
 python setup.py develop
 ```
-Please check your CUDA version before the installation of PyTorch. 
 
 ## Resources
 Before downloading the required files below, please set the default directories as follows and ensure that you have enough storage to download and unzip the files:
@@ -99,7 +98,6 @@ ls $DPH_SAVE_DIR
 ...  dph-nqsqd-pb2_20181220_concat
 ```
 Since hosting the 320GB phrase index (+500GB original vectors for query-side fine-tuning) - the phrase index described in our paper - is costly, we provide an index with a much smaller size, which includes our recent efforts to reduce the size of the phrase index with [Product Quantization](https://lear.inrialpes.fr/pubs/2011/JDS11/jegou_searching_with_quantization.pdf) (IVFPQ). With IVFPQ, you do not need any SSDs for the real-time inference (the index is loaded on RAM), and you can also reconstruct the phrase vectors from it for the query-side fine-tuning (hence do not need the additional 500GB).
-
 For the reimplementation of DensePhrases with IVFSQ4 as described in the paper, see [Training DensePhrases](#densephrases-training-indexing-and-inference).
 
 If the following test run completes without an error, you are good to go!
@@ -108,8 +106,8 @@ If the following test run completes without an error, you are good to go!
 make draft MODEL_NAME=test
 ```
 
-## Using DensePhrases with a Custom Text Corpus
-You can use your own text corpus with DensePhrases. Basically, DensePhrases uses text corpus pre-processed in the following format (borrowed from SQuAD):
+## Creating a Custom Phrase Index with DensePhrases
+Basically, DensePhrases uses a text corpus pre-processed in the following format:
 ```json
 {
     "data": [
@@ -127,10 +125,10 @@ You can use your own text corpus with DensePhrases. Basically, DensePhrases uses
     ]
 }
 ```
-Each context contains a single natural paragraph of a variable length and see `sample_text.json` for example. The following command creates phrase vectors for the custom corpus (`sample_text.json`) with the `dph-nqsqd-pb2` model.
+Each `context` contains a single natural paragraph of a variable length. See `sample_text.json` for example. The following command creates phrase vectors for the custom corpus (`sample_text.json`) with the `dph-nqsqd-pb2` model.
 
 ```bash
-python -m densephrases.experiments.run_single \
+python generate_phrase_vecs.py \
     --model_type bert \
     --pretrained_name_or_path SpanBERT/spanbert-base-cased \
     --data_dir ./ \
@@ -143,28 +141,33 @@ python -m densephrases.experiments.run_single \
     --filter_threshold -2.0 \
     --append_title \
     --load_dir $DPH_SAVE_DIR/dph-nqsqd2-pb2 \
-    --output_dir $DPH_SAVE_DIR/dph-nqsqd2-pb2_sample \
-    --overwrite_cache
+    --output_dir $DPH_SAVE_DIR/dph-nqsqd2-pb2_sample
 ```
 The phrase vectors (and their metadata) will be saved under `$DPH_SAVE_DIR/dph-nqsqd2-pb2_sample/dump/phrase`. Now you need to create a faiss index as follows:
 ```bash
-python -m densephrases.experiments.create_index \
+python build_phrase_index.py \
     $DPH_SAVE_DIR/dph-nqsqd2-pb2_sample/dump all \
     --replace \
     --num_clusters 32 \
-    --fine_quant SQ4 \
+    --fine_quant OPQ96 \
     --cuda
+
+# Compress metadata for faster inference
+python scripts/preprocess/compress_metadata.py \
+    --input_dump_dir $DPH_SAVE_DIR/dph-nqsqd2-pb2_sample/dump/phrase \
+    --output_dir $DPH_SAVE_DIR/dph-nqsqd2-pb2_sample/dump
 ```
 The phrase index (with IVFSQ4) will be saved under `$DPH_SAVE_DIR/dph-nqsqd2-pb2_sample/dump/start`. You can use this phrase index to run a [demo](#playing-with-a-densephrases-demo) or evaluate your set of queries.
-For instance, you can ask a set of questions (`sample_qs.json`) to the phrase index as follows:
+For instance, you can feed a set of questions (`sample_qs.json`) to the custom phrase index as follows:
 ```bash
-python -m densephrases.experiments.run_open \
-    --run_mode eval_inmemory \
+python eval_phrase_retrieval.py \
+    --run_mode eval \
     --cuda \
     --dump_dir $DPH_SAVE_DIR/dph-nqsqd2-pb2_sample/dump \
-    --index_dir start/32_flat_SQ4 \
+    --index_dir start/32_flat_OPQ96 \
     --query_encoder_path $DPH_SAVE_DIR/dph-nqsqd2-pb2 \
     --test_path sample_qs.json \
+    --save_pred \
     --truecase
 ```
 The prediction file will be saved as `$DPH_SAVE_DIR/dph-nqsqd2-pb2/pred/sample_qs_4.pred`, which shows the answer phrases and the passages that contain the phrases:
