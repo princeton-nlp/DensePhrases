@@ -84,7 +84,7 @@ dph-nqsqd-pb2  dph-nqsqd-pb2_pq96-multi6  dph-nqsqd-pb2_pq96-nq-10  spanbert-bas
 
 ### 3. Phrase Index
 Please note that you don't need to download this phrase index unless you want to work on the full Wikipedia scale.
-* [DensePhrases-IVFPQ96](https://nlp.cs.princeton.edu/projects/densephrases/dph-nqsqd-pb2_20181220_concat.tar.gz) (88GB) - Phrase index for the 20181220 version of Wikipedia. Download and unzip it under `DPH_SAVE_DIR` or use `download.sh` as follows.
+* [DensePhrases-IVFOPQ96](https://nlp.cs.princeton.edu/projects/densephrases/dph-nqsqd-pb2_20181220_concat.tar.gz) (88GB) - Phrase index for the 20181220 version of Wikipedia. Download and unzip it under `DPH_SAVE_DIR` or use `download.sh` as follows.
 ```bash
 # Use bash script to download index
 source download.sh
@@ -97,7 +97,7 @@ Downloading index done!
 ls $DPH_SAVE_DIR
 ...  dph-nqsqd-pb2_20181220_concat
 ```
-Since hosting the 320GB phrase index (+500GB original vectors for query-side fine-tuning) - the phrase index described in our paper - is costly, we provide an index with a much smaller size, which includes our recent efforts to reduce the size of the phrase index with [Product Quantization](https://lear.inrialpes.fr/pubs/2011/JDS11/jegou_searching_with_quantization.pdf) (IVFPQ). With IVFPQ, you do not need any SSDs for the real-time inference (the index is loaded on RAM), and you can also reconstruct the phrase vectors from it for the query-side fine-tuning (hence do not need the additional 500GB).
+Since hosting the 320GB phrase index (+500GB original vectors for query-side fine-tuning) - the phrase index described in our paper - is costly, we provide an index with a much smaller size, which includes our recent efforts to reduce the size of the phrase index with [Product Quantization](https://lear.inrialpes.fr/pubs/2011/JDS11/jegou_searching_with_quantization.pdf) (IVFOPQ). With IVFOPQ, you do not need any SSDs for the real-time inference (the index is loaded on RAM), and you can also reconstruct the phrase vectors from it for the query-side fine-tuning (hence do not need the additional 500GB).
 For the reimplementation of DensePhrases with IVFSQ4 as described in the paper, see [Training DensePhrases](#densephrases-training-indexing-and-inference).
 
 If the following test run completes without an error, you are good to go!
@@ -150,6 +150,8 @@ python build_phrase_index.py \
     --replace \
     --num_clusters 32 \
     --fine_quant OPQ96 \
+    --doc_sample_ratio 1.0 \
+    --vec_sample_ratio 1.0 \
     --cuda
 
 # Compress metadata for faster inference
@@ -157,7 +159,8 @@ python scripts/preprocess/compress_metadata.py \
     --input_dump_dir $DPH_SAVE_DIR/dph-nqsqd2-pb2_sample/dump/phrase \
     --output_dir $DPH_SAVE_DIR/dph-nqsqd2-pb2_sample/dump
 ```
-The phrase index (with IVFSQ4) will be saved under `$DPH_SAVE_DIR/dph-nqsqd2-pb2_sample/dump/start`. You can use this phrase index to run a [demo](#playing-with-a-densephrases-demo) or evaluate your set of queries.
+Note that this example uses a very small text corpus and the hyperparameters for `build_phrase_index.py` in a larger scale corpus can be found [here](#densephrases-training-indexing-and-inference).
+The phrase index (with IVFOPQ) will be saved under `$DPH_SAVE_DIR/dph-nqsqd2-pb2_sample/dump/start`. You can use this phrase index to run a [demo](#playing-with-a-densephrases-demo) or evaluate your set of queries.
 For instance, you can feed a set of questions (`sample_qs.json`) to the custom phrase index as follows:
 ```bash
 python eval_phrase_retrieval.py \
@@ -191,34 +194,62 @@ The prediction file will be saved as `$DPH_SAVE_DIR/dph-nqsqd2-pb2/pred/sample_q
 ```
 
 ## Playing with a DensePhrases Demo
-There are two ways of using DensePhrases.
-1. You can simply use the [demo] that we are serving on our server. The running demo is using `dph-nqsqd-pb2_pq96-multi6` (NQ=40.3 EM) as a query encoder and `dph-nqsqd-pb2_20181220_concat` as a phrase index.
-2. You can install the demo on your own server, which enables you to change the phrase index (obtained from [here](#using-densephrases-with-a-custom-text-corpus)) or the query encoder (e.g., to `dph-nqsqd-pb2_pq96-nq-10`). We recommend installing your own demo as described below since our demo can be unstable due to a large number of requests. Also, [query-side fine-tuning](#3-query-side-fine-tuning) is only available to those who installed DensePhrases on their server.
+There are two ways of using DensePhrases demo.
+1. You can simply use the [demo] that we are serving on our server (Wikipedia scale). The running demo is using `dph-nqsqd-pb2_pq96-multi6` (NQ=40.3 EM) as a query encoder and `dph-nqsqd-pb2_20181220_concat` as a phrase index.
+2. You can run the demo on your own server where you can change the phrase index (obtained from [here](#creating-a-custom-phrase-index-with-densephrases)) or the query encoder (e.g., to `dph-nqsqd-pb2_pq96-nq-10`).
 
 The minimum resource requirement for running the full Wikipedia scale demo is:
-* Single 11GB GPU
 * 125GB RAM
 * 100GB HDD
+* Single 11GB GPU (optional)
 
-Note that you no longer need any SSDs to run the demo unlike previous phrase retrieval models ([DenSPI](https://github.com/uwnlp/denspi), [DenSPI+Sparc](https://github.com/jhyuklee/sparc)), but setting `$DPH_SAVE_DIR` to an SSD can reduce the loading time of the demo. The following commands serve exactly the same demo as [here](http://densephrases.korea.ac.kr) on your `http://localhost:51997`.
+Note that you no longer need any SSDs to run the demo unlike previous phrase retrieval models ([DenSPI](https://github.com/uwnlp/denspi), [DenSPI+Sparc](https://github.com/jhyuklee/sparc)), but setting `$DPH_SAVE_DIR` to an SSD can reduce the loading time of the required resources. The following commands serve exactly the same demo as [here](http://densephrases.korea.ac.kr) on your `http://localhost:51997`.
 ```bash
 # Serve a query encoder on port 1111
-make q-serve MODEL_NAME=dph-nqsqd-pb2_pq96-multi6 Q_PORT=1111
+nohup python run_demo.py \
+    --run_mode q_serve \
+    --cache_dir $DPH_CACHE_DIR \
+    --query_encoder_path $DPH_SAVE_DIR/dph-nqsqd-pb2_pq96-multi6 \
+    --cuda \
+    --max_query_length 32 \
+    --query_port 1111 > $DPH_SAVE_DIR/logs/q-serve_1111.log &
 
 # Serve a phrase index on port 51997 (takes several minutes)
+nohup python run_demo.py \
+    --run_mode p_serve \
+    --index_dir start/1048576_flat_OPQ96 \
+    --cuda \
+    --truecase \
+    --dump_dir $DPH_SAVE_DIR/dph-nqsqd-pb2_20181220_concat/dump/ \
+    --query_port 1111 \
+    --index_port 51997 > $DPH_SAVE_DIR/logs/p-serve_51997.log &
+
+# Below are the same but simplified commands using Makefile
+make q-serve MODEL_NAME=dph-nqsqd-pb2_pq96-multi6 Q_PORT=1111
 make p-serve DUMP_DIR=$DPH_SAVE_DIR/dph-nqsqd-pb2_20181220_concat/dump/ Q_PORT=1111 I_PORT=51997
 ```
-You can change the query encoder or the phrase index accordingly. Once you set up the demo, the log files in `$DPH_SAVE_DIR/logs/` will be automatically updated whenever a new question comes in. You can also send queries to your server using mini-batches of questions for faster inference.
+Please change `query_encoder_path` or `dump_dir` if necessary. Once you set up the demo, the log files in `$DPH_SAVE_DIR/logs/` will be automatically updated whenever a new question comes in. You can also send queries to your server using mini-batches of questions for faster inference.
 
 ```bash
-# Test on NQ test set (takes 60~90 sec)
-make eval-od-req I_PORT=51997
+# Test on NQ test set
+python run_demo.py \
+    --run_mode eval_request \
+    --index_port 51997 \
+    --test_path $DPH_DATA_DIR/open-qa/nq-open/test_preprocessed.json \
+    --eval_batch_size 64 \
+    --save_pred \
+    --truecase
+
+# Same command in Makefile
+make eval-demo I_PORT=51997
+
+# Result
 (...)
 INFO - densephrases.experiments.run_open -   {'exact_match_top1': 40.30470914127424, 'f1_score_top1': 47.18394271164363}
 INFO - densephrases.experiments.run_open -   {'exact_match_top10': 63.57340720221607, 'f1_score_top10': 72.15437717099778}
 INFO - densephrases.experiments.run_open -   Saving prediction file to $DPH_SAVE_DIR/pred/test_preprocessed_3610.pred
 ```
-For more details (e.g., changing the test set), please see the targets in `Makefile` (`q-serve`, `p-serve`, `eval-od-req`, etc).
+For more details (e.g., changing the test set), please see the targets in `Makefile` (`q-serve`, `p-serve`, `eval-demo`, etc).
 
 ## DensePhrases: Training, Indexing and Inference
 In this section, we introduce the steps to train DensePhrases from scratch, create phrase dumps and indexes, and running inferences with the trained model (which can be also used as a demo described above). The minimum requirement is as follows:
@@ -274,7 +305,7 @@ After creating the phrase dump, you need to create a phrase index (or a MIPS ind
 make index-large DUMP_DIR=$DPH_SAVE_DIR/dph-nqsqd-pb2_dev_wiki/dump/
 ```
 
-For `dev_wiki_noise` and `20181220_concat`, you need to modify the number of clusters to 101,372 and 1,048,576, respectively, and also use `index-add` and `index-merge` to add phrase representations to the index (see `Makefile` for details). If you want to use IVFPQ, using `index-large-pq` is enough in any case.
+For `dev_wiki_noise` and `20181220_concat`, you need to modify the number of clusters to 101,372 and 1,048,576, respectively, and also use `index-add` and `index-merge` to add phrase representations to the index (see `Makefile` for details). If you want to use IVFOPQ, using `index-large-pq` is enough in any case.
 
 For evaluating the performance of DensePhrases on these larger phrase indexes, use `eval-dump`.
 ```bash
@@ -298,9 +329,9 @@ make train-query MODEL_NAME=dph-nqsqd-pb2-nq DUMP_DIR=$DPH_SAVE_DIR/dph-nqsqd-pb
 ```
 Note that the pre-trained encoder is specified in `train-query` as `--query_encoder_path $(DPH_SAVE_DIR)/dph-nqsqd-pb2` and a new model will be saved as `dph-nqsqd-pb2-nq` as specified above. You can also train on different datasets by changing the dependency `nq-open-data` to `*-open-data` (e.g., `trec-open-data`).
 
-#### IVFPQ vs IVFSQ4
-Currently, `train-query` uses the IVFPQ index for query-side fine-tuning, and you should modify the arguments `--index_dir start/1048576_flat_PQ96_8` to `--index_dir start/1048576_flat_SQ4` for using IVFSQ4 index used in our paper.
-For IVFPQ, training takes 2 to 3 hours per epoch for large datasets (NQ, TQA, SQuAD), and 3 to 8 minutes for small datasets (WQ, TREC). For IVFSQ4, the training time is highly dependent on the File I/O speed, so using SSDs is recommended for IVFSQ4.
+#### IVFOPQ vs IVFSQ4
+Currently, `train-query` uses the IVFOPQ index for query-side fine-tuning, and you should modify the arguments `--index_dir start/1048576_flat_PQ96_8` to `--index_dir start/1048576_flat_SQ4` for using IVFSQ4 index used in our paper.
+For IVFOPQ, training takes 2 to 3 hours per epoch for large datasets (NQ, TQA, SQuAD), and 3 to 8 minutes for small datasets (WQ, TREC). For IVFSQ4, the training time is highly dependent on the File I/O speed, so using SSDs is recommended for IVFSQ4.
 
 ### 4. Inference
 With a pre-trained DensePhrases encoder (e.g., `dph-nqsqd-pb2_pq96-nq-10`) and a phrase index (e.g., `dph-nqsqd-pb2_20181220_concat`), you can test your queries as follows:
