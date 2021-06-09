@@ -262,9 +262,9 @@ All of our commands below are specified as `Makefile` targets, which include dat
 - A figure summarizing the overall process below
 
 ### 1. Training phrase and query encoders
-To train DensePhrase from scratch, use `run-rc-nq` in `Makefile`, which trains DensePhrases on NQ (pre-processed for the reading comprehension setting) and evaluate it on reading comprehension as well as on (semi) open-domain QA.
+To train DensePhrase from scratch, use `run-rc-nq` in `Makefile`, which trains DensePhrases on NQ (pre-processed for the reading comprehension task) and evaluate it on reading comprehension as well as on (semi) open-domain QA.
 You can simply change the training set by modifying the dependencies of `run-rc-nq` (e.g., `nq-rc-data` => `sqd-rc-data` and `nq-param` => `sqd-param` for training on SQuAD).
-You'll need a single 24GBGPU for training DensePhrases on reading comprehension tasks, but you can use smaller GPUs using `--gradient_accumulation_steps`.
+You'll need a single 24GB GPU for training DensePhrases on reading comprehension tasks, but you can use smaller GPUs by setting `--gradient_accumulation_steps` properly.
 ```bash
 # Train DensePhrases on NQ with Eq. 9
 make run-rc-nq MODEL_NAME=dph-nq
@@ -273,10 +273,10 @@ make run-rc-nq MODEL_NAME=dph-nq
 `run-rc-nq` is composed of the six commands as follows (in case of training on NQ):
 1. `make train-rc ...`: Train DensePhrases on NQ with Eq. 9 (L = lambda1 L\_single + lambda2 L\_distill + lambda3 L\_neg) with generated questions.
 2. `make train-rc ...`: Load trained DensePhrases in the previous step and further train it with Eq. 9 with pre-batch negatives.
-3. `make gen-vecs`: Generate phrase vectors for D\_small.
+3. `make gen-vecs`: Generate phrase vectors for D\_small (= set of all passages in NQ dev).
 4. `make index-vecs`: Build a phrase index for D\_small.
 5. `make compress-meta`: Compresss metadata for faster inference.
-6. `make eval-index ...`: Evaluate the development set with D\_small.
+6. `make eval-index ...`: Evaluate the phrase index on the development set questions.
 
 At the end of step 2, you will see the performance on the reading comprehension task where a gold passage is given (about 72.0 EM on NQ dev). Step 6 gives the performance on the semi-open-domain setting (denoted as D\_small; see Table 6 in the paper.) where the entire passages from the NQ development set is used for the indexing (about 62.0 EM with NQ dev questions). The trained model will be saved under `$DPH_SAVE_DIR/$MODEL_NAME`. Note that during the single-passage training on NQ, we exclude some questions in the development set, whose annotated answers are found from a list or a table.
 
@@ -284,7 +284,7 @@ At the end of step 2, you will see the performance on the reading comprehension 
 Now let's assume that you have a model trained on NQ + SQuAD named `dph-nqsqd-pb2`, which can also be downloaded from [here](#2-pre-trained-models).
 You can make a bigger corpus using `gen-vecs-parallel` as follows:
 ```bash
-# Generate large-scale phrase vectors with a trained model (default = dev_wiki)
+# Generate phrase vectors in parallel for a large-scale corpus (default = dev_wiki)
 make gen-vecs-parallel MODEL_NAME=dph-nqsqd-pb2 START=0 END=8
 ```
 The default text corpus for creating phrase dump is `dev_wiki` located in `$DPH_DATA_DIR/wikidump`. We have three options for larger text corpora:
@@ -303,7 +303,7 @@ After generating the phrase vectors, you need to create a phrase index for the s
 make index-vecs DUMP_DIR=$DPH_SAVE_DIR/dph-nqsqd-pb2_dev_wiki/dump/
 ```
 
-For `dev_wiki_noise` and `20181220_concat`, you need to modify the number of clusters to 101,372 and 1,048,576, respectively. For `20181220_concat` (full Wikipedia), this takes about 1~2 days depending on the specs of you machine and requires about 100GB RAM. For IVFSQ as described in the paper, you can use `index-add` and `index-merge` to distribute the addition of phrase vectors to the index.
+For `dev_wiki_noise` and `20181220_concat`, you need to modify the number of clusters to 101,372 and 1,048,576, respectively (simply change `medium1-index` in `ìndex-vecs` to `medium2-index` or `large-index`). For `20181220_concat` (full Wikipedia), this takes about 1~2 days depending on the specification of your machine and requires about 100GB RAM. For IVFSQ as described in the paper, you can use `index-add` and `index-merge` to distribute the addition of phrase vectors to the index.
 
 You also need to compress the metadata (saved in hdf5 files together with phrase vectors) for a faster inference of DensePhrases. This is mandatory for the IVFOPQ index.
 ```bash
@@ -329,10 +329,10 @@ Note that the pre-trained encoder is specified in `train-query` as `--query_enco
 
 #### IVFOPQ vs IVFSQ
 Currently, `train-query` uses the IVFOPQ index for query-side fine-tuning, and you should apply minor changes in the code to train with an IVFSQ index.
-For IVFOPQ, training takes 2 to 3 hours per epoch for large datasets (NQ, TQA, SQuAD), and 3 to 8 minutes for small datasets (WQ, TREC). We recommend using IVFOPQ since it has similar or better performance than IVFSQ and the training time is highly dependent on the File I/O speed when using IVFSQ (so using SSDs is recommended for IVFSQ).
+For IVFOPQ, training takes 2 to 3 hours per epoch for large datasets (NQ, TQA, SQuAD), and 3 to 8 minutes for small datasets (WQ, TREC). We recommend using IVFOPQ since it has similar or better performance than IVFSQ while being much faster than IVFSQ. With IVFSQ, the training time will be highly dependent on the File I/O speed, so using SSDs is recommended for IVFSQ.
 
 ### 4. Inference
-With a pre-trained DensePhrases encoder (e.g., `dph-nqsqd-pb2_pq96-nq-10`) and a phrase index (e.g., `dph-nqsqd-pb2_20181220_concat`), you can test your queries as follows:
+With a pre-trained DensePhrases encoder (e.g., `dph-nqsqd-pb2_pq96-nq-10`) and a phrase index (e.g., `dph-nqsqd-pb2_20181220_concat`), you can test your queries as follows and the results will be saved as a json file with the `--save_pred` option:
 
 ```bash
 # Evaluate on Natural Questions

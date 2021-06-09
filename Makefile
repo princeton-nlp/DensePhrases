@@ -332,7 +332,7 @@ p-serve: dump-dir large-index
 		--index_port $(I_PORT) > $(DPH_SAVE_DIR)/logs/p-serve_$(I_PORT).log &
 
 # Evaluation using the open QA demo (used for benchmark)
-eval-od-req: trec-open-data
+eval-demo: nq-open-data
 	python run_demo.py \
 		--run_mode eval_request \
 		--index_port $(I_PORT) \
