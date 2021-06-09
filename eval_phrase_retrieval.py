@@ -9,7 +9,6 @@ import logging
 import math
 import copy
 import string
-import spacy
 import faiss
 
 from time import time

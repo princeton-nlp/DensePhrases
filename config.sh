@@ -18,7 +18,7 @@ while read -p "Use to $BASE_DIR as the base directory (requires at least 220GB f
             done
             break ;;
         * ) echo "Please answer yes or no.";
-            return ;;
+            exit 0 ;;
     esac
 done
 
@@ -29,7 +29,13 @@ export DPH_DATA_DIR=$BASE_DIR/dph-data
 export DPH_SAVE_DIR=$BASE_DIR/outputs
 export DPH_CACHE_DIR=$BASE_DIR/cache
 
-echo "Environment variables set as follows:"
+# Create directories
+mkdir -p $DPH_DATA_DIR
+mkdir -p $DPH_SAVE_DIR
+mkdir -p $DPH_SAVE_DIR/logs
+mkdir -p $DPH_CACHE_DIR
+
+printf "\nEnvironment variables are set as follows:\n"
 echo "DPH_DATA_DIR=$DPH_DATA_DIR"
 echo "DPH_SAVE_DIR=$DPH_SAVE_DIR"
 echo "DPH_CACHE_DIR=$DPH_CACHE_DIR"
@@ -48,6 +54,3 @@ while read -p "Add to ~/.bashrc (recommended)? [yes/no]: " choice; do
         * ) echo "Please answer yes or no." ;;
     esac
 done
-
-# Log directory
-mkdir -p $DPH_SAVE_DIR/logs

@@ -36,11 +36,7 @@ cd DensePhrases
 pip install -r requirements.txt
 python setup.py develop
 ```
-Please check your CUDA version before the installation and modify it accordingly. If the following test run completes without an error, you are good to go!
-```bash
-# Test run for checking installation (ignore the performance)
-make draft MODEL_NAME=test
-```
+Please check your CUDA version before the installation of PyTorch. 
 
 ## Resources
 Before downloading the required files below, please set the default directories as follows and ensure that you have enough storage to download and unzip the files:
@@ -53,15 +49,32 @@ source config.sh
 ```
 
 ### 1. Datasets
-* [Datasets](https://nlp.cs.princeton.edu/projects/densephrases/dph-data.tar.gz) (6GB) - All pre-processed datasets used in our experiments including reading comprehension, open-domain QA, slot filling, pre-processed Wikipedia. Download and unzip it under `DPH_DATA_DIR`.
+* [Datasets](https://nlp.cs.princeton.edu/projects/densephrases/dph-data.tar.gz) (6GB) - All pre-processed datasets used in our experiments including reading comprehension, open-domain QA, slot filling, and pre-processed Wikipedia. Download and unzip it under `DPH_DATA_DIR` or use `download.sh` as follows:
+
 ```bash
+# Use bash script to download data
+source download.sh
+Choose a resource to download [data/models/index]: data
+data will be downloaded at ...
+...
+Downloading data done!
+
+# Check if the download is complete
 ls $DPH_DATA_DIR
 kilt  open-qa  single-qa  truecase  wikidump
 ```
 
 ### 2. Pre-trained Models
-* [Pre-trained models](https://nlp.cs.princeton.edu/projects/densephrases/outputs.tar.gz) (5GB) - Pre-trained DensePhrases and cross-encoder teacher models. Download and unzip it under `DPH_SAVE_DIR`.
+* [Pre-trained models](https://nlp.cs.princeton.edu/projects/densephrases/outputs.tar.gz) (5GB) - Pre-trained DensePhrases and cross-encoder teacher models. Download and unzip it under `DPH_SAVE_DIR` or use `download.sh` as follows.
 ```bash
+# Use bash script to download models
+source download.sh
+Choose a resource to download [data/models/index]: models
+models will be downloaded at ...
+...
+Downloading models done!
+
+# Check if the download is complete
 ls $DPH_SAVE_DIR
 dph-nqsqd-pb2  dph-nqsqd-pb2_pq96-multi6  dph-nqsqd-pb2_pq96-nq-10  spanbert-base-cased-nq  spanbert-base-cased-sqdnq  spanbert-base-cased-squad
 ```
@@ -72,14 +85,28 @@ dph-nqsqd-pb2  dph-nqsqd-pb2_pq96-multi6  dph-nqsqd-pb2_pq96-nq-10  spanbert-bas
 
 ### 3. Phrase Index
 Please note that you don't need to download this phrase index unless you want to work on the full Wikipedia scale.
-* [DensePhrases-IVFPQ96](https://nlp.cs.princeton.edu/projects/densephrases/dph-nqsqd-pb2_20181220_concat.tar.gz) (88GB) - Phrase index for the 20181220 version of Wikipedia. Download and unzip it under `DPH_SAVE_DIR`.
+* [DensePhrases-IVFPQ96](https://nlp.cs.princeton.edu/projects/densephrases/dph-nqsqd-pb2_20181220_concat.tar.gz) (88GB) - Phrase index for the 20181220 version of Wikipedia. Download and unzip it under `DPH_SAVE_DIR` or use `download.sh` as follows.
 ```bash
+# Use bash script to download index
+source download.sh
+Choose a resource to download [data/models/index]: index
+index will be downloaded at ...
+...
+Downloading index done!
+
+# Check if the download is complete
 ls $DPH_SAVE_DIR
 ...  dph-nqsqd-pb2_20181220_concat
 ```
 Since hosting the 320GB phrase index (+500GB original vectors for query-side fine-tuning) - the phrase index described in our paper - is costly, we provide an index with a much smaller size, which includes our recent efforts to reduce the size of the phrase index with [Product Quantization](https://lear.inrialpes.fr/pubs/2011/JDS11/jegou_searching_with_quantization.pdf) (IVFPQ). With IVFPQ, you do not need any SSDs for the real-time inference (the index is loaded on RAM), and you can also reconstruct the phrase vectors from it for the query-side fine-tuning (hence do not need the additional 500GB).
 
 For the reimplementation of DensePhrases with IVFSQ4 as described in the paper, see [Training DensePhrases](#densephrases-training-indexing-and-inference).
+
+If the following test run completes without an error, you are good to go!
+```bash
+# Test run for checking installation (takes about 10 mins; ignore the performance)
+make draft MODEL_NAME=test
+```
 
 ## Using DensePhrases with a Custom Text Corpus
 You can use your own text corpus with DensePhrases. Basically, DensePhrases uses text corpus pre-processed in the following format (borrowed from SQuAD):
@@ -208,23 +235,25 @@ All of our commands below are specified as `Makefile` targets, which include dat
 To train DensePhrase from scratch, use `train-single-nq`, which trains DensePhrases on NQ (pre-processed for the reading comprehension setting). You can simply change the training set by modifying the dependencies of `train-single-nq` (e.g., `nq-single-data` => `sqd-single-data` and `nq-param` => `sqd-param` for training on SQuAD).
 ```bash
 # Train DensePhrases on NQ with Eq. 9
-make train-single-nq MODEL_NAME=dph-nq
+make run-rc-nq MODEL_NAME=dph-nq
 ```
 
-`train-single-nq` is composed of the four consecutive commands as follows (in case of training on NQ):
-1. `make train-single ...`: Train DensePhrases on NQ with Eq. 9 (L = lambda1 L\_single + lambda2 L\_distill + lambda3 L\_neg) with in-batch negatives and generated questions.
-2. `make train-single ...`: Load trained DensePhrases in the previous step and further train it with Eq. 9 with pre-batch negatives (dump D\_small at the end).
-3. `make index-sod`: Create a phrase index for D\_small
-4. `make eval-sod ...`: Evaluate the development set with D\_small
+`run-rc-nq` is composed of the four consecutive commands as follows (in case of training on NQ):
+1. `make train-rc ...`: Train DensePhrases on NQ with Eq. 9 (L = lambda1 L\_single + lambda2 L\_distill + lambda3 L\_neg) with in-batch negatives and generated questions.
+2. `make train-rc ...`: Load trained DensePhrases in the previous step and further train it with Eq. 9 with pre-batch negatives (dump D\_small at the end).
+3. `make gen-vecs`: Generate phrase vectors for D\_small
+4. `make index-vecs`: Build a phrase index for D\_small
+5. `make compress-meta`: Compresss metadata for faster inference
+6. `make eval-index ...`: Evaluate the development set with D\_small
 
-At the end of step 2, you will see the performance on the reading comprehension setting where a gold passage is given (72.0 EM on NQ dev). Step 4 gives the performance on the semi-open-domain setting (denoted as D\_small; see Table 6 in the paper.) where the entire passages from the NQ development set is used for the indexing (64.0 EM with NQ dev questions). The trained model will be saved under `$DPH_SAVE_DIR/$MODEL_NAME`. Note that during the single-passage training on NQ, we exclude some questions in the development set, whose annotated answers are found from a list or a table.
+At the end of step 2, you will see the performance on the reading comprehension setting where a gold passage is given (72.0 EM on NQ dev). Step 6 gives the performance on the semi-open-domain setting (denoted as D\_small; see Table 6 in the paper.) where the entire passages from the NQ development set is used for the indexing (64.0 EM with NQ dev questions). The trained model will be saved under `$DPH_SAVE_DIR/$MODEL_NAME`. Note that during the single-passage training on NQ, we exclude some questions in the development set, whose annotated answers are found from a list or a table.
 
 ###  2. Creating a phrase index
 Now let's assume that you have a model trained on NQ + SQuAD named `dph-nqsqd-pb2`, which can also be downloaded from [here](#2-pre-trained-models).
 You can make a bigger phrase dump using `dump-large` as follows:
 ```bash
-# Create large-scale phrase dumps with a trained model (default = dev_wiki)
-make dump-large MODEL_NAME=dph-nqsqd-pb2 START=0 END=8
+# Generate large-scale phrase vectors with a trained model (default = dev_wiki)
+make gen-vecs-parallel MODEL_NAME=dph-nqsqd-pb2 START=0 END=8
 ```
 The default text corpus for creating phrase dump is `dev_wiki` located in `$DPH_DATA_DIR/wikidump`. We have three options for larger text corpora:
 - `dev_wiki`: 1/100 Wikipedia scale (sampled), 8 files
