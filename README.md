@@ -97,8 +97,8 @@ Downloading index done!
 ls $DPH_SAVE_DIR
 ...  dph-nqsqd-pb2_20181220_concat
 ```
-Since hosting the 320GB phrase index (+500GB original vectors for query-side fine-tuning) - the phrase index described in our paper - is costly, we provide an index with a much smaller size, which includes our recent efforts to reduce the size of the phrase index with [Product Quantization](https://lear.inrialpes.fr/pubs/2011/JDS11/jegou_searching_with_quantization.pdf) (IVFOPQ). With IVFOPQ, you do not need any SSDs for the real-time inference (the index is loaded on RAM), and you can also reconstruct the phrase vectors from it for the query-side fine-tuning (hence do not need the additional 500GB).
-For the reimplementation of DensePhrases with IVFSQ4 as described in the paper, see [Training DensePhrases](#densephrases-training-indexing-and-inference).
+Since hosting the 320GB phrase index (+500GB original vectors for query-side fine-tuning) - the phrase index described in our paper - is costly, we provide an index with a much smaller size, which includes our recent efforts to reduce the size of the phrase index using [Optimized Product Quantization](https://ieeexplore.ieee.org/document/6678503) with Inverted File System (IVFOPQ). With IVFOPQ, you do not need any SSDs for the real-time inference (the index is loaded on RAM), and you can also reconstruct the phrase vectors from it for the query-side fine-tuning (hence do not need the additional 500GB).
+For the reimplementation of DensePhrases with IVFSQ as described in the paper, see [Training DensePhrases](#densephrases-training-indexing-and-inference).
 
 If the following test run completes without an error, you are good to go!
 ```bash
@@ -240,7 +240,7 @@ python run_demo.py \
     --save_pred \
     --truecase
 
-# Same command in Makefile
+# Same command with Makefile
 make eval-demo I_PORT=51997
 
 # Result
@@ -252,11 +252,7 @@ INFO - densephrases.experiments.run_open -   Saving prediction file to $DPH_SAVE
 For more details (e.g., changing the test set), please see the targets in `Makefile` (`q-serve`, `p-serve`, `eval-demo`, etc).
 
 ## DensePhrases: Training, Indexing and Inference
-In this section, we introduce the steps to train DensePhrases from scratch, create phrase dumps and indexes, and running inferences with the trained model (which can be also used as a demo described above). The minimum requirement is as follows:
-- Single 24GB GPU (for training)
-- up to 150GB RAM (for creating a phrase index of the entire Wikipedia)
-- up to 500GB storage (for creating a phrase dump of the entire Wikipedia)
-
+In this section, we introduce a step-by-step procedure to train DensePhrases, create phrase vectors and indexes, and running inferences with the trained model (which can be used as a demo described above).
 All of our commands below are specified as `Makefile` targets, which include dataset paths, hyperparameter settings, etc.
 
 <div align="center">
@@ -266,25 +262,27 @@ All of our commands below are specified as `Makefile` targets, which include dat
 - A figure summarizing the overall process below
 
 ### 1. Training phrase and query encoders
-To train DensePhrase from scratch, use `train-single-nq`, which trains DensePhrases on NQ (pre-processed for the reading comprehension setting). You can simply change the training set by modifying the dependencies of `train-single-nq` (e.g., `nq-single-data` => `sqd-single-data` and `nq-param` => `sqd-param` for training on SQuAD).
+To train DensePhrase from scratch, use `run-rc-nq` in `Makefile`, which trains DensePhrases on NQ (pre-processed for the reading comprehension setting) and evaluate it on reading comprehension as well as on (semi) open-domain QA.
+You can simply change the training set by modifying the dependencies of `run-rc-nq` (e.g., `nq-rc-data` => `sqd-rc-data` and `nq-param` => `sqd-param` for training on SQuAD).
+You'll need a single 24GBGPU for training DensePhrases on reading comprehension tasks, but you can use smaller GPUs using `--gradient_accumulation_steps`.
 ```bash
 # Train DensePhrases on NQ with Eq. 9
 make run-rc-nq MODEL_NAME=dph-nq
 ```
 
-`run-rc-nq` is composed of the four consecutive commands as follows (in case of training on NQ):
-1. `make train-rc ...`: Train DensePhrases on NQ with Eq. 9 (L = lambda1 L\_single + lambda2 L\_distill + lambda3 L\_neg) with in-batch negatives and generated questions.
-2. `make train-rc ...`: Load trained DensePhrases in the previous step and further train it with Eq. 9 with pre-batch negatives (dump D\_small at the end).
-3. `make gen-vecs`: Generate phrase vectors for D\_small
-4. `make index-vecs`: Build a phrase index for D\_small
-5. `make compress-meta`: Compresss metadata for faster inference
-6. `make eval-index ...`: Evaluate the development set with D\_small
+`run-rc-nq` is composed of the six commands as follows (in case of training on NQ):
+1. `make train-rc ...`: Train DensePhrases on NQ with Eq. 9 (L = lambda1 L\_single + lambda2 L\_distill + lambda3 L\_neg) with generated questions.
+2. `make train-rc ...`: Load trained DensePhrases in the previous step and further train it with Eq. 9 with pre-batch negatives.
+3. `make gen-vecs`: Generate phrase vectors for D\_small.
+4. `make index-vecs`: Build a phrase index for D\_small.
+5. `make compress-meta`: Compresss metadata for faster inference.
+6. `make eval-index ...`: Evaluate the development set with D\_small.
 
-At the end of step 2, you will see the performance on the reading comprehension setting where a gold passage is given (72.0 EM on NQ dev). Step 6 gives the performance on the semi-open-domain setting (denoted as D\_small; see Table 6 in the paper.) where the entire passages from the NQ development set is used for the indexing (64.0 EM with NQ dev questions). The trained model will be saved under `$DPH_SAVE_DIR/$MODEL_NAME`. Note that during the single-passage training on NQ, we exclude some questions in the development set, whose annotated answers are found from a list or a table.
+At the end of step 2, you will see the performance on the reading comprehension task where a gold passage is given (about 72.0 EM on NQ dev). Step 6 gives the performance on the semi-open-domain setting (denoted as D\_small; see Table 6 in the paper.) where the entire passages from the NQ development set is used for the indexing (about 62.0 EM with NQ dev questions). The trained model will be saved under `$DPH_SAVE_DIR/$MODEL_NAME`. Note that during the single-passage training on NQ, we exclude some questions in the development set, whose annotated answers are found from a list or a table.
 
 ###  2. Creating a phrase index
 Now let's assume that you have a model trained on NQ + SQuAD named `dph-nqsqd-pb2`, which can also be downloaded from [here](#2-pre-trained-models).
-You can make a bigger phrase dump using `dump-large` as follows:
+You can make a bigger corpus using `gen-vecs-parallel` as follows:
 ```bash
 # Generate large-scale phrase vectors with a trained model (default = dev_wiki)
 make gen-vecs-parallel MODEL_NAME=dph-nqsqd-pb2 START=0 END=8
@@ -294,58 +292,58 @@ The default text corpus for creating phrase dump is `dev_wiki` located in `$DPH_
 - `dev_wiki_noise`: 1/10 Wikipedia scale (sampled), 500 files
 - `20181220_concat`: full Wikipedia (20181220) scale, 5621 files
 
-The `dev_wiki*` corpora contain passages from the NQ development set, so that you can track the performance of your model depending on the size of the text corpus (usually decreases as it gets larger). The phrase dump will be saved as hdf5 files in `$DPH_SAVE_DIR/$(MODEL_NAME)_(data_name)/dump` (`$DPH_SAVE_DIR/dph-nqsqd-pb2_dev_wiki/dump` in this case), which will be referred to `$DUMP_DIR`.
+The `dev_wiki*` corpora also contain passages from the NQ development set, so that you can track the performance of your model witn an increasing size of the text corpus (usually decreases as it gets larger). The phrase dump will be saved as hdf5 files in `$DPH_SAVE_DIR/$(MODEL_NAME)_(data_name)/dump` (e.g., `$DPH_SAVE_DIR/dph-nqsqd-pb2_dev_wiki/dump`), which will be referred to `$DUMP_DIR` below.
 
 #### Parallelization
-`START` and `END` specify the file index in the corpus (e.g., `START=0 END=8` for `dev_wiki` and `START=0 END=5621` for `20181220_concat`).  Each run of `dump-large` only consumes 2GB of a single GPU, and you can distribute the processes with different `START` and `END` (use slurm or shell scripts). Distributing 28 processes on 4 24GB GPUs (each processing 200 files) can create a phrase dump for `20181220_concat` in 8 hours.
+`START` and `END` specify the file index in the corpus (e.g., `START=0 END=8` for `dev_wiki` and `START=0 END=5621` for `20181220_concat`).  Each run of `gen-vecs-parallel` only consumes 2GB in a single GPU, and you can distribute the processes with different `START` and `END` using slurm or shell script (e.g., `START=0 END=200`, `START=200 END=400`, ..., `START=5400 END=5621`). Distributing 28 processes on 4 24GB GPUs (each processing about 200 files) can create a phrase dump for `20181220_concat` in 8 hours. Processing the entire Wikiepdia requires up to 500GB and we recommend using an SSD to store them if possible (a smaller corpus can be stored in a HDD).
 
-After creating the phrase dump, you need to create a phrase index (or a MIPS index) for the sublinear time search of phrases. In our paper, we used IVFSQ4 for the phrase index.
+After generating the phrase vectors, you need to create a phrase index for the sublinear time search of phrases. Here, we use IVFOPQ for the phrase index.
 ```bash
-# Create IVFSQ4 index for large indexes
-make index-large DUMP_DIR=$DPH_SAVE_DIR/dph-nqsqd-pb2_dev_wiki/dump/
+# Create IVFOPQ index for a set of phrase vectors
+make index-vecs DUMP_DIR=$DPH_SAVE_DIR/dph-nqsqd-pb2_dev_wiki/dump/
 ```
 
-For `dev_wiki_noise` and `20181220_concat`, you need to modify the number of clusters to 101,372 and 1,048,576, respectively, and also use `index-add` and `index-merge` to add phrase representations to the index (see `Makefile` for details). If you want to use IVFOPQ, using `index-large-pq` is enough in any case.
+For `dev_wiki_noise` and `20181220_concat`, you need to modify the number of clusters to 101,372 and 1,048,576, respectively. For `20181220_concat` (full Wikipedia), this takes about 1~2 days depending on the specs of you machine and requires about 100GB RAM. For IVFSQ as described in the paper, you can use `index-add` and `index-merge` to distribute the addition of phrase vectors to the index.
 
-For evaluating the performance of DensePhrases on these larger phrase indexes, use `eval-dump`.
-```bash
-# Evaluate on the NQ development set questions
-make eval-dump MODEL_NAME=dph-nqsqd-pb2 DUMP_DIR=$DPH_SAVE_DIR/dph-nqsqd-pb2_dev_wiki/dump/
-```
-
-Optionally, you may want to compress the metadata (phrase dumps saved as hdf5 files) for a faster inference by loading it on RAM. This is only supported for the PQ index.
+You also need to compress the metadata (saved in hdf5 files together with phrase vectors) for a faster inference of DensePhrases. This is mandatory for the IVFOPQ index.
 ```bash
 # Compress metadata of the entire Wikipedia (20181220_concat)
 make compress-meta DUMP_DIR=$DPH_SAVE_DIR/dph-nqsqd-pb2_20181220_concat/dump
 ```
 
-### 3. Query-side fine-tuning
-With a single 11GB GPU, you can easily train a query encoder to retrieve phrase-level knowledge from Wikipedia. First, you need a phrase index for the full Wikipedia (`20181220_concat`), which can be obtained by simply downloading from [here](#3-phrase-index) (`dph-nqsqd-pb2_20181220_concat`) or by creating a custom phrase index as described above.
-
-The following command query-side fine-tunes `dph-nqsqd-pb2` on NQ.
+For evaluating the performance of DensePhrases on these larger phrase indexes, use `eval-index`.
 ```bash
-# Query-side fine-tune on Natural Questions (model will be saved as MODEL_NAME)
-make train-query MODEL_NAME=dph-nqsqd-pb2-nq DUMP_DIR=$DPH_SAVE_DIR/dph-nqsqd-pb2_20181220_concat/dump/
+# Evaluate on the NQ development set questions
+make eval-index MODEL_NAME=dph-nqsqd-pb2 DUMP_DIR=$DPH_SAVE_DIR/dph-nqsqd-pb2_dev_wiki/dump/
 ```
-Note that the pre-trained encoder is specified in `train-query` as `--query_encoder_path $(DPH_SAVE_DIR)/dph-nqsqd-pb2` and a new model will be saved as `dph-nqsqd-pb2-nq` as specified above. You can also train on different datasets by changing the dependency `nq-open-data` to `*-open-data` (e.g., `trec-open-data`).
 
-#### IVFOPQ vs IVFSQ4
-Currently, `train-query` uses the IVFOPQ index for query-side fine-tuning, and you should modify the arguments `--index_dir start/1048576_flat_PQ96_8` to `--index_dir start/1048576_flat_SQ4` for using IVFSQ4 index used in our paper.
-For IVFOPQ, training takes 2 to 3 hours per epoch for large datasets (NQ, TQA, SQuAD), and 3 to 8 minutes for small datasets (WQ, TREC). For IVFSQ4, the training time is highly dependent on the File I/O speed, so using SSDs is recommended for IVFSQ4.
+### 3. Query-side fine-tuning
+With a single 11GB GPU, you can easily train your query encoder to retrieve phrase-level knowledge from Wikipedia. First, you need a phrase index for the full Wikipedia (`20181220_concat`), which can be obtained by simply downloading it from [here](#3-phrase-index) (`dph-nqsqd-pb2_20181220_concat`) or by creating a custom phrase index as described above.
+
+The following command query-side fine-tunes `dph-nqsqd-pb2` on TREC.
+```bash
+# Query-side fine-tune on TREC (model will be saved as MODEL_NAME)
+make train-query MODEL_NAME=dph-nqsqd-pb2-trec DUMP_DIR=$DPH_SAVE_DIR/dph-nqsqd-pb2_20181220_concat/dump/
+```
+Note that the pre-trained encoder is specified in `train-query` as `--query_encoder_path $(DPH_SAVE_DIR)/dph-nqsqd-pb2` and a new model will be saved as `dph-nqsqd-pb2-trec` as specified in `MODEL_NAME`. You can also train on different datasets by changing the dependency `trec-open-data` to `*-open-data` (e.g., `nq-open-data`).
+
+#### IVFOPQ vs IVFSQ
+Currently, `train-query` uses the IVFOPQ index for query-side fine-tuning, and you should apply minor changes in the code to train with an IVFSQ index.
+For IVFOPQ, training takes 2 to 3 hours per epoch for large datasets (NQ, TQA, SQuAD), and 3 to 8 minutes for small datasets (WQ, TREC). We recommend using IVFOPQ since it has similar or better performance than IVFSQ and the training time is highly dependent on the File I/O speed when using IVFSQ (so using SSDs is recommended for IVFSQ).
 
 ### 4. Inference
 With a pre-trained DensePhrases encoder (e.g., `dph-nqsqd-pb2_pq96-nq-10`) and a phrase index (e.g., `dph-nqsqd-pb2_20181220_concat`), you can test your queries as follows:
 
 ```bash
 # Evaluate on Natural Questions
-make eval-od MODEL_NAME=dph-nqsqd-pb2_pq96-nq-10 DUMP_DIR=$DPH_SAVE_DIR/dph-nqsqd-pb2_20181220_concat/dump/
+make eval-index MODEL_NAME=dph-nqsqd-pb2_pq96-nq-10 DUMP_DIR=$DPH_SAVE_DIR/dph-nqsqd-pb2_20181220_concat/dump/
 
 # If the demo is being served on http://localhost:51997
-make eval-od-req I_PORT=51997
+make eval-demo I_PORT=51997
 ```
 
 ## Pre-processing
-At the bottom of `Makefile`, we list commands that we used for pre-processing the datasets and Wikipedia. For training question generation models (T5-large), we used [https://github.com/patil-suraj/question\_generation](https://github.com/patil-suraj/question_generation) (see also [here](https://github.com/princeton-nlp/DensePhrases/blob/main/densephrases/scripts/question_generation/generate_squad.py) for QG). Note that all datasets are already pre-processed including the generated questions, so you do not need to run most of these scripts. For creating test sets for custom (open-domain) questions, see `preprocess-openqa` in `Makefile`.
+At the bottom of `Makefile`, we list commands that we used for pre-processing the datasets and Wikipedia. For training question generation models (T5-large), we used [https://github.com/patil-suraj/question\_generation](https://github.com/patil-suraj/question_generation) (see also [here](https://github.com/princeton-nlp/DensePhrases/blob/main/scripts/question_generation/generate_squad.py) for QG). Note that all datasets are already pre-processed including the generated questions, so you do not need to run most of these scripts. For creating test sets for custom (open-domain) questions, see `preprocess-openqa` in `Makefile`.
 
 ## Questions?
 Feel free to email Jinhyuk Lee `(jl5167@princeton.edu)` for any questions related to the code or the paper. You can also open a Github issue. Please try to specify the details so we can better understand and help you solve the problem.
