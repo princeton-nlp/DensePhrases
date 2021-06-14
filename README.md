@@ -103,12 +103,6 @@ ls $DPH_SAVE_DIR
 #### From 320GB to 74GB
 Since hosting the 320GB phrase index described in our paper is costly, we provide an index with a much smaller size (74GB), which includes our recent efforts to reduce the size of the phrase index using [Optimized Product Quantization](https://ieeexplore.ieee.org/document/6678503) with Inverted File System (IVFOPQ). With IVFOPQ, you do not need any SSDs for the real-time inference (the index is loaded on RAM), and you can also reconstruct the phrase vectors from it for the query-side fine-tuning (hence do not need the additional 500GB).
 
-If the following test run completes without an error, you are good to go!
-```bash
-# Test run for checking installation (takes about 10 mins; ignore the performance)
-make draft MODEL_NAME=test
-```
-
 ## Creating a Custom Phrase Index with DensePhrases
 Basically, DensePhrases uses a text corpus pre-processed in the following format:
 ```
@@ -256,7 +250,12 @@ For more details (e.g., changing the test set), please see the targets in `Makef
 
 ## DensePhrases: Training, Indexing and Inference
 In this section, we introduce a step-by-step procedure to train DensePhrases, create phrase vectors and indexes, and run inferences with the trained model.
-All of our commands below are specified as `Makefile` targets, which include dataset paths, hyperparameter settings, etc.
+All of our commands here are simplified as `Makefile` targets, which include exact dataset paths, hyperparameter settings, etc.
+If the following test run completes without an error after the installation and the download, you are good to go!
+```bash
+# Test run for checking installation (takes about 10 mins; ignore the performance)
+make draft MODEL_NAME=test
+```
 
 <div align="center">
   <img alt="DensePhrases Steps" src="https://github.com/princeton-nlp/DensePhrases/blob/main/densephrases/demo/static/files/overview_new.png" width="850px">
