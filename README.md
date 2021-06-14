@@ -82,7 +82,7 @@ You can also download each of pre-trained DensePhrases models as listed below.
 | [dph-nqsqd3-multi5-pb2\_opq96\_sqd](https://nlp.cs.princeton.edu/projects/densephrases/models/dph-nqsqd3-multi5-pb2_opq96-sqd.tar.gz) | SQuAD | 34.5 |
 | [dph-nqsqd3-multi5-pb2\_opq96\_multi5](https://nlp.cs.princeton.edu/projects/densephrases/models/dph-nqsqd3-multi5-pb2_opq96-multi5.tar.gz) | NaturalQuestions | 40.9 |
 
-- `dph-nqsqd3-multi5-pb2`                      : DensePhrases (C\_phrase = {NQ, WQ, TREC, TQA, SQuAD}) before any query-side fine-tuning
+- `dph-nqsqd3-multi5-pb2`                      : DensePhrases trained on multiple reading comprehension datasets (C\_phrase = {NQ, WQ, TREC, TQA, SQuAD}) without any query-side fine-tuning
 - `dph-nqsqd3-multi5-pb2_opq96-*`          : DensePhrases query-side fine-tuned on *
 - `dph-nqsqd3-multi5-pb2_opq96-multi5`         : DensePhrases query-side fine-tuned on 5 open-domain QA datasets (NQ, WQ, TREC, TQA, SQuAD); Used for the [demo]
 - `spanbert-base-cased-*`             : cross-encoder teacher models trained on \*
