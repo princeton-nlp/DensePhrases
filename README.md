@@ -251,6 +251,7 @@ For more details (e.g., changing the test set), please see the targets in `Makef
 ## DensePhrases: Training, Indexing and Inference
 In this section, we introduce a step-by-step procedure to train DensePhrases, create phrase vectors and indexes, and run inferences with the trained model.
 All of our commands here are simplified as `Makefile` targets, which include exact dataset paths, hyperparameter settings, etc.
+
 If the following test run completes without an error after the installation and the download, you are good to go!
 ```bash
 # Test run for checking installation (takes about 10 mins; ignore the performance)
@@ -334,7 +335,7 @@ Currently, `train-query` uses the IVFOPQ index for query-side fine-tuning, and y
 For IVFOPQ, training takes 2 to 3 hours per epoch for large datasets (NQ, TQA, SQuAD), and 3 to 8 minutes for small datasets (WQ, TREC). We recommend using IVFOPQ since it has similar or better performance than IVFSQ while being much faster than IVFSQ. With IVFSQ, the training time will be highly dependent on the File I/O speed, so using SSDs is recommended for IVFSQ.
 
 ### 4. Inference
-With a pre-trained DensePhrases encoder (e.g., `dph-nqsqd3-multi5-pb2_opq96-nq`) and a phrase index (e.g., `dph-nqsqd3-multi5-pb2_1_20181220_concat`), you can test your queries as follows and the results will be saved as a json file with the `--save_pred` option:
+With any DensePhrases query encoders (e.g., `dph-nqsqd3-multi5-pb2_opq96-nq`) and a phrase index (e.g., `dph-nqsqd3-multi5-pb2_1_20181220_concat`), you can test your queries as follows and the results will be saved as a json file with the `--save_pred` option:
 
 ```bash
 # Evaluate on Natural Questions
@@ -343,6 +344,7 @@ make eval-index MODEL_NAME=dph-nqsqd3-multi5-pb2_opq96-nq DUMP_DIR=$DPH_SAVE_DIR
 # If the demo is being served on http://localhost:51997
 make eval-demo I_PORT=51997
 ```
+For the evaluation on different datasets, simply change the dependency of `eval-index` (or `eval-demo`) accordingly (e.g., `nq-open-data` to `trec-open-data` for the evaluation on CuratedTREC).
 
 ## Pre-processing
 At the bottom of `Makefile`, we list commands that we used for pre-processing the datasets and Wikipedia. For training question generation models (T5-large), we used [https://github.com/patil-suraj/question\_generation](https://github.com/patil-suraj/question_generation) (see also [here](https://github.com/princeton-nlp/DensePhrases/blob/main/scripts/question_generation/generate_squad.py) for QG). Note that all datasets are already pre-processed including the generated questions, so you do not need to run most of these scripts. For creating test sets for custom (open-domain) questions, see `preprocess-openqa` in `Makefile`.
