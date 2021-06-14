@@ -60,7 +60,7 @@ Downloading data done!
 ```
 
 ### 1. Datasets
-* [Datasets](https://nlp.cs.princeton.edu/projects/densephrases/dph-data.tar.gz) (6GB) - All pre-processed datasets used in our experiments including reading comprehension, open-domain QA, slot filling, and pre-processed Wikipedia. Download and unzip it under `DPH_DATA_DIR` or use `download.sh`.
+* [Datasets](https://nlp.cs.princeton.edu/projects/densephrases/dph-data.tar.gz) (6GB) - All pre-processed datasets used in our experiments including reading comprehension, generated questions, open-domain QA, slot filling, and pre-processed Wikipedia. Download and unzip it under `DPH_DATA_DIR` or use `download.sh`.
 ```bash
 # Check if the download is complete
 ls $DPH_DATA_DIR
