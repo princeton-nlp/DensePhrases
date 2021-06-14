@@ -32,7 +32,7 @@ case "$TARGET" in
         tar -xzvf "$TARGET_DIR/outputs.tar.gz" -C "$TARGET_DIR" --strip 1
         rm "$TARGET_DIR/outputs.tar.gz" ;;
     index )
-        wget -O "$TARGET_DIR/dph-nqsqd-pb2_20181220_concat.tar.gz" "https://nlp.cs.princeton.edu/projects/densephrases/dph-nqsqd-pb2_20181220_concat.tar.gz"
+        wget -O "$TARGET_DIR/dph-nqsqd-pb2_20181220_concat.tar.gz" "https://nlp.cs.princeton.edu/projects/densephrases/dph-nqsqd3-multi5-pb2_1_20181220_concat.tar.gz"
         tar -xzvf "$TARGET_DIR/dph-nqsqd-pb2_20181220_concat.tar.gz" -C "$TARGET_DIR"
         rm "$TARGET_DIR/dph-nqsqd-pb2_20181220_concat.tar.gz" ;;
     * ) echo "Wrong target $TARGET";

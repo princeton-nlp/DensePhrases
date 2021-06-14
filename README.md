@@ -9,6 +9,9 @@ Learning Dense Representations of Phrases at Scale (Lee et al., 2021)](https://a
 
 **\*\*\*\*\* You can try out our online demo of DensePhrases [here](http://densephrases.korea.ac.kr)! \*\*\*\*\***
 
+#### Updates
+**\*\*\*\*\* New June 14, 2021: Major code updates \*\*\*\*\***
+
 ## Quick Links
 * [Installation](#installation)
 * [Resources](#resources)
@@ -87,18 +90,18 @@ You can also download each of pre-trained DensePhrases models as listed below.
 - `dph-nqsqd3-multi5-pb2_opq96-multi5`         : DensePhrases query-side fine-tuned on 5 open-domain QA datasets (NQ, WQ, TREC, TQA, SQuAD); Used for the [demo]
 - `spanbert-base-cased-*`             : cross-encoder teacher models trained on \*
 
-Note that the performance was measured on [the phrase index for the full Wikipedia scale](#3-phrase-index).
+The performance was measured on [the phrase index for the full Wikipedia scale](#3-phrase-index).
 
 ### 3. Phrase Index
 Please note that you don't need to download this phrase index unless you want to work on the full Wikipedia scale.
-* [DensePhrases-IVFOPQ96](https://nlp.cs.princeton.edu/projects/densephrases/dph-nqsqd3-multi5-pb2_1_20181220_concat.tar.gz) (88GB) - Phrase index for the 20181220 version of Wikipedia. Download and unzip it under `DPH_SAVE_DIR` or use `download.sh`.
+* [DensePhrases-IVFOPQ96](https://nlp.cs.princeton.edu/projects/densephrases/dph-nqsqd3-multi5-pb2_1_20181220_concat.tar.gz) (74GB) - Phrase index for the 20181220 version of Wikipedia. Download and unzip it under `DPH_SAVE_DIR` or use `download.sh`.
 ```bash
 # Check if the download is complete
 ls $DPH_SAVE_DIR
 ...  dph-nqsqd3-multi5-pb2_1_20181220_concat
 ```
-Since hosting the 320GB phrase index---the phrase index described in our paper---is costly, we provide an index with a much smaller size, which includes our recent efforts to reduce the size of the phrase index using [Optimized Product Quantization](https://ieeexplore.ieee.org/document/6678503) with Inverted File System (IVFOPQ). With IVFOPQ, you do not need any SSDs for the real-time inference (the index is loaded on RAM), and you can also reconstruct the phrase vectors from it for the query-side fine-tuning (hence do not need the additional 500GB).
-For the reimplementation of DensePhrases with IVFSQ as described in the paper, see [Training DensePhrases](#densephrases-training-indexing-and-inference).
+#### From 320GB to 74GB
+Since hosting the 320GB phrase index described in our paper is costly, we provide an index with a much smaller size (74GB), which includes our recent efforts to reduce the size of the phrase index using [Optimized Product Quantization](https://ieeexplore.ieee.org/document/6678503) with Inverted File System (IVFOPQ). With IVFOPQ, you do not need any SSDs for the real-time inference (the index is loaded on RAM), and you can also reconstruct the phrase vectors from it for the query-side fine-tuning (hence do not need the additional 500GB).
 
 If the following test run completes without an error, you are good to go!
 ```bash
@@ -202,8 +205,7 @@ There are two ways of using DensePhrases demo.
 2. You can run the demo on your own server where you can change the phrase index (obtained from [here](#creating-a-custom-phrase-index-with-densephrases)) or the query encoder (e.g., to `dph-nqsqd3-multi5-pb2_opq96-nq`).
 
 The minimum resource requirement for running the full Wikipedia scale demo is:
-* 125GB RAM
-* 100GB HDD
+* 100GB RAM
 * Single 11GB GPU (optional)
 
 Note that you no longer need any SSDs to run the demo unlike previous phrase retrieval models ([DenSPI](https://github.com/uwnlp/denspi), [DenSPI+Sparc](https://github.com/jhyuklee/sparc)), but setting `$DPH_SAVE_DIR` to an SSD can reduce the loading time of the required resources. The following commands serve exactly the same demo as [here](http://densephrases.korea.ac.kr) on your `http://localhost:51997`.
