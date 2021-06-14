@@ -3,17 +3,17 @@
         {
             "id": "1",
             "question": "who won season 4 of america's got talent",
-            "answers": [""]
+            "answers": ["Kevin Skinner"]
         },
         {
             "id": "2",
             "question": "how many goals scored ronaldo in 2014-2015 season",
-            "answers": [""]
+            "answers": ["61"]
         },
         {
             "id": "3",
             "question": "who plays william boldwood in far from the madding crowd",
-            "answers": [""]
+            "answers": ["Michael Sheen"]
         }
     ]
 }

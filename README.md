@@ -180,11 +180,11 @@ python eval_phrase_retrieval.py \
 The prediction file will be saved as `$DPH_SAVE_DIR/dph-nqsqd3-multi5-pb2/pred/sample_qs_4.pred`, which shows the answer phrases and the passages that contain the phrases:
 ```
 {
-    "7184325478917544179": {
+    "1": {
         "question": "Who won season 4 of America's got talent",
         ...
         "prediction": [
-            "Country singer Kevin Skinner",
+            "Kevin Skinner",
             ...
         ],
         "evidence": [
