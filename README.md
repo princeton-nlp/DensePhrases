@@ -198,7 +198,7 @@ For creating a large-scale phrase index (e.g., Wikipedia), see [dump_phrases.py]
 
 ## Playing with a DensePhrases Demo
 There are two ways of using DensePhrases demo.
-1. You can simply use the [demo] that we are serving on our server (Wikipedia scale). The running demo is using `dph-nqsqd3-multi5-pb2_opq96-multi5` (NQ=40.3 EM) as a query encoder and `dph-nqsqd3-multi5-pb2_1_20181220_concat` as a phrase index.
+1. You can simply use the [demo] that we are serving on our server (Wikipedia scale). The running demo is using `dph-nqsqd3-multi5-pb2_opq96-multi5` (NQ=40.8 EM) as a query encoder and `dph-nqsqd3-multi5-pb2_1_20181220_concat` as a phrase index.
 2. You can run the demo on your own server where you can change the phrase index (obtained from [here](#creating-a-custom-phrase-index-with-densephrases)) or the query encoder (e.g., to `dph-nqsqd3-multi5-pb2_opq96-nq`).
 
 The minimum resource requirement for running the full Wikipedia scale demo is:
@@ -248,9 +248,9 @@ make eval-demo I_PORT=51997
 
 # Result
 (...)
-INFO - densephrases.experiments.run_open -   {'exact_match_top1': 40.30470914127424, 'f1_score_top1': 47.18394271164363}
-INFO - densephrases.experiments.run_open -   {'exact_match_top10': 63.57340720221607, 'f1_score_top10': 72.15437717099778}
-INFO - densephrases.experiments.run_open -   Saving prediction file to $DPH_SAVE_DIR/pred/test_preprocessed_3610.pred
+INFO - eval_phrase_retrieval -   {'exact_match_top1': 40.83102493074792, 'f1_score_top1': 48.26451418695196}
+INFO - eval_phrase_retrieval -   {'exact_match_top10': 60.11080332409972, 'f1_score_top10': 68.47386731458751}
+INFO - eval_phrase_retrieval -   Saving prediction file to $DPH_SAVE_DIR/pred/test_preprocessed_3610_top10.pred
 ```
 For more details (e.g., changing the test set), please see the targets in `Makefile` (`q-serve`, `p-serve`, `eval-demo`, etc).
 
