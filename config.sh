@@ -25,7 +25,7 @@ done
 # DATA_DIR: for datasets (including 'kilt', 'open-qa', 'single-qa', 'truecase', 'wikidump')
 # SAVE_DIR: for pre-trained models or dumps; new models and dumps will also be saved here
 # CACHE_DIR: for cache files from huggingface transformers
-export DATA_DIR=$BASE_DIR/dph-data
+export DATA_DIR=$BASE_DIR/densephrases-data
 export SAVE_DIR=$BASE_DIR/outputs
 export CACHE_DIR=$BASE_DIR/cache
 

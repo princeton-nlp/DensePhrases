@@ -53,14 +53,15 @@ To download the resources described below, you can use `download.sh` as follows:
 ```bash
 # Use bash script to download data (change data to models or index accordingly)
 source download.sh
-Choose a resource to download [data/models/index]: data
+Choose a resource to download [data/wiki/models/index]: data
 data will be downloaded at ...
 ...
 Downloading data done!
 ```
 
 ### 1. Datasets
-* [Datasets](https://nlp.cs.princeton.edu/projects/densephrases/densephrases-data.tar.gz) (6GB) - All pre-processed datasets used in our experiments including reading comprehension, generated questions, open-domain QA, slot filling, and pre-processed Wikipedia. Download and unzip it under `$DATA_DIR` or use `download.sh`.
+* [Datasets](https://nlp.cs.princeton.edu/projects/densephrases/densephrases-data.tar.gz) (1GB) - All pre-processed datasets used in our experiments including reading comprehension, generated questions, open-domain QA and slot filling. Download and unzip it under `$DATA_DIR` or use `download.sh`.
+* [Wikipedia](https://nlp.cs.princeton.edu/projects/densephrases/wikidump.tar.gz) (1GB) - Pre-processed Wikipedia in different sizes. Download and unzip it under `$DATA_DIR` or use `download.sh`.
 ```bash
 # Check if the download is complete
 ls $DATA_DIR

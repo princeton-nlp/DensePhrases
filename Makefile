@@ -302,7 +302,7 @@ train-query: dump-dir model-name trec-open-data large-index
 		--num_train_epochs 5 \
 		--dump_dir $(DUMP_DIR) \
 		--index_dir start/$(NUM_CLUSTERS)_flat_$(INDEX_TYPE) \
-		--query_encoder_path $(SAVE_DIR)/dph-nqsqd3-multi5-pb2 \
+		--query_encoder_path $(SAVE_DIR)/densephrases-multi \
 		--output_dir $(SAVE_DIR)/$(MODEL_NAME) \
 		--top_k 100 \
 		--cuda \

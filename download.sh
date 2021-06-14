@@ -1,8 +1,12 @@
 #!/bin/bash
 
-while read -p "Choose a resource to download [data/models/index]: " choice; do
+while read -p "Choose a resource to download [data/wiki/models/index]: " choice; do
     case "$choice" in
         data )
+            TARGET=$choice
+            TARGET_DIR=$DATA_DIR
+            break ;;
+        wiki )
             TARGET=$choice
             TARGET_DIR=$DATA_DIR
             break ;;
@@ -14,7 +18,7 @@ while read -p "Choose a resource to download [data/models/index]: " choice; do
             TARGET=$choice
             TARGET_DIR=$SAVE_DIR
             break ;;
-        * ) echo "Please type among [data/models/index]";
+        * ) echo "Please type among [data/wiki/models/index]";
             exit 0 ;;
     esac
 done
@@ -27,6 +31,10 @@ case "$TARGET" in
         wget -O "$TARGET_DIR/densephrases-data.tar.gz" "https://nlp.cs.princeton.edu/projects/densephrases/densephrases-data.tar.gz"
         tar -xzvf "$TARGET_DIR/densephrases-data.tar.gz" -C "$TARGET_DIR" --strip 1
         rm "$TARGET_DIR/densephrases-data.tar.gz" ;;
+    wiki )
+        wget -O "$TARGET_DIR/wikidump.tar.gz" "https://nlp.cs.princeton.edu/projects/densephrases/wikidump.tar.gz"
+        tar -xzvf "$TARGET_DIR/wikidump.tar.gz" -C "$TARGET_DIR"
+        rm "$TARGET_DIR/wikidump.tar.gz" ;;
     models )
         wget -O "$TARGET_DIR/outputs.tar.gz" "https://nlp.cs.princeton.edu/projects/densephrases/outputs.tar.gz"
         tar -xzvf "$TARGET_DIR/outputs.tar.gz" -C "$TARGET_DIR" --strip 1

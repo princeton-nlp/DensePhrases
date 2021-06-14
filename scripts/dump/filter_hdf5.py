@@ -16,7 +16,7 @@ print(input_dumps)
 # Filter dump for a lighter version
 '''
 output_dumps = [
-    h5py.File(f'dumps/dph-nqsqd-pb2_20181220_concat/dump/phrase/{k}.hdf5', 'w')
+    h5py.File(f'dumps/densephrases-multi_wiki-20181220/dump/phrase/{k}.hdf5', 'w')
     for k in dump_names
 ]
 print(output_dumps)
