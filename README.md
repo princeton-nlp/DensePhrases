@@ -5,7 +5,7 @@
 </div>
 
 <em>DensePhrases</em> provides answers to your natural language questions from the entire Wikipedia in real-time. While it efficiently searches the answers out of 60 billion phrases in Wikipedia, it is also very accurate having competitive accuracy with state-of-the-art open-domain QA models.  Please see our paper [
-Learning Dense Representations of Phrases at Scale (Lee et al., 2020)](https://arxiv.org/abs/2012.12624) for more details.
+Learning Dense Representations of Phrases at Scale (Lee et al., 2021)](https://arxiv.org/abs/2012.12624) for more details.
 
 **\*\*\*\*\* You can try out our online demo of DensePhrases [here](http://densephrases.korea.ac.kr)! \*\*\*\*\***
 
@@ -65,7 +65,7 @@ kilt  open-qa  single-qa  truecase  wikidump
 ```
 
 ### 2. Pre-trained Models
-* [Pre-trained models](https://nlp.cs.princeton.edu/projects/densephrases/outputs.tar.gz) (5GB) - All pre-trained DensePhrases models (including cross-encoder teacher models). Download and unzip it under `DPH_SAVE_DIR` or use `download.sh`.
+* [Pre-trained models](https://nlp.cs.princeton.edu/projects/densephrases/outputs.tar.gz) (13GB) - All pre-trained DensePhrases models (including cross-encoder teacher models). Download and unzip it under `DPH_SAVE_DIR` or use `download.sh`.
 ```bash
 # Check if the download is complete
 ls $DPH_SAVE_DIR
@@ -77,7 +77,7 @@ You can also download each of pre-trained DensePhrases models as listed below.
 | [dph-nqsqd3-multi5-pb2](https://nlp.cs.princeton.edu/projects/densephrases/models/dph-nqsqd3-multi5-pb2.tar.gz) | NaturalQuestions | 31.9 |
 | [dph-nqsqd3-multi5-pb2\_opq96\_nq](https://nlp.cs.princeton.edu/projects/densephrases/models/dph-nqsqd3-multi5-pb2_opq96-nq.tar.gz) | NaturalQuestions | 41.3 |
 | [dph-nqsqd3-multi5-pb2\_opq96\_trec](https://nlp.cs.princeton.edu/projects/densephrases/models/dph-nqsqd3-multi5-pb2_opq96-trec.tar.gz) | CuratedTREC | 52.9 |
-| [dph-nqsqd3-multi5-pb2\_opq96\_webq](https://nlp.cs.princeton.edu/projects/densephrases/models/dph-nqsqd3-multi5-pb2_opq96-webq.tar.gz) | WebQuestions | 41.5 |
+| [dph-nqsqd3-multi5-pb2\_opq96\_webq](https://nlp.cs.princeton.edu/projects/densephrases/models/dph-nqsqd3-multi5-pb2_opq96-wq.tar.gz) | WebQuestions | 41.5 |
 | [dph-nqsqd3-multi5-pb2\_opq96\_tqa](https://nlp.cs.princeton.edu/projects/densephrases/models/dph-nqsqd3-multi5-pb2_opq96-tqa.tar.gz) | TriviaQA | 53.5 |
 | [dph-nqsqd3-multi5-pb2\_opq96\_sqd](https://nlp.cs.princeton.edu/projects/densephrases/models/dph-nqsqd3-multi5-pb2_opq96-sqd.tar.gz) | SQuAD | 34.5 |
 | [dph-nqsqd3-multi5-pb2\_opq96\_multi5](https://nlp.cs.princeton.edu/projects/densephrases/models/dph-nqsqd3-multi5-pb2_opq96-multi5.tar.gz) | NaturalQuestions | 40.9 |
