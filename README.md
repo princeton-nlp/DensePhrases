@@ -115,13 +115,13 @@ Basically, DensePhrases uses a text corpus pre-processed in the following format
 {
     "data": [
         {
-            "title": "List of Full House and Fuller House characters",
+            "title": "America's Got Talent (season 4)",
             "paragraphs": [
                 {
-                    "context": " This is a list of the characters from the American television sitcom \"Full House\" and its sequel series \"Fuller House\". ..."
+                    "context": " The fourth season of \"America's Got Talent\", ... Country singer Kevin Skinner was named the winner on September 16, 2009 ..."
                 },
                 {
-                    "context": " In contrast with Danny, Jesse is portrayed as being irresponsible most of the time, ..."
+                    "context": " Season four was Hasselhoff's final season as a judge. This season started broadcasting live on August 4, 2009. ..."
                 },
                 ...
             ]
@@ -182,11 +182,9 @@ The prediction file will be saved as `$DPH_SAVE_DIR/dph-nqsqd3-multi5-pb2/pred/s
 {
     "7184325478917544179": {
         "question": "Who won season 4 of America's got talent",
-        "answer": [
-            "Kevin Skinner"
-        ],
+        ...
         "prediction": [
-            "Kevin Skinner",
+            "Country singer Kevin Skinner",
             ...
         ],
         "evidence": [
