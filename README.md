@@ -72,7 +72,7 @@ ls $DPH_SAVE_DIR
 dph-nqsqd3-multi5-pb2  dph-nqsqd3-multi5-pb2_opq96-nq ... spanbert-base-cased-squad
 ```
 You can also download each of pre-trained DensePhrases models as listed below.
-|              Model              | Eval | OpenQA (EM) |
+|              Model              | Evaluation | OpenQA (EM) |
 |:-------------------------------|:--------:|:--------:|
 | [dph-nqsqd3-multi5-pb2](https://nlp.cs.princeton.edu/projects/densephrases/models/dph-nqsqd3-multi5-pb2.tar.gz) | NaturalQuestions | 31.9 |
 | [dph-nqsqd3-multi5-pb2\_opq96\_nq](https://nlp.cs.princeton.edu/projects/densephrases/models/dph-nqsqd3-multi5-pb2_opq96-nq.tar.gz) | NaturalQuestions | 41.3 |
