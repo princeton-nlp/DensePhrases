@@ -184,7 +184,7 @@ def evaluate_results(predictions, qids, questions, answers, args, evidences, sco
 
     # Dump predictions
     if len(args.query_encoder_path) == 0:
-        pred_dir = os.path.join(os.environ['DPH_SAVE_DIR'], 'pred')
+        pred_dir = os.path.join(os.environ['SAVE_DIR'], 'pred')
     else:
         pred_dir = os.path.join(args.query_encoder_path, 'pred')
     if not os.path.exists(pred_dir):
@@ -211,7 +211,7 @@ def evaluate_results_kilt(predictions, qids, questions, answers, args, evidences
 
     # dump official predictions
     if len(args.query_encoder_path) == 0:
-        pred_dir = os.path.join(os.environ['DPH_SAVE_DIR'], 'pred-kilt')
+        pred_dir = os.path.join(os.environ['SAVE_DIR'], 'pred-kilt')
     else:
         pred_dir = os.path.join(args.query_encoder_path, 'pred-kilt')
     if not os.path.exists(pred_dir):
@@ -370,7 +370,7 @@ if __name__ == '__main__':
                 new_args.regex = True
                 logger.info('Enable regex for TREC')
             if 'webq' in test_path:
-                new_args.candidate_path = os.path.join(os.environ['DPH_DATA_DIR'], 'open-qa/webq/freebase-entities.txt')
+                new_args.candidate_path = os.path.join(os.environ['DATA_DIR'], 'open-qa/webq/freebase-entities.txt')
                 logger.info('Enable candidates for WebQuestions')
             em = evaluate(new_args, mips, query_encoder, tokenizer)
             ems.append(f'{em:.1f}')

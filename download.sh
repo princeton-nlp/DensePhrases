@@ -4,15 +4,15 @@ while read -p "Choose a resource to download [data/models/index]: " choice; do
     case "$choice" in
         data )
             TARGET=$choice
-            TARGET_DIR=$DPH_DATA_DIR
+            TARGET_DIR=$DATA_DIR
             break ;;
         models )
             TARGET=$choice
-            TARGET_DIR=$DPH_SAVE_DIR
+            TARGET_DIR=$SAVE_DIR
             break ;;
         index )
             TARGET=$choice
-            TARGET_DIR=$DPH_SAVE_DIR
+            TARGET_DIR=$SAVE_DIR
             break ;;
         * ) echo "Please type among [data/models/index]";
             exit 0 ;;

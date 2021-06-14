@@ -36,7 +36,7 @@ class DensePhrasesInterface(object):
         self.base_ip = args.base_ip
         self.query_port = args.query_port
         self.index_port = args.index_port
-        self.truecase = TrueCaser(os.path.join(os.environ['DPH_DATA_DIR'], args.truecase_path))
+        self.truecase = TrueCaser(os.path.join(os.environ['DATA_DIR'], args.truecase_path))
 
     def serve_query_encoder(self, query_port, args, inmemory=False, batch_size=64, query_encoder=None, tokenizer=None):
         device = 'cuda' if args.cuda else 'cpu'

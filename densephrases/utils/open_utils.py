@@ -138,7 +138,7 @@ def load_qa_pairs(data_path, args, draft_num_examples=1000000, shuffle=False, re
     if args.truecase:
         try:
             logger.info('Truecasing queries')
-            truecase = TrueCaser(os.path.join(os.environ['DPH_DATA_DIR'], args.truecase_path))
+            truecase = TrueCaser(os.path.join(os.environ['DATA_DIR'], args.truecase_path))
             questions = [truecase.get_true_case(query) if query == query.lower() else query for query in questions]
         except Exception as e:
             print(e)

@@ -802,7 +802,7 @@ class SquadProcessor(DataProcessor):
         impossible_cnt = 0
         total_cnt = 0
         no_neg_cnt = 0
-        truecase = TrueCaser(os.path.join(os.environ['DPH_DATA_DIR'], args.truecase_path))
+        truecase = TrueCaser(os.path.join(os.environ['DATA_DIR'], args.truecase_path))
 
         for doc_idx, entry in tqdm(enumerate(input_data)):
             title = entry["title"]

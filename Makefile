@@ -72,8 +72,8 @@ train-rc:
 	python train_rc.py \
 		--model_type bert \
 		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
-		--data_dir $(DPH_DATA_DIR)/single-qa \
-		--cache_dir $(DPH_CACHE_DIR) \
+		--data_dir $(DATA_DIR)/single-qa \
+		--cache_dir $(CACHE_DIR) \
 		--train_file $(TRAIN_DATA) \
 		--predict_file $(DEV_DATA) \
 		--do_train \
@@ -89,8 +89,8 @@ train-rc:
 		--filter_threshold -2.0 \
 		--append_title \
 		--evaluate_during_training \
-		--teacher_dir $(DPH_SAVE_DIR)/$(TEACHER_NAME) \
-		--output_dir $(DPH_SAVE_DIR)/$(MODEL_NAME) \
+		--teacher_dir $(SAVE_DIR)/$(TEACHER_NAME) \
+		--output_dir $(SAVE_DIR)/$(MODEL_NAME) \
 		$(OPTIONS)
 
 # 2) Trained phrase encoders can be used to generate phrase vectors
@@ -98,8 +98,8 @@ gen-vecs:
 	python generate_phrase_vecs.py \
 		--model_type bert \
 		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
-		--data_dir $(DPH_DATA_DIR)/single-qa \
-		--cache_dir $(DPH_CACHE_DIR) \
+		--data_dir $(DATA_DIR)/single-qa \
+		--cache_dir $(CACHE_DIR) \
 		--predict_file $(DEV_DATA) \
 		--do_dump \
 		--max_seq_length 512 \
@@ -107,8 +107,8 @@ gen-vecs:
 		--fp16 \
 		--filter_threshold -2.0 \
 		--append_title \
-		--load_dir $(DPH_SAVE_DIR)/$(MODEL_NAME) \
-		--output_dir $(DPH_SAVE_DIR)/$(MODEL_NAME) \
+		--load_dir $(SAVE_DIR)/$(MODEL_NAME) \
+		--output_dir $(SAVE_DIR)/$(MODEL_NAME) \
 		$(OPTIONS)
 
 # 3) Build an IVFOPQ index for generated phrase vectors
@@ -133,8 +133,8 @@ eval-index: dump-dir model-name large-index nq-open-data
 		--cuda \
 		--dump_dir $(DUMP_DIR) \
 		--index_dir start/$(NUM_CLUSTERS)_flat_$(INDEX_TYPE) \
-		--query_encoder_path $(DPH_SAVE_DIR)/$(MODEL_NAME) \
-		--test_path $(DPH_DATA_DIR)/$(TEST_DATA) \
+		--query_encoder_path $(SAVE_DIR)/$(MODEL_NAME) \
+		--test_path $(DATA_DIR)/$(TEST_DATA) \
 		--save_pred \
 		$(OPTIONS)
 
@@ -149,12 +149,12 @@ draft: model-name nq-rc-data nq-param pbn-param small-index
 	make gen-vecs \
 		DEV_DATA=$(DEV_DATA) MODEL_NAME=$(MODEL_NAME)
 	make index-vecs \
-		DUMP_DIR=$(DPH_SAVE_DIR)/$(MODEL_NAME)/dump \
+		DUMP_DIR=$(SAVE_DIR)/$(MODEL_NAME)/dump \
 		NUM_CLUSTERS=$(NUM_CLUSTERS) INDEX_TYPE=$(INDEX_TYPE)
 	make compress-meta \
-		DUMP_DIR=$(DPH_SAVE_DIR)/$(MODEL_NAME)/dump
+		DUMP_DIR=$(SAVE_DIR)/$(MODEL_NAME)/dump
 	make eval-index \
-		DUMP_DIR=$(DPH_SAVE_DIR)/$(MODEL_NAME)/dump \
+		DUMP_DIR=$(SAVE_DIR)/$(MODEL_NAME)/dump \
 		NUM_CLUSTERS=$(NUM_CLUSTERS) INDEX_TYPE=$(INDEX_TYPE) \
 		MODEL_LANE=$(MODEL_NAME) TEST_DATA=$(SOD_DATA) \
 		OPTIONS=$(OPTIONS)
@@ -173,16 +173,16 @@ run-rc-nq: model-name nq-rc-data nq-param pbn-param small-index
 		TEACHER_NAME=$(TEACHER_NAME) MODEL_NAME=$(MODEL_NAME) \
 		BS=$(BS) LR=$(LR) MAX_SEQ_LEN=$(MAX_SEQ_LEN) \
 		LAMBDA_KL=$(LAMBDA_KL) LAMBDA_NEG=$(LAMBDA_NEG) \
-		OPTIONS='$(PBN_OPTIONS) --load_dir $(DPH_SAVE_DIR)/$(MODEL_NAME)_tmp'
+		OPTIONS='$(PBN_OPTIONS) --load_dir $(SAVE_DIR)/$(MODEL_NAME)_tmp'
 	make gen-vecs \
 		DEV_DATA=$(DEV_DATA) MODEL_NAME=$(MODEL_NAME)
 	make index-vecs \
-		DUMP_DIR=$(DPH_SAVE_DIR)/$(MODEL_NAME)/dump \
+		DUMP_DIR=$(SAVE_DIR)/$(MODEL_NAME)/dump \
 		NUM_CLUSTERS=$(NUM_CLUSTERS) INDEX_TYPE=$(INDEX_TYPE)
 	make compress-meta \
-		DUMP_DIR=$(DPH_SAVE_DIR)/$(MODEL_NAME)/dump
+		DUMP_DIR=$(SAVE_DIR)/$(MODEL_NAME)/dump
 	make eval-index \
-		DUMP_DIR=$(DPH_SAVE_DIR)/$(MODEL_NAME)/dump \
+		DUMP_DIR=$(SAVE_DIR)/$(MODEL_NAME)/dump \
 		NUM_CLUSTERS=$(NUM_CLUSTERS) INDEX_TYPE=$(INDEX_TYPE) \
 		MODEL_LANE=$(MODEL_NAME) TEST_DATA=$(SOD_DATA) \
 		OPTIONS=$(OPTIONS)
@@ -192,14 +192,14 @@ filter-test: model-name nq-rc-data
 	python train_rc.py \
 		--model_type bert \
 		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
-		--data_dir $(DPH_DATA_DIR)/single-qa \
-		--cache_dir $(DPH_CACHE_DIR) \
+		--data_dir $(DATA_DIR)/single-qa \
+		--cache_dir $(CACHE_DIR) \
 		--predict_file $(DEV_DATA) \
 		--do_filter_test \
 		--append_title \
 		--filter_threshold_list " -4,-3,-2,-1,-0.5,0" \
-		--load_dir $(DPH_SAVE_DIR)/$(MODEL_NAME) \
-		--output_dir $(DPH_SAVE_DIR)/$(MODEL_NAME) \
+		--load_dir $(SAVE_DIR)/$(MODEL_NAME) \
+		--output_dir $(SAVE_DIR)/$(MODEL_NAME) \
 		--draft
 
 ############################## Large-scale Dump & Indexing ###############################
@@ -214,21 +214,21 @@ endif
 # - dev_wiki_noise: 1/10 Wikipedia scale (sampled), num_clusters=131072 (medium2-index)
 # - 20181220_concat: full Wikipedia scale, num_clusters=1048576 (large-index)
 
-# Dump phrase vectors in parallel. Dump will be saved in $(DPH_SAVE_DIR)/$(MODEL_NAME)_(data_name)/dump.
+# Dump phrase vectors in parallel. Dump will be saved in $(SAVE_DIR)/$(MODEL_NAME)_(data_name)/dump.
 gen-vecs-parallel: model-name
 	nohup python parallel/dump_phrases.py \
 		--model_type bert \
 		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
-		--cache_dir $(DPH_CACHE_DIR) \
-		--data_dir $(DPH_DATA_DIR)/wikidump \
+		--cache_dir $(CACHE_DIR) \
+		--data_dir $(DATA_DIR)/wikidump \
 		--data_name dev_wiki \
-		--load_dir $(DPH_SAVE_DIR)/$(MODEL_NAME) \
-		--output_dir $(DPH_SAVE_DIR)/$(MODEL_NAME) \
+		--load_dir $(SAVE_DIR)/$(MODEL_NAME) \
+		--output_dir $(SAVE_DIR)/$(MODEL_NAME) \
 		--filter_threshold 1.0 \
 		--append_title \
 		--start $(START) \
 		--end $(END) \
-		> $(DPH_SAVE_DIR)/logs/$(MODEL_NAME)_$(START)-$(END).log &
+		> $(SAVE_DIR)/logs/$(MODEL_NAME)_$(START)-$(END).log &
 
 # Parallel add for large-scale on-disk IVFSQ (start, end = file idx)
 index-add: dump-dir large-index-sq
@@ -260,7 +260,7 @@ wq-open-data:
 	$(eval TRAIN_DATA=open-qa/webq/WebQuestions-train-nodev_preprocessed.json)
 	$(eval DEV_DATA=open-qa/webq/WebQuestions-dev_preprocessed.json)
 	$(eval TEST_DATA=open-qa/webq/WebQuestions-test_preprocessed.json)
-	$(eval OPTIONS=--truecase --candidate_path $(DPH_DATA_DIR)/open-qa/webq/freebase-entities.txt)
+	$(eval OPTIONS=--truecase --candidate_path $(DATA_DIR)/open-qa/webq/freebase-entities.txt)
 trec-open-data:
 	$(eval TRAIN_DATA=open-qa/trec/CuratedTrec-train-nodev_preprocessed.json)
 	$(eval DEV_DATA=open-qa/trec/CuratedTrec-dev_preprocessed.json)
@@ -275,35 +275,35 @@ sqd-open-data:
 	$(eval DEV_DATA=open-qa/squad/dev_preprocessed.json)
 	$(eval TEST_DATA=open-qa/squad/test_preprocessed.json)
 kilt-options:
-	$(eval OPTIONS=--is_kilt --title2wikiid_path $(DPH_DATA_DIR)/wikidump/title2wikiid.json)
+	$(eval OPTIONS=--is_kilt --title2wikiid_path $(DATA_DIR)/wikidump/title2wikiid.json)
 trex-open-data: kilt-options
 	$(eval TRAIN_DATA=kilt/trex/trex-train-kilt_open.json)
 	$(eval DEV_DATA=kilt/trex/trex-dev-kilt_open.json)
 	$(eval TEST_DATA=kilt/trex/trex-dev-kilt_open.json)
-	$(eval OPTIONS=$(OPTIONS) --kilt_gold_path $(DPH_DATA_DIR)/kilt/trex/trex-dev-kilt.jsonl)
+	$(eval OPTIONS=$(OPTIONS) --kilt_gold_path $(DATA_DIR)/kilt/trex/trex-dev-kilt.jsonl)
 zsre-open-data: kilt-options
 	$(eval TRAIN_DATA=kilt/zsre/structured_zeroshot-train-kilt_open.json)
 	$(eval DEV_DATA=kilt/zsre/structured_zeroshot-dev-kilt_open.json)
 	$(eval TEST_DATA=kilt/zsre/structured_zeroshot-dev-kilt_open.json)
-	$(eval OPTIONS=$(OPTIONS) --kilt_gold_path $(DPH_DATA_DIR)/kilt/zsre/structured_zeroshot-dev-kilt.jsonl)
+	$(eval OPTIONS=$(OPTIONS) --kilt_gold_path $(DATA_DIR)/kilt/zsre/structured_zeroshot-dev-kilt.jsonl)
 benchmark-data:
 	$(eval TEST_DATA=scripts/benchmark/data/nq_1000_dev_denspi.json)
 
 train-query: dump-dir model-name trec-open-data large-index
 	python train_query.py \
 		--run_mode train_query \
-		--cache_dir $(DPH_CACHE_DIR) \
-		--train_path $(DPH_DATA_DIR)/$(TRAIN_DATA) \
-		--dev_path $(DPH_DATA_DIR)/$(DEV_DATA) \
-		--test_path $(DPH_DATA_DIR)/$(TEST_DATA) \
+		--cache_dir $(CACHE_DIR) \
+		--train_path $(DATA_DIR)/$(TRAIN_DATA) \
+		--dev_path $(DATA_DIR)/$(DEV_DATA) \
+		--test_path $(DATA_DIR)/$(TEST_DATA) \
 		--per_gpu_train_batch_size 12 \
 		--eval_batch_size 12 \
 		--learning_rate 3e-5 \
 		--num_train_epochs 5 \
 		--dump_dir $(DUMP_DIR) \
 		--index_dir start/$(NUM_CLUSTERS)_flat_$(INDEX_TYPE) \
-		--query_encoder_path $(DPH_SAVE_DIR)/dph-nqsqd3-multi5-pb2 \
-		--output_dir $(DPH_SAVE_DIR)/$(MODEL_NAME) \
+		--query_encoder_path $(SAVE_DIR)/dph-nqsqd3-multi5-pb2 \
+		--output_dir $(SAVE_DIR)/$(MODEL_NAME) \
 		--top_k 100 \
 		--cuda \
 		$(OPTIONS)
@@ -314,11 +314,11 @@ train-query: dump-dir model-name trec-open-data large-index
 q-serve:
 	nohup python run_demo.py \
 		--run_mode q_serve \
-		--cache_dir $(DPH_CACHE_DIR) \
-		--query_encoder_path $(DPH_SAVE_DIR)/$(MODEL_NAME) \
+		--cache_dir $(CACHE_DIR) \
+		--query_encoder_path $(SAVE_DIR)/$(MODEL_NAME) \
 		--cuda \
 		--max_query_length 32 \
-		--query_port $(Q_PORT) > $(DPH_SAVE_DIR)/logs/q-serve_$(Q_PORT).log &
+		--query_port $(Q_PORT) > $(SAVE_DIR)/logs/q-serve_$(Q_PORT).log &
 
 # Serve phrase index (Q_PORT may change)
 p-serve: dump-dir large-index
@@ -329,14 +329,14 @@ p-serve: dump-dir large-index
 		--truecase \
 		--dump_dir $(DUMP_DIR) \
 		--query_port $(Q_PORT) \
-		--index_port $(I_PORT) > $(DPH_SAVE_DIR)/logs/p-serve_$(I_PORT).log &
+		--index_port $(I_PORT) > $(SAVE_DIR)/logs/p-serve_$(I_PORT).log &
 
 # Evaluation using the open QA demo (used for benchmark)
 eval-demo: nq-open-data
 	python run_demo.py \
 		--run_mode eval_request \
 		--index_port $(I_PORT) \
-		--test_path $(DPH_DATA_DIR)/$(TEST_DATA) \
+		--test_path $(DATA_DIR)/$(TEST_DATA) \
 		--eval_batch_size 64 \
 		--save_pred \
 		$(OPTIONS)
@@ -346,34 +346,34 @@ single-serve:
 	nohup python run_demo.py \
 		--run_mode single_serve \
 		--cuda \
-		--cache_dir $(DPH_CACHE_DIR) \
-		--query_encoder_path $(DPH_SAVE_DIR)/$(MODEL_NAME) \
-		--query_port $(Q_PORT) > $(DPH_SAVE_DIR)/logs/s-serve_$(Q_PORT).log &
+		--cache_dir $(CACHE_DIR) \
+		--query_encoder_path $(SAVE_DIR)/$(MODEL_NAME) \
+		--query_port $(Q_PORT) > $(SAVE_DIR)/logs/s-serve_$(Q_PORT).log &
 
 ############################## Data Pre/Post-processing ###################################
 
 preprocess-openqa:
 	python scripts/preprocess/create_openqa.py \
-		$(DPH_DATA_DIR)/single-qa/squad/train-v1.1.json \
-		$(DPH_DATA_DIR)/open-qa/squad \
+		$(DATA_DIR)/single-qa/squad/train-v1.1.json \
+		$(DATA_DIR)/open-qa/squad \
 		--input_type SQuAD
 
 # Warning: many scripts below are not documented well.
 # Each script may rely on external resources (e.g., original NQ datasets).
 data-config:
-	$(eval NQORIG_DIR=$(DPH_DATA_DIR)/natural-questions)
-	$(eval NQOPEN_DIR=$(DPH_DATA_DIR)/nq-open)
-	$(eval NQREADER_DIR=$(DPH_DATA_DIR)/single-qa/nq)
-	$(eval SQUAD_DIR=$(DPH_DATA_DIR)/single-qa/squad)
-	$(eval SQUADREADER_DOC_DIR=$(DPH_DATA_DIR)/squad-reader-docs)
-	$(eval NQREADER_DOC_DIR=$(DPH_DATA_DIR)/nq-reader-docs)
-	$(eval WIKI_DIR=$(DPH_DATA_DIR)/wikidump)
+	$(eval NQORIG_DIR=$(DATA_DIR)/natural-questions)
+	$(eval NQOPEN_DIR=$(DATA_DIR)/nq-open)
+	$(eval NQREADER_DIR=$(DATA_DIR)/single-qa/nq)
+	$(eval SQUAD_DIR=$(DATA_DIR)/single-qa/squad)
+	$(eval SQUADREADER_DOC_DIR=$(DATA_DIR)/squad-reader-docs)
+	$(eval NQREADER_DOC_DIR=$(DATA_DIR)/nq-reader-docs)
+	$(eval WIKI_DIR=$(DATA_DIR)/wikidump)
 
 nq-reader-to-wiki:
 	python scripts/preprocess/create_nq_reader_wiki.py \
-		$(DPH_DATA_DIR)/single-qa/nq/train.json,$(DPH_DATA_DIR)/single-qa/nq/dev.json \
-		$(DPH_DATA_DIR)/single-qa/nq \
-		$(DPH_DATA_DIR)/wikidump/20181220_concat/
+		$(DATA_DIR)/single-qa/nq/train.json,$(DATA_DIR)/single-qa/nq/dev.json \
+		$(DATA_DIR)/single-qa/nq \
+		$(DATA_DIR)/wikidump/20181220_concat/
 
 download-wiki: data-config
 	python scripts/preprocess/download_wikidump.py \
@@ -465,7 +465,7 @@ first-para-wikisquad: data-config
 
 compare-db: data-config
 	python scripts/preprocess/compare_db.py \
-		--db1 $(DPH_DATA_DIR)/denspi/docs.db \
+		--db1 $(DATA_DIR)/denspi/docs.db \
 		--db2 $(WIKI_DIR)/docs_20181220.db
 		
 sample-nq-reader-doc-wiki-train: data-config
