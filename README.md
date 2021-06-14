@@ -46,33 +46,27 @@ Before downloading the required files below, please set the default directories 
 # DPH_CACHE_DIR: for cache files from huggingface transformers
 source config.sh
 ```
-
-### 1. Datasets
-* [Datasets](https://nlp.cs.princeton.edu/projects/densephrases/dph-data.tar.gz) (6GB) - All pre-processed datasets used in our experiments including reading comprehension, open-domain QA, slot filling, and pre-processed Wikipedia. Download and unzip it under `DPH_DATA_DIR` or use `download.sh` as follows:
-
+To download the resources described below, you can use `download.sh` as follows:
 ```bash
-# Use bash script to download data
+# Use bash script to download data (change data to models or index accordingly)
 source download.sh
 Choose a resource to download [data/models/index]: data
 data will be downloaded at ...
 ...
 Downloading data done!
+```
 
+### 1. Datasets
+* [Datasets](https://nlp.cs.princeton.edu/projects/densephrases/dph-data.tar.gz) (6GB) - All pre-processed datasets used in our experiments including reading comprehension, open-domain QA, slot filling, and pre-processed Wikipedia. Download and unzip it under `DPH_DATA_DIR` or use `download.sh`.
+```bash
 # Check if the download is complete
 ls $DPH_DATA_DIR
 kilt  open-qa  single-qa  truecase  wikidump
 ```
 
 ### 2. Pre-trained Models
-* [Pre-trained models](https://nlp.cs.princeton.edu/projects/densephrases/outputs.tar.gz) (5GB) - Pre-trained DensePhrases and cross-encoder teacher models. Download and unzip it under `DPH_SAVE_DIR` or use `download.sh` as follows.
+* [Pre-trained models](https://nlp.cs.princeton.edu/projects/densephrases/outputs.tar.gz) (5GB) - All pre-trained DensePhrases models (including cross-encoder teacher models). Download and unzip it under `DPH_SAVE_DIR` or use `download.sh`.
 ```bash
-# Use bash script to download models
-source download.sh
-Choose a resource to download [data/models/index]: models
-models will be downloaded at ...
-...
-Downloading models done!
-
 # Check if the download is complete
 ls $DPH_SAVE_DIR
 dph-nqsqd-pb2  dph-nqsqd-pb2_pq96-multi6  dph-nqsqd-pb2_pq96-nq-10  spanbert-base-cased-nq  spanbert-base-cased-sqdnq  spanbert-base-cased-squad
@@ -84,15 +78,8 @@ dph-nqsqd-pb2  dph-nqsqd-pb2_pq96-multi6  dph-nqsqd-pb2_pq96-nq-10  spanbert-bas
 
 ### 3. Phrase Index
 Please note that you don't need to download this phrase index unless you want to work on the full Wikipedia scale.
-* [DensePhrases-IVFOPQ96](https://nlp.cs.princeton.edu/projects/densephrases/dph-nqsqd-pb2_20181220_concat.tar.gz) (88GB) - Phrase index for the 20181220 version of Wikipedia. Download and unzip it under `DPH_SAVE_DIR` or use `download.sh` as follows.
+* [DensePhrases-IVFOPQ96](https://nlp.cs.princeton.edu/projects/densephrases/dph-nqsqd-pb2_20181220_concat.tar.gz) (88GB) - Phrase index for the 20181220 version of Wikipedia. Download and unzip it under `DPH_SAVE_DIR` or use `download.sh`.
 ```bash
-# Use bash script to download index
-source download.sh
-Choose a resource to download [data/models/index]: index
-index will be downloaded at ...
-...
-Downloading index done!
-
 # Check if the download is complete
 ls $DPH_SAVE_DIR
 ...  dph-nqsqd-pb2_20181220_concat
