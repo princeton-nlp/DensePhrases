@@ -60,7 +60,7 @@ Downloading data done!
 ```
 
 ### 1. Datasets
-* [Datasets](https://nlp.cs.princeton.edu/projects/densephrases/dph-data.tar.gz) (6GB) - All pre-processed datasets used in our experiments including reading comprehension, generated questions, open-domain QA, slot filling, and pre-processed Wikipedia. Download and unzip it under `$DATA_DIR` or use `download.sh`.
+* [Datasets](https://nlp.cs.princeton.edu/projects/densephrases/densephrases-data.tar.gz) (6GB) - All pre-processed datasets used in our experiments including reading comprehension, generated questions, open-domain QA, slot filling, and pre-processed Wikipedia. Download and unzip it under `$DATA_DIR` or use `download.sh`.
 ```bash
 # Check if the download is complete
 ls $DATA_DIR
@@ -72,7 +72,7 @@ kilt  open-qa  single-qa  truecase  wikidump
 ```bash
 # Check if the download is complete
 ls $SAVE_DIR
-densephrases-multi  densephrases-multi-query-nq ... spanbert-base-cased-squad
+densephrases-multi  densephrases-multi-query-nq  ...  spanbert-base-cased-squad
 ```
 You can also download each of pre-trained DensePhrases models as listed below.
 |              Model              | Evaluation | OpenQA (EM) |
@@ -85,20 +85,20 @@ You can also download each of pre-trained DensePhrases models as listed below.
 | [densephrases-multi-query-sqd](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-sqd.tar.gz) | SQuAD | 34.5 |
 | [densephrases-multi-query-multi](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-multi.tar.gz) | NaturalQuestions | 40.9 |
 
-- `densephrases-multi`                      : DensePhrases-multi trained on multiple reading comprehension datasets (C\_phrase = {NQ, WQ, TREC, TQA, SQuAD}) without any query-side fine-tuning
-- `densephrases-multi-query-*`          : DensePhrases-multi query-side fine-tuned on *
-- `densephrases-multi-query-multi`         : DensePhrases-multi query-side fine-tuned on 5 open-domain QA datasets (NQ, WQ, TREC, TQA, SQuAD); Used for the [demo]
+- `densephrases-multi`                      : DensePhrases trained on multiple reading comprehension datasets (C\_phrase = {NQ, WQ, TREC, TQA, SQuAD}) without any query-side fine-tuning
+- `densephrases-multi-query-*`          : `densephrases-multi` query-side fine-tuned on *
+- `densephrases-multi-query-multi`         : `densephrases-multi` query-side fine-tuned on 5 open-domain QA datasets (NQ, WQ, TREC, TQA, SQuAD); Used for the [demo]
 - `spanbert-base-cased-*`             : cross-encoder teacher models trained on \*
 
 The performance was measured on [the phrase index for the full Wikipedia scale](#3-phrase-index).
 
 ### 3. Phrase Index
 Please note that you don't need to download this phrase index unless you want to work on the full Wikipedia scale.
-* [DensePhrases-IVFOPQ96](https://nlp.cs.princeton.edu/projects/densephrases/dph-nqsqd3-multi5-pb2_1_20181220_concat.tar.gz) (74GB) - Phrase index for the 20181220 version of Wikipedia. Download and unzip it under `$SAVE_DIR` or use `download.sh`.
+* [densephrases-multi_wiki-20181220](https://nlp.cs.princeton.edu/projects/densephrases/densephrases-multi_wiki-20181220.tar.gz) (74GB) - Phrase index for the 20181220 version of Wikipedia. Download and unzip it under `$SAVE_DIR` or use `download.sh`.
 ```bash
 # Check if the download is complete
 ls $SAVE_DIR
-...  dph-nqsqd3-multi5-pb2_1_20181220_concat
+...  densephrases-multi_wiki-20181220
 ```
 #### From 320GB to 74GB
 Since hosting the 320GB phrase index described in our paper is costly, we provide an index with a much smaller size (74GB), which includes our recent efforts to reduce the size of the phrase index using [Optimized Product Quantization](https://ieeexplore.ieee.org/document/6678503) with Inverted File System (IVFOPQ). With IVFOPQ, you do not need any SSDs for the real-time inference (the index is loaded on RAM), and you can also reconstruct the phrase vectors from it for the query-side fine-tuning (hence do not need the additional 500GB).
@@ -193,7 +193,7 @@ For creating a large-scale phrase index (e.g., Wikipedia), see [dump_phrases.py]
 
 ## Playing with a DensePhrases Demo
 There are two ways of using DensePhrases demo.
-1. You can simply use the [demo] that we are serving on our server (Wikipedia scale). The running demo is using `densephrases-multi-query-multi` (NQ=40.8 EM) as a query encoder and `dph-nqsqd3-multi5-pb2_1_20181220_concat` as a phrase index.
+1. You can simply use the [demo] that we are serving on our server (Wikipedia scale). The running demo is using `densephrases-multi-query-multi` (NQ=40.8 EM) as a query encoder and `densephrases-multi_wiki-20181220` as a phrase index.
 2. You can run the demo on your own server where you can change the phrase index (obtained from [here](#creating-a-custom-phrase-index-with-densephrases)) or the query encoder (e.g., to `densephrases-multi-query-nq`).
 
 The minimum resource requirement for running the full Wikipedia scale demo is:
@@ -217,13 +217,13 @@ nohup python run_demo.py \
     --index_dir start/1048576_flat_OPQ96 \
     --cuda \
     --truecase \
-    --dump_dir $SAVE_DIR/dph-nqsqd3-multi5-pb2_1_20181220_concat/dump/ \
+    --dump_dir $SAVE_DIR/densephrases-multi_wiki-20181220/dump/ \
     --query_port 1111 \
     --index_port 51997 > $SAVE_DIR/logs/p-serve_51997.log &
 
 # Below are the same but simplified commands using Makefile
 make q-serve MODEL_NAME=densephrases-multi-query-multi Q_PORT=1111
-make p-serve DUMP_DIR=$SAVE_DIR/dph-nqsqd3-multi5-pb2_1_20181220_concat/dump/ Q_PORT=1111 I_PORT=51997
+make p-serve DUMP_DIR=$SAVE_DIR/densephrases-multi_wiki-20181220/dump/ Q_PORT=1111 I_PORT=51997
 ```
 Please change `--query_encoder_path` or `--dump_dir` if necessary and remove `--cuda` for CPU-only version. Once you set up the demo, the log files in `$SAVE_DIR/logs/` will be automatically updated whenever a new question comes in. You can also send queries to your server using mini-batches of questions for faster inference.
 
@@ -321,12 +321,12 @@ make eval-index MODEL_NAME=densephrases-multi DUMP_DIR=$SAVE_DIR/densephrases-mu
 ```
 
 ### 3. Query-side fine-tuning
-With a single 11GB GPU, you can easily train your query encoder to retrieve phrase-level knowledge from Wikipedia. First, you need a phrase index for the full Wikipedia (`20181220_concat`), which can be obtained by simply downloading it from [here](#3-phrase-index) (`dph-nqsqd3-multi5-pb2_1_20181220_concat`) or by creating a custom phrase index as described above.
+With a single 11GB GPU, you can easily train your query encoder to retrieve phrase-level knowledge from Wikipedia. First, you need a phrase index for the full Wikipedia (`20181220_concat`), which can be obtained by simply downloading it from [here](#3-phrase-index) (`densephrases-multi_wiki-20181220`) or by creating a custom phrase index as described above.
 
 The following command query-side fine-tunes `densephrases-multi` on TREC.
 ```bash
 # Query-side fine-tune on TREC (model will be saved as MODEL_NAME)
-make train-query MODEL_NAME=densephrases-multi-query-trec DUMP_DIR=$SAVE_DIR/dph-nqsqd3-multi5-pb2_1_20181220_concat/dump/
+make train-query MODEL_NAME=densephrases-multi-query-trec DUMP_DIR=$SAVE_DIR/densephrases-multi_wiki-20181220/dump/
 ```
 Note that the pre-trained query encoder is specified in `train-query` as `--query_encoder_path $(SAVE_DIR)/densephrases-multi` and a new model will be saved as `densephrases-multi-query-trec` as specified in `MODEL_NAME`. You can also train on different datasets by changing the dependency `trec-open-data` to `*-open-data` (e.g., `nq-open-data`).
 
@@ -335,11 +335,11 @@ Currently, `train-query` uses the IVFOPQ index for query-side fine-tuning, and y
 For IVFOPQ, training takes 2 to 3 hours per epoch for large datasets (NQ, TQA, SQuAD), and 3 to 8 minutes for small datasets (WQ, TREC). We recommend using IVFOPQ since it has similar or better performance than IVFSQ while being much faster than IVFSQ. With IVFSQ, the training time will be highly dependent on the File I/O speed, so using SSDs is recommended for IVFSQ.
 
 ### 4. Inference
-With any DensePhrases query encoders (e.g., `densephrases-multi-query-nq`) and a phrase index (e.g., `dph-nqsqd3-multi5-pb2_1_20181220_concat`), you can test your queries as follows and the results will be saved as a json file with the `--save_pred` option:
+With any DensePhrases query encoders (e.g., `densephrases-multi-query-nq`) and a phrase index (e.g., `densephrases-multi_wiki-20181220`), you can test your queries as follows and the results will be saved as a json file with the `--save_pred` option:
 
 ```bash
 # Evaluate on Natural Questions
-make eval-index MODEL_NAME=densephrases-multi-query-nq DUMP_DIR=$SAVE_DIR/dph-nqsqd3-multi5-pb2_1_20181220_concat/dump/
+make eval-index MODEL_NAME=densephrases-multi-query-nq DUMP_DIR=$SAVE_DIR/densephrases-multi_wiki-20181220/dump/
 
 # If the demo is being served on http://localhost:51997
 make eval-demo I_PORT=51997

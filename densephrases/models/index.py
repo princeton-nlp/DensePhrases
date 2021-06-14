@@ -63,7 +63,7 @@ class MIPS(object):
 
         # Load metadata on RAM if possible
         doc_group_path = os.path.join(
-            self.phrase_dump_dir[:self.phrase_dump_dir.index('/phrase')], 'dph_meta_compressed.pkl'
+            self.phrase_dump_dir[:self.phrase_dump_dir.index('/phrase')], 'meta_compressed.pkl'
         )
         if os.path.exists(doc_group_path) and ('PQ' in index_path):
             logger.info(f"Loading metadata on RAM from {doc_group_path} (for PQ only)")

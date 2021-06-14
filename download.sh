@@ -24,17 +24,17 @@ echo "$TARGET will be downloaded at $TARGET_DIR"
 # Download + untar + rm
 case "$TARGET" in
     data )
-        wget -O "$TARGET_DIR/dph-data.tar.gz" "https://nlp.cs.princeton.edu/projects/densephrases/dph-data.tar.gz"
-        tar -xzvf "$TARGET_DIR/dph-data.tar.gz" -C "$TARGET_DIR" --strip 1
-        rm "$TARGET_DIR/dph-data.tar.gz" ;;
+        wget -O "$TARGET_DIR/densephrases-data.tar.gz" "https://nlp.cs.princeton.edu/projects/densephrases/densephrases-data.tar.gz"
+        tar -xzvf "$TARGET_DIR/densephrases-data.tar.gz" -C "$TARGET_DIR" --strip 1
+        rm "$TARGET_DIR/densephrases-data.tar.gz" ;;
     models )
         wget -O "$TARGET_DIR/outputs.tar.gz" "https://nlp.cs.princeton.edu/projects/densephrases/outputs.tar.gz"
         tar -xzvf "$TARGET_DIR/outputs.tar.gz" -C "$TARGET_DIR" --strip 1
         rm "$TARGET_DIR/outputs.tar.gz" ;;
     index )
-        wget -O "$TARGET_DIR/dph-nqsqd-pb2_20181220_concat.tar.gz" "https://nlp.cs.princeton.edu/projects/densephrases/dph-nqsqd3-multi5-pb2_1_20181220_concat.tar.gz"
-        tar -xzvf "$TARGET_DIR/dph-nqsqd-pb2_20181220_concat.tar.gz" -C "$TARGET_DIR"
-        rm "$TARGET_DIR/dph-nqsqd-pb2_20181220_concat.tar.gz" ;;
+        wget -O "$TARGET_DIR/densephrases-multi_wiki-20181220.tar.gz" "https://nlp.cs.princeton.edu/projects/densephrases/densephrases-multi_wiki-20181220.tar.gz"
+        tar -xzvf "$TARGET_DIR/densephrases-multi_wiki-20181220.tar.gz" -C "$TARGET_DIR"
+        rm "$TARGET_DIR/densephrases-multi_wiki-20181220.tar.gz" ;;
     * ) echo "Wrong target $TARGET";
         exit 0 ;;
 esac

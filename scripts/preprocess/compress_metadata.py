@@ -106,7 +106,7 @@ def main(args):
     print(f"compressed by {round(size_after_compression/size_before_compression*100,2)}%")
 
     # save compressed meta as a pickle format
-    output_file = os.path.join(args.output_dir, 'dph_meta_compressed.pkl')
+    output_file = os.path.join(args.output_dir, 'meta_compressed.pkl')
     with open(output_file,'wb') as f:
         pickle.dump(doc_groups, f)
 
