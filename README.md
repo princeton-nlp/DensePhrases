@@ -97,7 +97,7 @@ Please note that you don't need to download this phrase index unless you want to
 ls $DPH_SAVE_DIR
 ...  dph-nqsqd3-multi5-pb2_1_20181220_concat
 ```
-Since hosting the 320GB phrase index (+500GB original vectors for query-side fine-tuning) - the phrase index described in our paper - is costly, we provide an index with a much smaller size, which includes our recent efforts to reduce the size of the phrase index using [Optimized Product Quantization](https://ieeexplore.ieee.org/document/6678503) with Inverted File System (IVFOPQ). With IVFOPQ, you do not need any SSDs for the real-time inference (the index is loaded on RAM), and you can also reconstruct the phrase vectors from it for the query-side fine-tuning (hence do not need the additional 500GB).
+Since hosting the 320GB phrase index---the phrase index described in our paper---is costly, we provide an index with a much smaller size, which includes our recent efforts to reduce the size of the phrase index using [Optimized Product Quantization](https://ieeexplore.ieee.org/document/6678503) with Inverted File System (IVFOPQ). With IVFOPQ, you do not need any SSDs for the real-time inference (the index is loaded on RAM), and you can also reconstruct the phrase vectors from it for the query-side fine-tuning (hence do not need the additional 500GB).
 For the reimplementation of DensePhrases with IVFSQ as described in the paper, see [Training DensePhrases](#densephrases-training-indexing-and-inference).
 
 If the following test run completes without an error, you are good to go!
@@ -194,6 +194,7 @@ The prediction file will be saved as `$DPH_SAVE_DIR/dph-nqsqd3-multi5-pb2/pred/s
     ...
 }
 ```
+For creating a large-scale phrase index (e.g., Wikipedia), see [dump_phrases.py](https://github.com/princeton-nlp/DensePhrases/blob/refactor/parallel/dump_phrases.py) for an example, which is also explained [here](#2-creating-a-phrase-index).
 
 ## Playing with a DensePhrases Demo
 There are two ways of using DensePhrases demo.
