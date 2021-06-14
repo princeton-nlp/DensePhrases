@@ -194,12 +194,12 @@ The prediction file will be saved as `$DPH_SAVE_DIR/dph-nqsqd3-multi5-pb2/pred/s
     ...
 }
 ```
-For creating a large-scale phrase index (e.g., Wikipedia), see [dump_phrases.py](https://github.com/princeton-nlp/DensePhrases/blob/refactor/parallel/dump_phrases.py) for an example, which is also explained [here](#2-creating-a-phrase-index).
+For creating a large-scale phrase index (e.g., Wikipedia), see [dump_phrases.py](https://github.com/princeton-nlp/DensePhrases/blob/main/parallel/dump_phrases.py) for an example, which is also explained [here](#2-creating-a-phrase-index).
 
 ## Playing with a DensePhrases Demo
 There are two ways of using DensePhrases demo.
-1. You can simply use the [demo] that we are serving on our server (Wikipedia scale). The running demo is using `dph-nqsqd3-multi5-pb2_pq96-multi5` (NQ=40.3 EM) as a query encoder and `dph-nqsqd3-multi5-pb2_1_20181220_concat` as a phrase index.
-2. You can run the demo on your own server where you can change the phrase index (obtained from [here](#creating-a-custom-phrase-index-with-densephrases)) or the query encoder (e.g., to `dph-nqsqd3-multi5-pb2_pq96-nq`).
+1. You can simply use the [demo] that we are serving on our server (Wikipedia scale). The running demo is using `dph-nqsqd3-multi5-pb2_opq96-multi5` (NQ=40.3 EM) as a query encoder and `dph-nqsqd3-multi5-pb2_1_20181220_concat` as a phrase index.
+2. You can run the demo on your own server where you can change the phrase index (obtained from [here](#creating-a-custom-phrase-index-with-densephrases)) or the query encoder (e.g., to `dph-nqsqd3-multi5-pb2_opq96-nq`).
 
 The minimum resource requirement for running the full Wikipedia scale demo is:
 * 125GB RAM
@@ -212,7 +212,7 @@ Note that you no longer need any SSDs to run the demo unlike previous phrase ret
 nohup python run_demo.py \
     --run_mode q_serve \
     --cache_dir $DPH_CACHE_DIR \
-    --query_encoder_path $DPH_SAVE_DIR/dph-nqsqd3-multi5-pb2_pq96-multi5 \
+    --query_encoder_path $DPH_SAVE_DIR/dph-nqsqd3-multi5-pb2_opq96-multi5 \
     --cuda \
     --max_query_length 32 \
     --query_port 1111 > $DPH_SAVE_DIR/logs/q-serve_1111.log &
@@ -228,7 +228,7 @@ nohup python run_demo.py \
     --index_port 51997 > $DPH_SAVE_DIR/logs/p-serve_51997.log &
 
 # Below are the same but simplified commands using Makefile
-make q-serve MODEL_NAME=dph-nqsqd3-multi5-pb2_pq96-multi6 Q_PORT=1111
+make q-serve MODEL_NAME=dph-nqsqd3-multi5-pb2_opq96-multi5 Q_PORT=1111
 make p-serve DUMP_DIR=$DPH_SAVE_DIR/dph-nqsqd3-multi5-pb2_1_20181220_concat/dump/ Q_PORT=1111 I_PORT=51997
 ```
 Please change `query_encoder_path` or `dump_dir` if necessary. Once you set up the demo, the log files in `$DPH_SAVE_DIR/logs/` will be automatically updated whenever a new question comes in. You can also send queries to your server using mini-batches of questions for faster inference.
@@ -335,7 +335,7 @@ Currently, `train-query` uses the IVFOPQ index for query-side fine-tuning, and y
 For IVFOPQ, training takes 2 to 3 hours per epoch for large datasets (NQ, TQA, SQuAD), and 3 to 8 minutes for small datasets (WQ, TREC). We recommend using IVFOPQ since it has similar or better performance than IVFSQ while being much faster than IVFSQ. With IVFSQ, the training time will be highly dependent on the File I/O speed, so using SSDs is recommended for IVFSQ.
 
 ### 4. Inference
-With a pre-trained DensePhrases encoder (e.g., `dph-nqsqd3-multi5-pb2_pq96-nq-10`) and a phrase index (e.g., `dph-nqsqd3-multi5-pb2_1_20181220_concat`), you can test your queries as follows and the results will be saved as a json file with the `--save_pred` option:
+With a pre-trained DensePhrases encoder (e.g., `dph-nqsqd3-multi5-pb2_opq96-nq`) and a phrase index (e.g., `dph-nqsqd3-multi5-pb2_1_20181220_concat`), you can test your queries as follows and the results will be saved as a json file with the `--save_pred` option:
 
 ```bash
 # Evaluate on Natural Questions
