@@ -60,7 +60,7 @@ Downloading data done!
 ```
 
 ### 1. Datasets
-* [Datasets](https://nlp.cs.princeton.edu/projects/densephrases/dph-data.tar.gz) (6GB) - All pre-processed datasets used in our experiments including reading comprehension, generated questions, open-domain QA, slot filling, and pre-processed Wikipedia. Download and unzip it under `DPH_DATA_DIR` or use `download.sh`.
+* [Datasets](https://nlp.cs.princeton.edu/projects/densephrases/dph-data.tar.gz) (6GB) - All pre-processed datasets used in our experiments including reading comprehension, generated questions, open-domain QA, slot filling, and pre-processed Wikipedia. Download and unzip it under `$DPH_DATA_DIR` or use `download.sh`.
 ```bash
 # Check if the download is complete
 ls $DPH_DATA_DIR
@@ -68,7 +68,7 @@ kilt  open-qa  single-qa  truecase  wikidump
 ```
 
 ### 2. Pre-trained Models
-* [Pre-trained models](https://nlp.cs.princeton.edu/projects/densephrases/outputs.tar.gz) (13GB) - All pre-trained DensePhrases models (including cross-encoder teacher models). Download and unzip it under `DPH_SAVE_DIR` or use `download.sh`.
+* [Pre-trained models](https://nlp.cs.princeton.edu/projects/densephrases/outputs.tar.gz) (13GB) - All pre-trained DensePhrases models (including cross-encoder teacher models). Download and unzip it under `$DPH_SAVE_DIR` or use `download.sh`.
 ```bash
 # Check if the download is complete
 ls $DPH_SAVE_DIR
@@ -94,7 +94,7 @@ The performance was measured on [the phrase index for the full Wikipedia scale](
 
 ### 3. Phrase Index
 Please note that you don't need to download this phrase index unless you want to work on the full Wikipedia scale.
-* [DensePhrases-IVFOPQ96](https://nlp.cs.princeton.edu/projects/densephrases/dph-nqsqd3-multi5-pb2_1_20181220_concat.tar.gz) (74GB) - Phrase index for the 20181220 version of Wikipedia. Download and unzip it under `DPH_SAVE_DIR` or use `download.sh`.
+* [DensePhrases-IVFOPQ96](https://nlp.cs.princeton.edu/projects/densephrases/dph-nqsqd3-multi5-pb2_1_20181220_concat.tar.gz) (74GB) - Phrase index for the 20181220 version of Wikipedia. Download and unzip it under `$DPH_SAVE_DIR` or use `download.sh`.
 ```bash
 # Check if the download is complete
 ls $DPH_SAVE_DIR
@@ -316,7 +316,7 @@ make compress-meta DUMP_DIR=$DPH_SAVE_DIR/dph-nqsqd3-multi5-pb2_1_20181220_conca
 
 For evaluating the performance of DensePhrases on these larger phrase indexes, use `eval-index`.
 ```bash
-# Evaluate on the NQ development set questions
+# Evaluate on the NQ test set questions
 make eval-index MODEL_NAME=dph-nqsqd3-multi5-pb2 DUMP_DIR=$DPH_SAVE_DIR/dph-nqsqd3-multi5-pb2_dev_wiki/dump/
 ```
 
