@@ -258,7 +258,7 @@ In this section, we introduce a step-by-step procedure to train DensePhrases, cr
 All of our commands below are specified as `Makefile` targets, which include dataset paths, hyperparameter settings, etc.
 
 <div align="center">
-  <img alt="DensePhrases Steps" src="https://github.com/princeton-nlp/DensePhrases/blob/refactor/densephrases/demo/static/files/overview_new.png" width="850px">
+  <img alt="DensePhrases Steps" src="https://github.com/princeton-nlp/DensePhrases/blob/main/densephrases/demo/static/files/overview_new.png" width="850px">
 </div>
 
 - A figure summarizing the overall process below
