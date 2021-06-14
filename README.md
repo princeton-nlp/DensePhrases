@@ -177,7 +177,7 @@ python eval_phrase_retrieval.py \
     --save_pred \
     --truecase
 ```
-The prediction file will be saved as `$DPH_SAVE_DIR/dph-nqsqd3-multi5-pb2/pred/sample_qs_4.pred`, which shows the answer phrases and the passages that contain the phrases:
+The prediction file will be saved as `$DPH_SAVE_DIR/dph-nqsqd3-multi5-pb2/pred/sample_qs_3_top10.pred`, which shows the answer phrases and the passages that contain the phrases:
 ```
 {
     "1": {
