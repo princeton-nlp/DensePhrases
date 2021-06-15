@@ -210,9 +210,9 @@ ifeq ($(DUMP_DIR),)
 endif
 
 # Wikipedia dumps (specified as 'data_name') in diffent sizes and their recommended number of clusters for IVF
-# - dev_wiki: 1/100 Wikpedia scale (sampled), num_clusters=16384 (medium1-index)
-# - dev_wiki_noise: 1/10 Wikipedia scale (sampled), num_clusters=131072 (medium2-index)
-# - 20181220_concat: full Wikipedia scale, num_clusters=1048576 (large-index)
+# - wiki-dev: 1/100 Wikpedia scale (sampled), num_clusters=16384 (medium1-index)
+# - wiki-dev-noise: 1/10 Wikipedia scale (sampled), num_clusters=131072 (medium2-index)
+# - wiki-20181220: full Wikipedia scale, num_clusters=1048576 (large-index)
 
 # Dump phrase vectors in parallel. Dump will be saved in $(SAVE_DIR)/$(MODEL_NAME)_(data_name)/dump.
 gen-vecs-parallel: model-name
@@ -221,7 +221,7 @@ gen-vecs-parallel: model-name
 		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
 		--cache_dir $(CACHE_DIR) \
 		--data_dir $(DATA_DIR)/wikidump \
-		--data_name dev_wiki \
+		--data_name wiki-dev \
 		--load_dir $(SAVE_DIR)/$(MODEL_NAME) \
 		--output_dir $(SAVE_DIR)/$(MODEL_NAME) \
 		--filter_threshold 1.0 \
