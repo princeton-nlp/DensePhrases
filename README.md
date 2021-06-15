@@ -4,7 +4,7 @@
   <img alt="DensePhrases Demo" src="https://github.com/princeton-nlp/DensePhrases/blob/main/densephrases/demo/static/files/preview.gif" width="750px">
 </div>
 
-<em>DensePhrases</em> is an extractive phrase search tool based on your natural language inputs. For instance, DensePhrases can provide phrase-level answers to your questions or find related entities for (subject, relation) pairs from Wikipedia in real-time. Due to the extractive nature of DensePhrases, it also provides an evidence passage for each phrase. Please see our paper [
+<em>DensePhrases</em> is an extractive phrase search tool based on your natural language inputs. It enables real-time search of phrase-level answers to your questions or related entities for (subject, relation) pairs in Wikipedia. Due to the extractive nature of DensePhrases, it also provides an evidence passage for each phrase. Please see our paper [
 Learning Dense Representations of Phrases at Scale (Lee et al., 2021)](https://arxiv.org/abs/2012.12624) for more details.
 
 **\*\*\*\*\* You can try out our online demo of DensePhrases [here](http://densephrases.korea.ac.kr)! \*\*\*\*\***
