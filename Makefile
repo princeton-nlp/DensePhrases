@@ -127,7 +127,7 @@ compress-meta:
 		--output_dir $(DUMP_DIR)
 
 # 5) Evaluate the phrase index for phrase retrieval
-eval-index: dump-dir model-name large-index nq-open-data
+eval-index: dump-dir model-name large-index trex-open-data
 	python eval_phrase_retrieval.py \
 		--run_mode eval \
 		--cuda \
@@ -136,6 +136,7 @@ eval-index: dump-dir model-name large-index nq-open-data
 		--query_encoder_path $(SAVE_DIR)/$(MODEL_NAME) \
 		--test_path $(DATA_DIR)/$(TEST_DATA) \
 		--save_pred \
+		--aggregate \
 		$(OPTIONS)
 
 # Sample usage (If this runs without an error, you are all set!)
@@ -277,15 +278,15 @@ sqd-open-data:
 kilt-options:
 	$(eval OPTIONS=--is_kilt --title2wikiid_path $(DATA_DIR)/wikidump/title2wikiid.json)
 trex-open-data: kilt-options
-	$(eval TRAIN_DATA=kilt/trex/trex-train-kilt_open.json)
+	$(eval TRAIN_DATA=kilt/trex/trex-train-kilt_open_10000.json)
 	$(eval DEV_DATA=kilt/trex/trex-dev-kilt_open.json)
-	$(eval TEST_DATA=kilt/trex/trex-dev-kilt_open.json)
-	$(eval OPTIONS=$(OPTIONS) --kilt_gold_path $(DATA_DIR)/kilt/trex/trex-dev-kilt.jsonl)
+	$(eval TEST_DATA=kilt/trex/trex-test-kilt_open.json)
+	$(eval OPTIONS=$(OPTIONS) --kilt_gold_path $(DATA_DIR)/kilt/trex/trex-dev-kilt.jsonl --agg_strat opt3)
 zsre-open-data: kilt-options
-	$(eval TRAIN_DATA=kilt/zsre/structured_zeroshot-train-kilt_open.json)
+	$(eval TRAIN_DATA=kilt/zsre/structured_zeroshot-train-kilt_open_10000.json)
 	$(eval DEV_DATA=kilt/zsre/structured_zeroshot-dev-kilt_open.json)
-	$(eval TEST_DATA=kilt/zsre/structured_zeroshot-dev-kilt_open.json)
-	$(eval OPTIONS=$(OPTIONS) --kilt_gold_path $(DATA_DIR)/kilt/zsre/structured_zeroshot-dev-kilt.jsonl)
+	$(eval TEST_DATA=kilt/zsre/structured_zeroshot-test-kilt_open.json)
+	$(eval OPTIONS=$(OPTIONS) --kilt_gold_path $(DATA_DIR)/kilt/zsre/structured_zeroshot-dev-kilt.jsonl --agg_strat opt3)
 benchmark-data:
 	$(eval TEST_DATA=scripts/benchmark/data/nq_1000_dev_denspi.json)
 
@@ -481,3 +482,12 @@ sample-nq-reader-doc-wiki-dev: data-config
 		--wiki_dir $(WIKI_DIR)/20181220_concat \
 		--docs_wiki_dir $(NQREADER_DOC_DIR)/dev_wiki \
 		--output_dir $(NQREADER_DOC_DIR)/dev_wiki_noise
+
+trex-gold:
+	$(eval GOLD_FILE=$(DATA_DIR)/kilt/trex/trex-dev-kilt.jsonl)
+zsre-gold:
+	$(eval GOLD_FILE=$(DATA_DIR)/kilt/zsre/structured_zeroshot-dev-kilt.jsonl)
+strip-kilt: zsre-gold
+	python scripts/kilt/strip_pred.py \
+		$(INPUT_PRED) \
+		$(GOLD_FILE)	

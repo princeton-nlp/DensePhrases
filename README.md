@@ -4,7 +4,7 @@
   <img alt="DensePhrases Demo" src="https://github.com/princeton-nlp/DensePhrases/blob/main/densephrases/demo/static/files/preview.gif" width="750px">
 </div>
 
-<em>DensePhrases</em> is an extractive phrase search tool based on your natural language inputs. It enables real-time search of phrase-level answers to your questions or related entities for (subject, relation) pairs in Wikipedia. Due to the extractive nature of DensePhrases, it also provides an evidence passage for each phrase. Please see our paper [
+<em>DensePhrases</em> is an extractive phrase search tool based on your natural language inputs. It enables real-time search of phrase-level answers to your questions or related entities to (subject, relation) pairs in Wikipedia. Due to the extractive nature of DensePhrases, it also provides an evidence passage for each phrase. Please see our paper [
 Learning Dense Representations of Phrases at Scale (Lee et al., 2021)](https://arxiv.org/abs/2012.12624) for more details.
 
 **\*\*\*\*\* You can try out our online demo of DensePhrases [here](http://densephrases.korea.ac.kr)! \*\*\*\*\***
@@ -76,7 +76,7 @@ ls $SAVE_DIR
 densephrases-multi  densephrases-multi-query-nq  ...  spanbert-base-cased-squad
 ```
 You can also download each of pre-trained DensePhrases models as listed below.
-|              Model              | Evaluation | OpenQA (EM) |
+|              Model              | Evaluation (Test) | OpenQA (EM) |
 |:-------------------------------|:--------:|:--------:|
 | [densephrases-multi](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi.tar.gz) | NaturalQuestions | 31.9 |
 | [densephrases-multi-query-nq](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-nq.tar.gz) | NaturalQuestions | 41.3 |
@@ -91,7 +91,7 @@ You can also download each of pre-trained DensePhrases models as listed below.
 - `densephrases-multi-query-multi`         : `densephrases-multi` query-side fine-tuned on 5 open-domain QA datasets (NQ, WQ, TREC, TQA, SQuAD); Used for the [demo]
 - `spanbert-base-cased-*`             : cross-encoder teacher models trained on \*
 
-The performance was measured on [the phrase index for the full Wikipedia scale](#3-phrase-index).
+Test set performance was measured on [the phrase index for the full Wikipedia scale](#3-phrase-index).
 
 ### 3. Phrase Index
 Please note that you don't need to download this phrase index unless you want to work on the full Wikipedia scale.

@@ -201,7 +201,7 @@ def evaluate_results(predictions, qids, questions, answers, args, evidences, sco
     return exact_match_top1
 
 
-def evaluate_results_kilt(predictions, qids, questions, answers, args, evidences, scores, titles):
+def evaluate_results_kilt(predictions, qids, questions, answers, args, evidences, scores, titles, se_positions=None):
     total=len(predictions)
 
     # load title2id dict and convert predicted titles into wikipedia_ids

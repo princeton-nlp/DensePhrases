@@ -96,7 +96,7 @@ def get_query2vec(query_encoder, tokenizer, args, batch_size=64):
     return query2vec
 
 
-def load_qa_pairs(data_path, args, draft_num_examples=1000000, shuffle=False, reduction=False):
+def load_qa_pairs(data_path, args, draft_num_examples=1000, shuffle=False, reduction=False):
     q_ids = []
     questions = []
     answers = []
