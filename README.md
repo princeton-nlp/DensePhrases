@@ -282,24 +282,24 @@ make run-rc-nq MODEL_NAME=densephrases-nq
 5. `make compress-meta`: Compresss metadata for faster inference.
 6. `make eval-index ...`: Evaluate the phrase index on the development set questions.
 
-At the end of step 2, you will see the performance on the reading comprehension task where a gold passage is given (about 72.0 EM on NQ dev). Step 6 gives the performance on the semi-open-domain setting (denoted as D\_small; see Table 6 in the paper.) where the entire passages from the NQ development set is used for the indexing (about 62.0 EM with NQ dev questions). The trained model will be saved under `$SAVE_DIR/$MODEL_NAME`. Note that during the single-passage training on NQ, we exclude some questions in the development set, whose annotated answers are found from a list or a table.
+At the end of step 2, you will see the performance on the reading comprehension task where a gold passage is given (about 72.0 EM on NQ dev). Step 6 gives the performance on the semi-open-domain setting (denoted as D\_small; see Table 6 in the paper) where the entire passages from the NQ development set is used for the indexing (about 62.0 EM with NQ dev questions). The trained model will be saved under `$SAVE_DIR/$MODEL_NAME`. Note that during the single-passage training on NQ, we exclude some questions in the development set, whose annotated answers are found from a list or a table.
 
 ###  2. Creating a phrase index
-Now let's assume that you have a model trained on NQ + SQuAD named `densephrases-multi`, which can also be downloaded from [here](#2-pre-trained-models).
-You can make a bigger corpus using `gen-vecs-parallel` as follows:
+Let's assume that you have a pre-trained DensePhrases named `densephrases-multi`, which can also be downloaded from [here](#2-pre-trained-models).
+Now, you can generate phrase vectors for a large-scale corpus like Wikipedia using `gen-vecs-parallel` as follows:
 ```bash
 # Generate phrase vectors in parallel for a large-scale corpus (default = wiki-dev)
 make gen-vecs-parallel MODEL_NAME=densephrases-multi START=0 END=8
 ```
-The default text corpus for creating phrase dump is `wiki-dev` located in `$DATA_DIR/wikidump`. We have three options for larger text corpora:
+The default text corpus for creating phrase vectors is `wiki-dev` located in `$DATA_DIR/wikidump`. We have three options for larger text corpora:
 - `wiki-dev`: 1/100 Wikipedia scale (sampled), 8 files
 - `wiki-dev-noise`: 1/10 Wikipedia scale (sampled), 500 files
 - `wiki-20181220`: full Wikipedia (20181220) scale, 5621 files
 
-The `wiki-dev*` corpora also contain passages from the NQ development set, so that you can track the performance of your model witn an increasing size of the text corpus (usually decreases as it gets larger). The phrase dump will be saved as hdf5 files in `$SAVE_DIR/$(MODEL_NAME)_(data_name)/dump` (e.g., `$SAVE_DIR/densephrases-multi_wiki-dev/dump`), which will be referred to `$DUMP_DIR` below.
+The `wiki-dev*` corpora also contain passages from the NQ development set, so that you can track the performance of your model witn an increasing size of the text corpus (usually decreases as it gets larger). The phrase vectors will be saved as hdf5 files in `$SAVE_DIR/$(MODEL_NAME)_(data_name)/dump` (e.g., `$SAVE_DIR/densephrases-multi_wiki-dev/dump`), which will be referred to `$DUMP_DIR` below.
 
 #### Parallelization
-`START` and `END` specify the file index in the corpus (e.g., `START=0 END=8` for `wiki-dev` and `START=0 END=5621` for `wiki-20181220`).  Each run of `gen-vecs-parallel` only consumes 2GB in a single GPU, and you can distribute the processes with different `START` and `END` using slurm or shell script (e.g., `START=0 END=200`, `START=200 END=400`, ..., `START=5400 END=5621`). Distributing 28 processes on 4 24GB GPUs (each processing about 200 files) can create a phrase dump for `wiki-20181220` in 8 hours. Processing the entire Wikiepdia requires up to 500GB and we recommend using an SSD to store them if possible (a smaller corpus can be stored in a HDD).
+`START` and `END` specify the file index in the corpus (e.g., `START=0 END=8` for `wiki-dev` and `START=0 END=5621` for `wiki-20181220`).  Each run of `gen-vecs-parallel` only consumes 2GB in a single GPU, and you can distribute the processes with different `START` and `END` using slurm or shell script (e.g., `START=0 END=200`, `START=200 END=400`, ..., `START=5400 END=5621`). Distributing 28 processes on 4 24GB GPUs (each processing about 200 files) can create phrase vectors for `wiki-20181220` in 8 hours. Processing the entire Wikiepdia requires up to 500GB and we recommend using an SSD to store them if possible (a smaller corpus can be stored in a HDD).
 
 After generating the phrase vectors, you need to create a phrase index for the sublinear time search of phrases. Here, we use IVFOPQ for the phrase index.
 ```bash
@@ -315,7 +315,7 @@ You also need to compress the metadata (saved in hdf5 files together with phrase
 make compress-meta DUMP_DIR=$SAVE_DIR/densephrases-multi_wiki-dev/dump
 ```
 
-For evaluating the performance of DensePhrases on these larger phrase indexes, use `eval-index`.
+For evaluating the performance of DensePhrases with your phrase indexes, use `eval-index`.
 ```bash
 # Evaluate on the NQ test set questions
 make eval-index MODEL_NAME=densephrases-multi DUMP_DIR=$SAVE_DIR/densephrases-multi_wiki-dev/dump/
