@@ -60,7 +60,7 @@ Downloading data done!
 ```
 
 ### 1. Datasets
-* [Datasets](https://nlp.cs.princeton.edu/projects/densephrases/densephrases-data.tar.gz) (1GB) - All pre-processed datasets including reading comprehension, generated questions, open-domain QA and slot filling. Download and unzip it under `$DATA_DIR` or use `download.sh`.
+* [Datasets](https://nlp.cs.princeton.edu/projects/densephrases/densephrases-data.tar.gz) (1GB) - Pre-processed datasets including reading comprehension, generated questions, open-domain QA and slot filling. Download and unzip it under `$DATA_DIR` or use `download.sh`.
 * [Wikipedia dumps](https://nlp.cs.princeton.edu/projects/densephrases/wikidump.tar.gz) (5GB) - Pre-processed Wikipedia dumps in different sizes. See [here](#2-creating-a-phrase-index) for more details. Download and unzip it under `$DATA_DIR` or use `download.sh`.
 ```bash
 # Check if the download is complete
@@ -69,7 +69,7 @@ kilt  open-qa  single-qa  truecase  wikidump
 ```
 
 ### 2. Pre-trained Models
-* [Pre-trained models](https://nlp.cs.princeton.edu/projects/densephrases/outputs.tar.gz) (13GB) - All pre-trained DensePhrases models (including cross-encoder teacher models). Download and unzip it under `$SAVE_DIR` or use `download.sh`.
+* [Pre-trained models](https://nlp.cs.princeton.edu/projects/densephrases/outputs.tar.gz) (8GB) - Pre-trained DensePhrases models (including cross-encoder teacher models). Download and unzip it under `$SAVE_DIR` or use `download.sh`.
 ```bash
 # Check if the download is complete
 ls $SAVE_DIR
