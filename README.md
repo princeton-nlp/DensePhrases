@@ -96,7 +96,7 @@ You can also download each of pre-trained DensePhrases models as listed below.
 - `densephrases-multi-query-multi`         : `densephrases-multi` query-side fine-tuned on 5 open-domain QA datasets (NQ, WQ, TREC, TQA, SQuAD); Used for the [demo]
 - `spanbert-base-cased-*`             : cross-encoder teacher models trained on \*
 
-Test set performance was measured on [the phrase index for the full Wikipedia scale](#3-phrase-index). Note that the query-side fine-tuned models are trained with a different index structure (i.e., IVFOPQ) compared to IVFSQ described the paper, hence showing slightly different performances.
+Test set performance was measured on [the phrase index for the full Wikipedia scale](#3-phrase-index). Note that the query-side fine-tuned models are trained with a different index structure (i.e., IVFOPQ) compared to IVFSQ described in the paper, hence showing slightly different performances.
 
 ### 3. Phrase Index
 Please note that you don't need to download this phrase index unless you want to work on the full Wikipedia scale.
@@ -370,7 +370,7 @@ make eval-index MODEL_NAME=densephrases-multi-query-nq DUMP_DIR=$SAVE_DIR/densep
 make eval-demo I_PORT=51997
 ```
 For the evaluation on different datasets, simply change the dependency of `eval-index` (or `eval-demo`) accordingly (e.g., `nq-open-data` to `trec-open-data` for the evaluation on CuratedTREC).
-Note that the test set evaluation of slot filling tasks requires prediction files to be uploaded on [eval.ai](https://eval.ai/web/challenges/challenge-page/689/overview).
+Note that the test set evaluation of slot filling tasks requires prediction files to be uploaded on [eval.ai](https://eval.ai/web/challenges/challenge-page/689/overview) (use `strip-kilt` target in `Makefile` for better accuracy).
 
 ## Pre-processing
 At the bottom of `Makefile`, we list commands that we used for pre-processing the datasets and Wikipedia. For training question generation models (T5-large), we used [https://github.com/patil-suraj/question\_generation](https://github.com/patil-suraj/question_generation) (see also [here](https://github.com/princeton-nlp/DensePhrases/blob/main/scripts/question_generation/generate_squad.py) for QG). Note that all datasets are already pre-processed including the generated questions, so you do not need to run most of these scripts. For creating test sets for custom (open-domain) questions, see `preprocess-openqa` in `Makefile`.
