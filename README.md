@@ -292,7 +292,7 @@ At the end of step 2, you will see the performance on the reading comprehension 
 ###  2. Creating a phrase index
 Let's assume that you have a pre-trained DensePhrases named `densephrases-multi`, which can also be downloaded from [here](#2-pre-trained-models).
 Now, you can generate phrase vectors for a large-scale corpus like Wikipedia using `gen-vecs-parallel`.
-Note that you can just download the phrase index for the full Wikipedia scale (see [here](#3-phrase-index)) and you can skip this section.
+Note that you can just download [the phrase index for the full Wikipedia scale](#3-phrase-index) and skip this section.
 ```bash
 # Generate phrase vectors in parallel for a large-scale corpus (default = wiki-dev)
 make gen-vecs-parallel MODEL_NAME=densephrases-multi START=0 END=8
