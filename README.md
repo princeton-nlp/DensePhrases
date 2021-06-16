@@ -86,12 +86,17 @@ You can also download each of pre-trained DensePhrases models as listed below.
 | [densephrases-multi-query-sqd](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-sqd.tar.gz) | SQuAD | 34.5 |
 | [densephrases-multi-query-multi](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-multi.tar.gz) | NaturalQuestions | 40.9 |
 
+|              Model              | Evaluation (Test) | SlotFilling (KILT-AC) |
+|:-------------------------------|:--------:|:--------:|
+| [densephrases-multi-query-trex](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-trex.tar.gz) | T-REx | 22.3 |
+| [densephrases-multi-query-zsre](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-zsre.tar.gz) | Zero shot RE | 40.0 |
+
 - `densephrases-multi`                      : DensePhrases trained on multiple reading comprehension datasets (C\_phrase = {NQ, WQ, TREC, TQA, SQuAD}) without any query-side fine-tuning
 - `densephrases-multi-query-*`          : `densephrases-multi` query-side fine-tuned on *
 - `densephrases-multi-query-multi`         : `densephrases-multi` query-side fine-tuned on 5 open-domain QA datasets (NQ, WQ, TREC, TQA, SQuAD); Used for the [demo]
 - `spanbert-base-cased-*`             : cross-encoder teacher models trained on \*
 
-Test set performance was measured on [the phrase index for the full Wikipedia scale](#3-phrase-index).
+Test set performance was measured on [the phrase index for the full Wikipedia scale](#3-phrase-index). Note that the query-side fine-tuned models are trained with a different index structure (i.e., IVFOPQ) compared to IVFSQ described the paper, hence showing slightly different performances.
 
 ### 3. Phrase Index
 Please note that you don't need to download this phrase index unless you want to work on the full Wikipedia scale.
