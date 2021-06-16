@@ -129,7 +129,7 @@ Basically, DensePhrases uses a text corpus pre-processed in the following format
     ]
 }
 ```
-Each `context` contains a single natural paragraph of a variable length. See `sample_text.json` for example. The following command creates phrase vectors for the custom corpus (`sample_text.json`) with the `densephrases-multi` model.
+Each `context` contains a single natural paragraph of a variable length. See `sample/articles.json` for example. The following command creates phrase vectors for the custom corpus (`sample/articles.json`) with the `densephrases-multi` model.
 
 ```bash
 python generate_phrase_vecs.py \
@@ -137,7 +137,7 @@ python generate_phrase_vecs.py \
     --pretrained_name_or_path SpanBERT/spanbert-base-cased \
     --data_dir ./ \
     --cache_dir $CACHE_DIR \
-    --predict_file sample_text.json \
+    --predict_file sample/articles.json \
     --do_dump \
     --max_seq_length 512 \
     --doc_stride 500 \
@@ -165,7 +165,7 @@ python scripts/preprocess/compress_metadata.py \
 ```
 Note that this example uses a very small text corpus and the hyperparameters for `build_phrase_index.py` in a larger scale corpus can be found [here](#densephrases-training-indexing-and-inference).
 The phrase index (with IVFOPQ) will be saved under `$SAVE_DIR/densephrases-multi_sample/dump/start`. You can use this phrase index to run a [demo](#playing-with-a-densephrases-demo) or evaluate your set of queries.
-For instance, you can feed a set of questions (`sample_qs.json`) to the custom phrase index as follows:
+For instance, you can feed a set of questions (`sample/questions.json`) to the custom phrase index as follows:
 ```bash
 python eval_phrase_retrieval.py \
     --run_mode eval \
@@ -173,11 +173,11 @@ python eval_phrase_retrieval.py \
     --dump_dir $SAVE_DIR/densephrases-multi_sample/dump \
     --index_dir start/32_flat_OPQ96 \
     --query_encoder_path $SAVE_DIR/densephrases-multi \
-    --test_path sample_qs.json \
+    --test_path sample/questions.json \
     --save_pred \
     --truecase
 ```
-The prediction file will be saved as `$SAVE_DIR/densephrases-multi/pred/sample_qs_3_top10.pred`, which shows the answer phrases and the passages that contain the phrases:
+The prediction file will be saved as `$SAVE_DIR/densephrases-multi/pred/questions_3_top10.pred`, which shows the answer phrases and the passages that contain the phrases:
 ```
 {
     "1": {
@@ -195,7 +195,7 @@ The prediction file will be saved as `$SAVE_DIR/densephrases-multi/pred/sample_q
     ...
 }
 ```
-For creating a large-scale phrase index (e.g., Wikipedia), see [dump_phrases.py](https://github.com/princeton-nlp/DensePhrases/blob/main/parallel/dump_phrases.py) for an example, which is also explained [here](#2-creating-a-phrase-index).
+For creating a large-scale phrase index (e.g., Wikipedia), see [dump_phrases.py](https://github.com/princeton-nlp/DensePhrases/blob/main/scripts/parallel/dump_phrases.py) for an example, which is also explained [here](#2-creating-a-phrase-index).
 
 ## Playing with a DensePhrases Demo
 There are two ways of using DensePhrases demo.

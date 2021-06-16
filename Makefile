@@ -217,7 +217,7 @@ endif
 
 # Dump phrase vectors in parallel. Dump will be saved in $(SAVE_DIR)/$(MODEL_NAME)_(data_name)/dump.
 gen-vecs-parallel: model-name
-	nohup python parallel/dump_phrases.py \
+	nohup python scripts/parallel/dump_phrases.py \
 		--model_type bert \
 		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
 		--cache_dir $(CACHE_DIR) \
@@ -234,7 +234,7 @@ gen-vecs-parallel: model-name
 # Parallel add for large-scale on-disk IVFSQ (start, end = file idx)
 index-add: dump-dir large-index-sq
 	export MKL_SERVICE_FORCE_INTEL=1
-	python parallel/add_to_index.py \
+	python scripts/parallel/add_to_index.py \
 		--dump_dir $(DUMP_DIR) \
 		--num_clusters $(NUM_CLUSTERS) \
 		--cuda \
