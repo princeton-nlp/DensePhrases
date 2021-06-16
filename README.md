@@ -4,7 +4,7 @@
   <img alt="DensePhrases Demo" src="https://github.com/princeton-nlp/DensePhrases/blob/main/densephrases/demo/static/files/preview.gif" width="750px">
 </div>
 
-<em>DensePhrases</em> is an extractive phrase search tool based on your natural language inputs. It enables real-time search of phrase-level answers to your questions or related entities to (subject, relation) pairs in Wikipedia. Due to the extractive nature of DensePhrases, it also provides an evidence passage for each phrase. Please see our paper [
+<em>DensePhrases</em> is an extractive phrase search tool based on your natural language inputs. From 5 million Wikipedia articles, it can search phrase-level answers to your questions or find related entities to (subject, relation) pairs in real-time. Due to the extractive nature of DensePhrases, it always provides an evidence passage for each phrase. Please see our paper [
 Learning Dense Representations of Phrases at Scale (Lee et al., 2021)](https://arxiv.org/abs/2012.12624) for more details.
 
 **\*\*\*\*\* You can try out our online demo of DensePhrases [here](http://densephrases.korea.ac.kr)! \*\*\*\*\***
@@ -327,21 +327,24 @@ make eval-index MODEL_NAME=densephrases-multi DUMP_DIR=$SAVE_DIR/densephrases-mu
 ```
 
 ### 3. Query-side fine-tuning
-With a single 11GB GPU, you can easily train your query encoder to retrieve phrase-level knowledge from Wikipedia. First, you need a phrase index for the full Wikipedia (`wiki-20181220`), which can be obtained by simply downloading it from [here](#3-phrase-index) (`densephrases-multi_wiki-20181220`) or by creating a custom phrase index as described above.
+Query-side fine-tuning makes DensePhrases a versatile tool for retrieving phrase-level knowledge given different types of input queries and answers. Although DensePhrases was trained on QA datasets, it can be adapted to non-QA style inputs such as "subject [SEP] relation" where we expect related object entities to be retrieved. It also significantly improves the performance on QA datasets by reducing the discrepancy of training and inference.
 
-The following command query-side fine-tunes `densephrases-multi` on TREC.
+First, you need a phrase index for the full Wikipedia (`wiki-20181220`), which can be simply downloaded [here](#3-phrase-index) (`densephrases-multi_wiki-20181220`), or a custom phrase index as described above.
+Given your query-answer pairs pre-processed as json files in `$DATA_DIR/open-qa`, you can easily query-side fine-tune your model.
+
+The following command query-side fine-tunes `densephrases-multi` on T-REx, a slot filling task where each query denotes "subject [SEP] relation" (e.g., "Cirith Ungol [SEP] genre") and the answers are object entities (e.g., heavy metal).
 ```bash
-# Query-side fine-tune on TREC (model will be saved as MODEL_NAME)
-make train-query MODEL_NAME=densephrases-multi-query-trec DUMP_DIR=$SAVE_DIR/densephrases-multi_wiki-20181220/dump/
+# Query-side fine-tune on T-REx (model will be saved as MODEL_NAME)
+make train-query MODEL_NAME=densephrases-multi-query-trex DUMP_DIR=$SAVE_DIR/densephrases-multi_wiki-20181220/dump/
 ```
-Note that the pre-trained query encoder is specified in `train-query` as `--query_encoder_path $(SAVE_DIR)/densephrases-multi` and a new model will be saved as `densephrases-multi-query-trec` as specified in `MODEL_NAME`. You can also train on different datasets by changing the dependency `trec-open-data` to `*-open-data` (e.g., `nq-open-data`).
+Note that the pre-trained query encoder is specified in `train-query` as `--query_encoder_path $(SAVE_DIR)/densephrases-multi` and a new model will be saved as `densephrases-multi-query-trex` as specified in `MODEL_NAME`. You can also train on different datasets by changing the dependency `trex-open-data` to `*-open-data` (e.g., `wq-open-data` for WebQuestions).
 
 #### IVFOPQ vs IVFSQ
 Currently, `train-query` uses the IVFOPQ index for query-side fine-tuning, and you should apply minor changes in the code to train with an IVFSQ index.
 For IVFOPQ, training takes 2 to 3 hours per epoch for large datasets (NQ, TQA, SQuAD), and 3 to 8 minutes for small datasets (WQ, TREC). We recommend using IVFOPQ since it has similar or better performance than IVFSQ while being much faster than IVFSQ. With IVFSQ, the training time will be highly dependent on the File I/O speed, so using SSDs is recommended for IVFSQ.
 
 ### 4. Inference
-With any DensePhrases query encoders (e.g., `densephrases-multi-query-nq`) and a phrase index (e.g., `densephrases-multi_wiki-20181220`), you can test your queries as follows and the results will be saved as a json file with the `--save_pred` option:
+With any DensePhrases query encoders (e.g., `densephrases-multi-query-nq`) and a phrase index (e.g., `densephrases-multi_wiki-20181220`), you can test your queries as follows and the retrieval results will be saved as a json file with the `--save_pred` option:
 
 ```bash
 # Evaluate on Natural Questions
@@ -351,6 +354,7 @@ make eval-index MODEL_NAME=densephrases-multi-query-nq DUMP_DIR=$SAVE_DIR/densep
 make eval-demo I_PORT=51997
 ```
 For the evaluation on different datasets, simply change the dependency of `eval-index` (or `eval-demo`) accordingly (e.g., `nq-open-data` to `trec-open-data` for the evaluation on CuratedTREC).
+Note that the test set evaluation of slot filling tasks requires prediction files to be uploaded on [eval.ai](https://eval.ai/web/challenges/challenge-page/689/overview).
 
 ## Pre-processing
 At the bottom of `Makefile`, we list commands that we used for pre-processing the datasets and Wikipedia. For training question generation models (T5-large), we used [https://github.com/patil-suraj/question\_generation](https://github.com/patil-suraj/question_generation) (see also [here](https://github.com/princeton-nlp/DensePhrases/blob/main/scripts/question_generation/generate_squad.py) for QG). Note that all datasets are already pre-processed including the generated questions, so you do not need to run most of these scripts. For creating test sets for custom (open-domain) questions, see `preprocess-openqa` in `Makefile`.
