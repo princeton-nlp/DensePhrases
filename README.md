@@ -329,8 +329,8 @@ make eval-index MODEL_NAME=densephrases-multi DUMP_DIR=$SAVE_DIR/densephrases-mu
 ### 3. Query-side fine-tuning
 Query-side fine-tuning makes DensePhrases a versatile tool for retrieving phrase-level knowledge given different types of input queries and answers. Although DensePhrases was trained on QA datasets, it can be adapted to non-QA style inputs such as "subject [SEP] relation" where we expect related object entities to be retrieved. It also significantly improves the performance on QA datasets by reducing the discrepancy of training and inference.
 
-First, you need a phrase index for the full Wikipedia (`wiki-20181220`), which can be simply downloaded [here](#3-phrase-index) (`densephrases-multi_wiki-20181220`), or a custom phrase index as described above.
-Given your query-answer pairs pre-processed as json files in `$DATA_DIR/open-qa` or `$DATA_DIR/kilt`, you can easily query-side fine-tune your model. For instance the training set of T-REx (`$DATA_DIR/kilt/trex/trex-train-kilt_open_10000.json`) looks as follows:
+First, you need a phrase index for the full Wikipedia (`wiki-20181220`), which can be simply downloaded [here](#3-phrase-index), or a custom phrase index as described above.
+Given your query-answer pairs pre-processed as json files in `$DATA_DIR/open-qa` or `$DATA_DIR/kilt`, you can easily query-side fine-tune your model. For instance, the training set of T-REx (`$DATA_DIR/kilt/trex/trex-train-kilt_open_10000.json`) looks as follows:
 ```
 {
     "data": [

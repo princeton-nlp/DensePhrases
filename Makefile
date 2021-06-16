@@ -127,7 +127,7 @@ compress-meta:
 		--output_dir $(DUMP_DIR)
 
 # 5) Evaluate the phrase index for phrase retrieval
-eval-index: dump-dir model-name large-index zsre-open-data
+eval-index: dump-dir model-name large-index nq-open-data
 	python eval_phrase_retrieval.py \
 		--run_mode eval \
 		--cuda \
@@ -290,7 +290,7 @@ zsre-open-data: kilt-options
 benchmark-data:
 	$(eval TEST_DATA=scripts/benchmark/data/nq_1000_dev_denspi.json)
 
-train-query: dump-dir model-name trec-open-data large-index
+train-query: dump-dir model-name trex-open-data large-index
 	python train_query.py \
 		--run_mode train_query \
 		--cache_dir $(CACHE_DIR) \
