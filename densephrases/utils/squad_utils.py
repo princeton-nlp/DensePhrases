@@ -1170,7 +1170,7 @@ def load_and_cache_examples(args, tokenizer, evaluate=False, output_examples=Fal
     )
 
     # Init features and dataset from cache if it exists
-    if os.path.exists(cached_features_file) and not args.overwrite_cache:
+    if os.path.exists(cached_features_file):
         logger.info("Loading features from cached file %s", cached_features_file)
         features_and_dataset = torch.load(cached_features_file)
         features, dataset, examples = (
