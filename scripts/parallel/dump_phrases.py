@@ -18,7 +18,6 @@ def run_dump_phrase(args):
                 "--max_seq_length", "512",
                 "--doc_stride", "500",
                 "--fp16",
-                "--overwrite_cache",
                 "--load_dir", f"{args.load_dir}",
                 "--output_dir", f"{args.output_dir}",
                 "--filter_threshold", f"{args.filter_threshold:.2f}"] + \
