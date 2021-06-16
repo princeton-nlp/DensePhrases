@@ -330,9 +330,25 @@ make eval-index MODEL_NAME=densephrases-multi DUMP_DIR=$SAVE_DIR/densephrases-mu
 Query-side fine-tuning makes DensePhrases a versatile tool for retrieving phrase-level knowledge given different types of input queries and answers. Although DensePhrases was trained on QA datasets, it can be adapted to non-QA style inputs such as "subject [SEP] relation" where we expect related object entities to be retrieved. It also significantly improves the performance on QA datasets by reducing the discrepancy of training and inference.
 
 First, you need a phrase index for the full Wikipedia (`wiki-20181220`), which can be simply downloaded [here](#3-phrase-index) (`densephrases-multi_wiki-20181220`), or a custom phrase index as described above.
-Given your query-answer pairs pre-processed as json files in `$DATA_DIR/open-qa`, you can easily query-side fine-tune your model.
-
-The following command query-side fine-tunes `densephrases-multi` on T-REx, a slot filling task where each query denotes "subject [SEP] relation" (e.g., "Cirith Ungol [SEP] genre") and the answers are object entities (e.g., heavy metal).
+Given your query-answer pairs pre-processed as json files in `$DATA_DIR/open-qa` or `$DATA_DIR/kilt`, you can easily query-side fine-tune your model. For instance the training set of T-REx (`$DATA_DIR/kilt/trex/trex-train-kilt_open_10000.json`) looks as follows:
+```
+{
+    "data": [
+        {
+            "id": "111ed80f-0a68-4541-8652-cb414af315c5",
+            "question": "Effie Germon [SEP] occupation",
+            "answers": [
+                "actors",
+                "actor",
+                "actress",
+                "actresses"
+            ]
+        },
+        ...
+    ]
+}
+```
+The following command query-side fine-tunes `densephrases-multi` on T-REx.
 ```bash
 # Query-side fine-tune on T-REx (model will be saved as MODEL_NAME)
 make train-query MODEL_NAME=densephrases-multi-query-trex DUMP_DIR=$SAVE_DIR/densephrases-multi_wiki-20181220/dump/
