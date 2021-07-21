@@ -230,6 +230,7 @@ def get_count_matrix(args, db, db_opts, min_length=250, max_length=2500):
     SAVE_MAX = 1000
     articles = []
     counter = 0
+    os.makedirs(args.out_dir, exist_ok=True) 
     for _, did in tqdm(enumerate(doc_ids)):
         article = {
             'title': did,
@@ -242,6 +243,7 @@ def get_count_matrix(args, db, db_opts, min_length=250, max_length=2500):
             articles = []
             counter += 1
 
+    
     with open(os.path.join(args.out_dir, '%s'%str(counter).zfill(4)), 'w') as f:
         json.dump({'data': articles}, f)
 
@@ -325,4 +327,4 @@ if __name__ == '__main__':
         'ngram': args.ngram,
         'doc_dict': doc_dict
     }
-    retriever.utils.save_sparse_csr(filename, tfidf, metadata)
+    save_sparse_csr(filename, tfidf, metadata)
