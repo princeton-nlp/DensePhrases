@@ -115,7 +115,7 @@ def store_contents(data_path, save_path, preprocess, num_workers=None):
     with tqdm(total=len(files)) as pbar:
         for pairs in tqdm(workers.imap_unordered(get_contents, files)):
             count += len(pairs)
-            c.executemany("INSERT INTO documents VALUES (?,?)", pairs)
+            c.executemany("INSERT OR IGNORE INTO documents VALUES (?,?)", pairs)
             pbar.update()
     logger.info('Read %d docs.' % count)
     logger.info('Committing...')
