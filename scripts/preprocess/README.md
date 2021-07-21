@@ -22,8 +22,7 @@ python WikiExtractor.py \
 python build_db.py \
     --data_path /hdd1/data/wikidump/extracted \
     --save_path /hdd1/data/wikidump/docs_20181220.db \
-    --preprocess prep_wikipedia.py \
-    --overwrite
+    --preprocess prep_wikipedia.py
 ```
 
 ### Transform sqlite to squad-style
