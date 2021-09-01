@@ -20,9 +20,10 @@ from tornado.ioloop import IOLoop
 from requests_futures.sessions import FuturesSession
 
 from eval_phrase_retrieval import evaluate_results, evaluate_results_kilt
-from densephrases.utils.open_utils import load_query_encoder, load_phrase_index, load_qa_pairs, get_query2vec
-from densephrases.utils.squad_utils import get_cq_dataloader, TrueCaser
-from densephrases.utils.embed_utils import get_cq_results
+from densephrases.utils.open_utils import load_query_encoder, load_phrase_index, load_cross_encoder, load_qa_pairs, get_query2vec
+from densephrases.utils.squad_utils import get_cq_dataloader, TrueCaser, get_bertqa_dataloader
+from densephrases.utils.squad_metrics import compute_predictions_logits
+from densephrases.utils.embed_utils import get_cq_results, get_bertqa_results
 
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s', datefmt='%m/%d/%Y %H:%M:%S',
@@ -147,7 +148,8 @@ class DensePhrasesInterface(object):
 
     def serve_bert_encoder(self, bert_port, args):
         device = 'cuda' if args.cuda else 'cpu'
-        bert_encoder, tokenizer = load_query_encoder(device, args) # will be just a bert as query_encoder
+        # bert_encoder, tokenizer = load_query_encoder(device, args) # will be just a bert as query_encoder
+        bert_encoder, tokenizer = load_cross_encoder(device, args)
         import binascii
         def float_to_hex(vals):
             strs = []
@@ -188,6 +190,36 @@ class DensePhrasesInterface(object):
 
             return outs
 
+        def context_query_to_answer(batch_context, batch_query):
+            bert_encoder.eval()
+
+            # Phrase encoding style
+            dataloader, examples, features = get_bertqa_dataloader(
+                batch_context, batch_query, tokenizer, args.max_query_length, batch_size=64
+            )
+            cq_results = get_bertqa_results(
+                examples, features, dataloader, device, bert_encoder, batch_size=64
+            )
+            predictions, stat = compute_predictions_logits(
+                examples,
+                features,
+                cq_results,
+                20,
+                10,
+                False,
+                '',
+                '',
+                '',
+                False,
+                False,
+                0.0,
+                tokenizer,
+                -1e8,
+                '',
+            )
+
+            return predictions
+
         # Serve query encoder
         app = Flask(__name__)
         app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
@@ -215,6 +247,18 @@ class DensePhrasesInterface(object):
             single_query = request.args['query']
             # start_time = time()
             outs = context_query_to_logit(single_context, single_query)
+            # logger.info(f'single to logit {time()-start_time}')
+            t1 = time()
+            out = {'ret': outs, 'time': int(1000 * (t1 - t0))}
+            return jsonify(out)
+
+        @app.route('/batch_api', methods=['POST'])
+        def batch_api():
+            t0 = time()
+            batch_context = json.loads(request.form['context'])
+            batch_query = json.loads(request.form['query'])
+            # start_time = time()
+            outs = context_query_to_answer(batch_context, batch_query)
             # logger.info(f'single to logit {time()-start_time}')
             t1 = time()
             out = {'ret': outs, 'time': int(1000 * (t1 - t0))}
@@ -251,13 +295,17 @@ class DensePhrasesInterface(object):
             logger.info(res.text)
         return outs
 
-    def batch_query(self, batch_query, max_answer_length=20, top_k=10, nprobe=64):
+    def batch_query(self, batch_query, batch_context, max_answer_length=20, top_k=10, nprobe=64):
+        assert len(batch_query) == len(batch_context)
+        print(len(batch_query), 'queries and contexts are given.')
         post_data = {
             'query': json.dumps(batch_query),
+            'context': json.dumps(batch_context),
             'max_answer_length': max_answer_length,
             'top_k': top_k,
             'nprobe': nprobe,
         }
+        print(self.get_address(self.index_port) + '/batch_api')
         res = requests.post(self.get_address(self.index_port) + '/batch_api', data=post_data)
         if res.status_code != 200:
             logger.info('Wrong behavior %d' % res.status_code)
@@ -389,22 +437,30 @@ if __name__ == '__main__':
         logger.info(f'{[r["answer"] for r in result["ret"]]}')
 
     elif args.run_mode == 'batch_query':
-        queries= [
-            'What was uncle jesse\'s original last name on full house',
+        queries = [
+            'Where',
             'when did medicare begin in the united states',
             'who sings don\'t stand so close to me',
             'Name three famous writers',
             'Who was defeated by computer in chess game?'
         ]
+        contexts = [
+            'Uncle jesse\'s original full name was James Lee. And he was born in South Korea.',
+            'Uncle jesse\'s original name was James Lee. And he was born in South Korea in 1333. US medicare started in 1222.',
+            'Uncle jesse\'s original name was James Lee. And he sang this song.',
+            'Uncle jesse\'s original name was James Lee. And Jens wrote this novel.',
+            'Uncle jesse\'s original name was James Lee. The man was defeated by Alphago.'
+        ]
         result = server.batch_query(
             queries,
+            contexts, # feed context for cross encoders
             max_answer_length=args.max_answer_length,
             top_k=args.top_k,
             nprobe=args.nprobe,
         )
-        for query, result in zip(queries, result['ret']):
+        for query, re in zip(queries, result['ret'].values()):
             logger.info(f'Answers to a question: {query}')
-            logger.info(f'{[r["answer"] for r in result]}')
+            logger.info(f'{re}')
 
     elif args.run_mode == 'eval_request':
         server.eval_request(args)

@@ -10,6 +10,7 @@ import math
 import copy
 import string
 import faiss
+import csv
 
 from time import time
 from tqdm import tqdm
@@ -25,7 +26,7 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message
 logger = logging.getLogger(__name__)
 
 
-def embed_all_query(questions, args, query_encoder, tokenizer, batch_size=48):
+def embed_all_query(questions, args, query_encoder, tokenizer, batch_size=64):
     query2vec = get_query2vec(
         query_encoder=query_encoder, tokenizer=tokenizer, args=args, batch_size=batch_size
     )
@@ -41,9 +42,10 @@ def embed_all_query(questions, args, query_encoder, tokenizer, batch_size=48):
     return query_vec
 
 
-def evaluate(args, mips=None, query_encoder=None, tokenizer=None):
+def evaluate(args, mips=None, query_encoder=None, tokenizer=None, q_idx=None):
     # Load dataset and encode queries
-    qids, questions, answers, _ = load_qa_pairs(args.test_path, args)
+    qids, questions, answers, _ = load_qa_pairs(args.test_path, args, q_idx)
+
     if query_encoder is None:
         print(f'Query encoder will be loaded from {args.query_encoder_path}')
         device = 'cuda' if args.cuda else 'cpu'
@@ -198,14 +200,14 @@ def evaluate_results(predictions, qids, questions, answers, args, evidences, sco
         with open(pred_path, 'w') as f:
             json.dump(pred_out, f)
 
-    return exact_match_top1
+    return exact_match_top1, f1_score_top1, exact_match_topk, f1_score_topk
 
 
 def evaluate_results_kilt(predictions, qids, questions, answers, args, evidences, scores, titles, se_positions=None):
     total=len(predictions)
 
     # load title2id dict and convert predicted titles into wikipedia_ids
-    with open(args.title2wikiid_path) as f:
+    with open(os.path.join(os.environ['SAVE_DIR'], args.title2wikiid_path)) as f:
         title2wikiid = json.load(f)
     pred_wikipedia_ids = [[[title2wikiid[t] for t in title_] for title_ in title] for title in titles]
 
@@ -287,6 +289,125 @@ def evaluate_results_kilt(predictions, qids, questions, answers, args, evidences
     return result['downstream']['accuracy']
 
 
+def get_hard_negatives(args, mips=None, query_encoder=None, tokenizer=None):
+    # Load dataset and encode queries
+    if query_encoder is None:
+        logger.info(f'Query encoder will be loaded from {args.query_encoder_path}')
+        device = 'cuda' if args.cuda else 'cpu'
+        query_encoder, tokenizer = load_query_encoder(device, args)
+        query2vec = get_query2vec(
+            query_encoder=query_encoder, tokenizer=tokenizer, args=args, batch_size=64
+        )
+
+    # Load passages
+    passages = {}
+    logger.info('Loading 21M Wikipedia passages...')
+    # with open('/scratch/jinhyuk/paq/psgs_w100.tsv') as f:
+    with open('/n/fs/nlp-jl5167/paq/psgs_w100.tsv') as f:
+        psg_file = csv.reader(f, delimiter='\t')
+        for data_idx, data in tqdm(enumerate(psg_file)):
+            if data_idx == 0:
+                print('Reading', data)
+                continue
+            id_, psg, title = data
+            passages[psg] = [id_, title]
+            # break
+
+    # Load MIPS
+    if mips is None:
+        mips = load_phrase_index(args)
+        logger.info(f'Aggergation strategy used: {args.agg_strat}')
+    '''
+    '''
+
+    # Example json line
+    # {"question":"how many popes have the name gregory",
+    #  "subsets":["L1"],
+    #  "answer":["Sixteen"],
+    #  "answers":[{"passage_id":"2581755","offset":487,"text":"Sixteen","extractor":"L"}],
+    #  "passage_score":"-0.06620407104492188"}
+
+    num_split = 8
+    partition = 3
+    logger.info(f'Partition {partition} of {num_split} splits')
+    # with open(args.test_path) as f, open(f'/scratch/jinhyuk/paq/PAQ.metadata.hard0-{partition}.jsonl', 'w') as fw:
+    prev_f = open(f'/n/fs/nlp-jl5167/paq/PAQ.metadata.hard0-{partition}-orig.jsonl', 'r')
+    with open(args.test_path) as f, open(f'/n/fs/nlp-jl5167/paq/PAQ.metadata.hard0-{partition}.jsonl', 'w') as fw:
+        json_list = list(f)
+        batch_questions = []
+        batch_meta = []
+
+        # check_list = {json.loads(data)['question']: json.loads(data) for data in list(prev_f)[:-1]} # last line broken
+        # skip = False
+        # if len(check_list) > 0:
+        #     logger.info(f'Skip first {len(check_list)} Qs = {num_split * len(check_list)} steps')
+        #     skip = True # one time skipper
+
+        for qa_idx, json_str in tqdm(enumerate(json_list), total=len(json_list)):
+            if qa_idx % num_split != partition:
+                continue
+            qa_data = json.loads(json_str) 
+            question = qa_data['question']
+            question = question[:-1] if question.endswith('?') else question
+            
+            prev_q = prev_f.readline()
+            if len(prev_q) > 0:
+                try:
+                    prev_data = json.loads(prev_q)
+                    assert qa_data['question'] == prev_data['question']
+                    skip = True
+                except Exception as e:
+                    logger.info(e)
+                    logger.info('end of prev file')
+                    skip = False
+            else:
+                skip = False
+
+            if skip:
+                # json.dump(check_list[qa_data['question']], fw)
+                json.dump(prev_data, fw)
+                fw.write('\n')
+                continue
+
+            answer = qa_data['answer']
+            gold_psg_ids = [ans['passage_id'] for ans in qa_data['answers']]
+
+            batch_questions.append(question)
+            batch_meta.append(qa_data)
+
+            if (len(batch_questions) == args.eval_batch_size) or (qa_idx + num_split > len(json_list) - 1):
+                outs = query2vec(batch_questions)
+                start = np.concatenate([out[0] for out in outs], 0)
+                end = np.concatenate([out[1] for out in outs], 0)
+                query_vec = np.concatenate([start, end], 1)
+                
+                # Search
+                result = mips.search(
+                    query_vec,
+                    q_texts=batch_questions, nprobe=args.nprobe,
+                    top_k=args.top_k, max_answer_length=args.max_answer_length,
+                    aggregate=args.aggregate, agg_strat=args.agg_strat,
+                )
+                context = [[ret['context'] for ret in out] if len(out) > 0 else [''] for out in result]
+
+                # Write
+                for ctx_idx, top_ctx in enumerate(context):
+                    new_qa_data = copy.deepcopy(batch_meta[ctx_idx])
+                    new_qa_data['hard_neg_pids'] = [
+                        passages[ctx][0] for ctx in top_ctx
+                        if (ctx in passages) and not any(ans in ctx for ans in new_qa_data['answer'])
+                    ]
+                    new_qa_data['hard_neg_pids'] = list(
+                        set(new_qa_data['hard_neg_pids']) - set([ans['passage_id'] for ans in new_qa_data['answers']])
+                    )
+                    json.dump(new_qa_data, fw)
+                    fw.write('\n')
+
+                # Flush
+                batch_questions = []
+                batch_meta = []
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # QueryEncoder
@@ -330,7 +451,7 @@ if __name__ == '__main__':
     parser.add_argument('--test_path', default='open-qa/nq-open/test_preprocessed.json')
     parser.add_argument('--candidate_path', default=None)
     parser.add_argument('--regex', default=False, action='store_true')
-    parser.add_argument('--eval_batch_size', default=10, type=int)
+    parser.add_argument('--eval_batch_size', default=64, type=int)
 
     # Run mode
     parser.add_argument('--run_mode', default='eval')
@@ -372,10 +493,13 @@ if __name__ == '__main__':
             if 'webq' in test_path:
                 new_args.candidate_path = os.path.join(os.environ['DATA_DIR'], 'open-qa/webq/freebase-entities.txt')
                 logger.info('Enable candidates for WebQuestions')
-            em = evaluate(new_args, mips, query_encoder, tokenizer)
+            em, _, _, _ = evaluate(new_args, mips, query_encoder, tokenizer)
             ems.append(f'{em:.1f}')
         logger.info(f"Results of {args.query_encoder_path}")
         print(f'Top1 EMs: {" ".join(ems)}')
+    
+    elif args.run_mode == 'get_hard_neg':
+        get_hard_negatives(args)
 
     else:
         raise NotImplementedError
