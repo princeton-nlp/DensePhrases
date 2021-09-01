@@ -819,7 +819,7 @@ class SquadProcessor(DataProcessor):
         impossible_cnt = 0
         total_cnt = 0
         no_neg_cnt = 0
-        # truecase = TrueCaser(os.path.join(os.environ['DATA_DIR'], args.truecase_path))
+        truecase = TrueCaser(os.path.join(os.environ['DATA_DIR'], args.truecase_path))
 
         for doc_idx, entry in tqdm(enumerate(input_data)):
             title = entry["title"]
@@ -875,8 +875,8 @@ class SquadProcessor(DataProcessor):
                     if question_text.endswith('?'):
                         question_text = question_text[:-1]
                     # question_text = question_text.lower() # force lower query
-                    # if question_text == question_text.lower():
-                    #     question_text = truecase.get_true_case(question_text)
+                    if question_text == question_text.lower():
+                        question_text = truecase.get_true_case(question_text)
                     start_position_character = None
                     answer_text = None
                     answers = []
