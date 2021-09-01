@@ -3,6 +3,7 @@ import random
 import logging
 import json
 import torch
+import numpy as np
 
 from densephrases.models import DensePhrases, MIPS
 from densephrases.utils.single_utils import backward_compat
@@ -13,11 +14,13 @@ from transformers import (
     MODEL_MAPPING,
     AutoConfig,
     AutoTokenizer,
+    AutoModel,
 )
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s', datefmt='%m/%d/%Y %H:%M:%S',
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
+truecase = None
 
 
 def load_query_encoder(device, args):
@@ -75,6 +78,43 @@ def load_phrase_index(args):
     return mips
 
 
+def load_cross_encoder(device, args):
+
+    # Configure paths for query encoder serving
+    cross_encoder = torch.load(
+        os.path.join(args.query_encoder_path, "pytorch_model.bin"), map_location=torch.device('cpu')
+    )
+    new_qd = {n[len('bert')+1:]: p for n, p in cross_encoder.items() if 'bert' in n}
+    new_linear = {n[len('qa_outputs')+1:]: p for n, p in cross_encoder.items() if 'qa_outputs' in n}
+    config, unused_kwargs = AutoConfig.from_pretrained(
+        args.pretrained_name_or_path,
+        cache_dir=args.cache_dir if args.cache_dir else None,
+        return_unused_kwargs=True
+    )
+    tokenizer = AutoTokenizer.from_pretrained(
+        args.tokenizer_name if args.tokenizer_name else args.pretrained_name_or_path,
+        do_lower_case=args.do_lower_case,
+        cache_dir=args.cache_dir if args.cache_dir else None,
+    )
+    model = AutoModel.from_pretrained(
+        args.pretrained_name_or_path,
+        from_tf=bool(".ckpt" in args.pretrained_name_or_path),
+        config=config,
+        cache_dir=args.cache_dir if args.cache_dir else None,
+    )
+    model.load_state_dict(new_qd)
+    qa_outputs = torch.nn.Linear(config.hidden_size, 2)
+    qa_outputs.load_state_dict(new_linear)
+    ce_model = torch.nn.ModuleList(
+        [model, qa_outputs]
+    )
+    ce_model.to(device)
+
+    logger.info(f'CrossEncoder loaded from {args.query_encoder_path} having {MODEL_MAPPING[config.__class__]}')
+    logger.info('Number of model parameters: {:,}'.format(sum(p.numel() for p in ce_model.parameters())))
+    return ce_model, tokenizer
+
+
 def get_query2vec(query_encoder, tokenizer, args, batch_size=64):
     device = 'cuda' if args.cuda else 'cpu'
     def query2vec(queries):
@@ -96,13 +136,16 @@ def get_query2vec(query_encoder, tokenizer, args, batch_size=64):
     return query2vec
 
 
-def load_qa_pairs(data_path, args, draft_num_examples=1000, shuffle=False, reduction=False):
+def load_qa_pairs(data_path, args, q_idx=None, draft_num_examples=100, shuffle=False):
     q_ids = []
     questions = []
     answers = []
     titles = []
     data = json.load(open(data_path))['data']
-    for item in data:
+    for data_idx, item in enumerate(data):
+        if q_idx is not None:
+            if data_idx != q_idx:
+                continue
         q_id = item['id']
         if 'origin' in item:
             q_id = item['origin'].split('.')[0] + '-' + q_id
@@ -118,6 +161,7 @@ def load_qa_pairs(data_path, args, draft_num_examples=1000, shuffle=False, reduc
         answers.append(answer)
         titles.append(title)
     questions = [query[:-1] if query.endswith('?') else query for query in questions]
+    # questions = [query.lower() for query in questions] # force lower query
 
     if args.do_lower_case:
         logger.info(f'Lowercasing queries')
@@ -137,8 +181,11 @@ def load_qa_pairs(data_path, args, draft_num_examples=1000, shuffle=False, reduc
 
     if args.truecase:
         try:
+            global truecase
+            if truecase is None:
+                logger.info('loading truecaser')
+                truecase = TrueCaser(os.path.join(os.environ['DATA_DIR'], args.truecase_path))
             logger.info('Truecasing queries')
-            truecase = TrueCaser(os.path.join(os.environ['DATA_DIR'], args.truecase_path))
             questions = [truecase.get_true_case(query) if query == query.lower() else query for query in questions]
         except Exception as e:
             print(e)

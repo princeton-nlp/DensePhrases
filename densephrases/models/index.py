@@ -260,7 +260,7 @@ class MIPS(object):
                     try:
                         reconst = self.reconst_fn(ii)
                     except:
-                        reconst = np.zeros(768)
+                        reconst = np.zeros(bs)
                     reconsts.append(reconst)
                 groups_start.append({'end': np.array(reconsts)})
             groups_end = []
@@ -270,7 +270,7 @@ class MIPS(object):
                     try:
                         reconst = self.reconst_fn(ii)
                     except:
-                        reconst = np.zeros(768)
+                        reconst = np.zeros(bs)
                     reconsts.append(reconst)
                 groups_end.append({'start': np.array(reconsts)})
                 

@@ -1,19 +1,24 @@
 import json
+import random
+import h5py
 import logging
 import os
+import csv
 import math
 import pickle
 import string
+import torch.distributed as dist
 from functools import partial
 from multiprocessing import Pool, cpu_count
 from time import time
 
 import numpy as np
 from tqdm import tqdm
+from itertools import cycle, chain
 
 from .file_utils import is_tf_available, is_torch_available
 from .data_utils import DataProcessor, whitespace_tokenize
-from torch.utils.data import DataLoader, SequentialSampler
+from torch.utils.data import DataLoader, SequentialSampler, Dataset
 
 
 if is_torch_available():
@@ -180,7 +185,7 @@ def squad_convert_example_to_features(example, max_seq_length, doc_stride, max_q
             )
 
         sequence_added_tokens = ( # 2 for BERT
-            tokenizer.max_len - tokenizer.max_len_single_sentence # + 1 # TODO: Why +1 for roberta?
+            tokenizer.max_len - tokenizer.max_len_single_sentence + 1
             if "roberta" in str(type(tokenizer)) or "camembert" in str(type(tokenizer))
             else tokenizer.max_len - tokenizer.max_len_single_sentence
         )
@@ -541,6 +546,13 @@ def squad_convert_examples_to_features(
     features = new_features
     del new_features
 
+    if dist.is_initialized() and is_training:
+        feature_len = [None for _ in range(dist.get_world_size())]
+        dist.all_gather_object(feature_len, len(features))
+        min_feature = min(feature_len)
+        features = features[:min_feature]
+        print(f'rank {dist.get_rank()} => {len(features)} features')
+
     if return_dataset == "pt":
         if not is_torch_available():
             raise RuntimeError("PyTorch must be installed to return a PyTorch dataset.")
@@ -765,10 +777,15 @@ class SquadProcessor(DataProcessor):
         with open(
             os.path.join(data_dir, self.train_file if filename is None else filename), "r", encoding="utf-8"
         ) as reader:
-            input_data = json.load(reader)["data"]
-
-        return self._create_examples(
-                input_data, "train", draft, context_only=context_only, skip_no_answer=skip_no_answer, args=args)
+            
+            # SQuAD-style json file
+            if filename.endswith('json'):
+                input_data = json.load(reader)["data"]
+                return self._create_examples(
+                        input_data, "train", draft, context_only=context_only, skip_no_answer=skip_no_answer, args=args)
+            elif filename.endswith('jsonl'):
+                json_list = list(reader)
+                return self._create_examples_qa_only(json_list, "train", draft, args=args)
 
     def get_dev_examples(self, data_dir, filename=None, draft=False, context_only=False, args=None):
         """
@@ -791,7 +808,7 @@ class SquadProcessor(DataProcessor):
             input_data = json.load(reader)["data"]
         return self._create_examples(input_data, "dev", draft, context_only=context_only, args=args)
 
-    def _create_examples(self, input_data, set_type, draft, context_only, draft_num_examples=1000, min_len=0, max_len=2500,
+    def _create_examples(self, input_data, set_type, draft, context_only, draft_num_examples=1002, min_len=0, max_len=2500,
             skip_no_answer=False, args=None):
         is_training = set_type == "train"
         examples = []
@@ -802,7 +819,7 @@ class SquadProcessor(DataProcessor):
         impossible_cnt = 0
         total_cnt = 0
         no_neg_cnt = 0
-        truecase = TrueCaser(os.path.join(os.environ['DATA_DIR'], args.truecase_path))
+        # truecase = TrueCaser(os.path.join(os.environ['DATA_DIR'], args.truecase_path))
 
         for doc_idx, entry in tqdm(enumerate(input_data)):
             title = entry["title"]
@@ -857,8 +874,9 @@ class SquadProcessor(DataProcessor):
                     question_text = qa["question"].strip()
                     if question_text.endswith('?'):
                         question_text = question_text[:-1]
-                    if question_text == question_text.lower():
-                        question_text = truecase.get_true_case(question_text)
+                    # question_text = question_text.lower() # force lower query
+                    # if question_text == question_text.lower():
+                    #     question_text = truecase.get_true_case(question_text)
                     start_position_character = None
                     answer_text = None
                     answers = []
@@ -906,6 +924,10 @@ class SquadProcessor(DataProcessor):
                     if draft and len(examples) == draft_num_examples:
                         logger.info(f'no-ans / all example: {impossible_cnt}/{len(examples)} (skipping:{skip_no_answer})')
                         logger.info(f'no neg count: {no_neg_cnt} out of {len(examples)}')
+                        if is_training:
+                            orig_len = len(examples)
+                            examples = list(set(examples)) # deduplicate
+                            logger.info(f"Deduplication: {orig_len} => {len(examples)} examples")
                         return examples
 
             if par_idx == 0 and context_only:
@@ -920,8 +942,65 @@ class SquadProcessor(DataProcessor):
 
         logger.info(f'no-ans / all example: {impossible_cnt} vs. {len(examples)} (skipping: {skip_no_answer})')
         logger.info(f'no neg count: {no_neg_cnt} out of {len(examples)}')
+
+        if is_training:
+            orig_len = len(examples)
+            examples = list(set(examples)) # deduplicate
+            logger.info(f"Deduplication: {orig_len} => {len(examples)} examples")
         return examples
 
+    def _create_examples_qa_only(self, json_list, set_type, draft, draft_num_examples=100000, args=None):
+        assert set_type == "train"
+        examples = []
+        total_cnt = 0
+
+        for qa_idx, json_str in tqdm(enumerate(json_list)):
+            qa_data = json.loads(json_str) 
+
+            if dist.is_initialized():
+                if qa_idx % dist.get_world_size() != dist.get_rank():
+                    continue
+
+            # Pre-processing questions
+            qas_id = qa_idx
+            question_text = qa_data["question"].strip()
+            if question_text.endswith('?'):
+                question_text = question_text[:-1]
+
+            start_position_character = None
+            answer_text = None
+            answers = []
+
+            answer = qa_data["answers"][0]
+            answer_text = answer["text"]
+            start_position_character = answer["offset"]
+            par_idx = answer["passage_id"]
+            hard_neg_pids = qa_data['hard_neg_pids'] if 'hard_neg_pids' in qa_data else None
+
+            example = SquadExample(
+                qas_id=qas_id,
+                question_text=question_text,
+                context_text=None,
+                answer_text=answer_text,
+                start_position_character=start_position_character,
+                par_idx=par_idx,
+                is_impossible=False,
+                answers=qa_data["answer"],
+                tokenize=False,
+                hard_neg_pids=hard_neg_pids
+            )
+            examples.append(example)
+
+            if draft and len(examples) == draft_num_examples:
+                orig_len = len(examples)
+                examples = list(set(examples)) # deduplicate
+                logger.info(f"Deduplication: {orig_len} => {len(examples)} examples")
+                return examples
+
+        orig_len = len(examples)
+        examples = list(set(examples)) # deduplicate
+        logger.info(f"Deduplication: {orig_len} => {len(examples)} examples")
+        return examples
 
 class SquadV1Processor(SquadProcessor):
     train_file = "train-v1.1.json"
@@ -962,6 +1041,8 @@ class SquadExample(object):
         par_idx=None,
         answers=[],
         is_impossible=False,
+        tokenize=True,
+        hard_neg_pids=None,
     ):
         self.qas_id = qas_id
         self.doc_idx = doc_idx
@@ -974,96 +1055,60 @@ class SquadExample(object):
         self.neg_title = neg_title
         self.is_impossible = is_impossible
         self.answers = answers
+        self.hard_neg_pids = hard_neg_pids
+        self.start_position_character = start_position_character
 
         self.start_position, self.end_position = -1, -1 # 0, 0
 
+        if not tokenize:
+            return
+
         # Split on whitespace so that different tokens may be attributed to their original position.
-        doc_tokens = []
-        char_to_word_offset = []
-        prev_is_whitespace = True
-        if self.context_text is not None:
-            for c in self.context_text:
-                if _is_whitespace(c):
-                    prev_is_whitespace = True
-                else:
-                    if prev_is_whitespace:
-                        doc_tokens.append(c)
-                    else:
-                        doc_tokens[-1] += c
-                    prev_is_whitespace = False
-                char_to_word_offset.append(len(doc_tokens) - 1)
-
-            self.doc_tokens = doc_tokens
-            self.char_to_word_offset = char_to_word_offset
-
-        # Same pre-processing for title tokens
-        title_tokens = []
-        prev_is_whitespace = True
-        if self.title is not None:
-            for c in self.title:
-                if _is_whitespace(c):
-                    prev_is_whitespace = True
-                else:
-                    if prev_is_whitespace:
-                        title_tokens.append(c)
-                    else:
-                        title_tokens[-1] += c
-                    prev_is_whitespace = False
-
-            self.title_tokens = title_tokens
+        self.doc_tokens, self.char_to_word_offset = self.create_tokens(self.context_text)
+        self.title_tokens, _ = self.create_tokens(self.title)
 
         # Same pre-processing for neg tokens
-        self.neg_doc_tokens = []
-        prev_is_whitespace = True
-        if self.neg_context_text is not None:
-            for c in self.neg_context_text:
-                if _is_whitespace(c):
-                    prev_is_whitespace = True
-                else:
-                    if prev_is_whitespace:
-                        self.neg_doc_tokens.append(c)
-                    else:
-                        self.neg_doc_tokens[-1] += c
-                    prev_is_whitespace = False
-
-        # Same pre-processing for title tokens
-        self.neg_title_tokens = []
-        prev_is_whitespace = True
-        if self.neg_title is not None:
-            for c in self.neg_title:
-                if _is_whitespace(c):
-                    prev_is_whitespace = True
-                else:
-                    if prev_is_whitespace:
-                        self.neg_title_tokens.append(c)
-                    else:
-                        self.neg_title_tokens[-1] += c
-                    prev_is_whitespace = False
+        self.neg_doc_tokens, _ = self.create_tokens(self.neg_context_text)
+        self.neg_title_tokens, _ = self.create_tokens(self.neg_title)
 
         # Start and end positions only has a value during evaluation.
-        if start_position_character is not None and not is_impossible:
-            self.start_position = char_to_word_offset[start_position_character]
-            self.end_position = char_to_word_offset[
-                min(start_position_character + len(answer_text) - 1, len(char_to_word_offset) - 1)
+        if (len(self.doc_tokens) > 0) and (start_position_character is not None) and (not is_impossible):
+            self.start_position = self.char_to_word_offset[start_position_character]
+            self.end_position = self.char_to_word_offset[
+                min(start_position_character + len(answer_text) - 1, len(self.char_to_word_offset) - 1)
             ]
 
-        # For queries, do the same
-        if self.question_text is not None:
-            query_tokens = []
-            prev_is_whitespace = True
+        # Process query only when there's doc_tokens
+        self.query_tokens, _ = self.create_tokens(self.question_text)
 
-            # Split on whitespace so that different tokens may be attributed to their original position.
-            for q in self.question_text:
-                if _is_whitespace(q):
+    def __repr__(self):
+        return "Item(%s, %s)" % (self.context_text, self.question_text)
+
+    def __hash__(self):
+        return hash(self.__repr__())
+
+    def __eq__(self, other):
+        if isinstance(other, SquadExample):
+            return ((self.context_text == other.context_text) and (self.question_text == other.question_text))
+        else:
+            return False
+
+    def create_tokens(self, text):
+        tokens = []
+        char_to_word_offset = []
+        prev_is_whitespace = True
+        if text is not None:
+            for c in text:
+                if _is_whitespace(c):
                     prev_is_whitespace = True
                 else:
                     if prev_is_whitespace:
-                        query_tokens.append(q)
+                        tokens.append(c)
                     else:
-                        query_tokens[-1] += q
+                        tokens[-1] += c
                     prev_is_whitespace = False
-
-            self.query_tokens = query_tokens
+                char_to_word_offset.append(len(tokens) - 1)
+        return tokens, char_to_word_offset
 
 
 class SquadFeatures(object):
@@ -1156,7 +1201,9 @@ def load_and_cache_examples(args, tokenizer, evaluate=False, output_examples=Fal
     skip_no_answer=False):
     if args.local_rank not in [-1, 0] and not evaluate:
         # Make sure only the first process in distributed training process the dataset, and the others will use the cache
-        torch.distributed.barrier()
+        # dist.barrier()
+        # Modified: do not use distributed sampler for a large dataset (OOM issue)
+        pass
 
     # Load data features from cache or dataset file
     input_dir = args.data_dir if args.data_dir else "."
@@ -1201,35 +1248,48 @@ def load_and_cache_examples(args, tokenizer, evaluate=False, output_examples=Fal
                 examples = processor.get_train_examples(args.data_dir, filename=args.train_file, draft=args.draft,
                     context_only=context_only, skip_no_answer=skip_no_answer, args=args)
 
-        features, dataset = squad_convert_examples_to_features(
-            examples=examples,
-            tokenizer=tokenizer,
-            max_seq_length=args.max_seq_length,
-            doc_stride=args.doc_stride,
-            max_query_length=args.max_query_length,
-            is_training=not evaluate,
-            return_dataset="pt",
-            threads=args.threads,
-            context_only=context_only,
-            append_title=args.append_title,
-            skip_no_answer=skip_no_answer,
-        )
+        if dist.is_initialized() and not evaluate:
+            example_len = [None for _ in range(dist.get_world_size())]
+            dist.all_gather_object(example_len, len(examples))
+            min_example = min(example_len)
+            examples = examples[:min_example]
+            print(f'Pre-processing {len(examples)} examples for rank {dist.get_rank()}')
+
+        if evaluate or args.train_file.endswith('json'):
+            features, dataset = squad_convert_examples_to_features(
+                examples=examples,
+                tokenizer=tokenizer,
+                max_seq_length=args.max_seq_length,
+                doc_stride=args.doc_stride,
+                max_query_length=args.max_query_length,
+                is_training=not evaluate,
+                return_dataset="pt",
+                threads=args.threads,
+                context_only=context_only,
+                append_title=args.append_title,
+                skip_no_answer=skip_no_answer,
+            )
+        elif not evaluate and args.train_file.endswith('jsonl'):
+            assert not evaluate
+            # Provide DPR-style corpus for PAQ training
+            dataset = LazyDataset(examples, '/n/fs/nlp-jl5167/paq/psgs_w100.tsv', tokenizer, args)
+        else:
+            raise NotImplementedError()
 
         if args.local_rank in [-1, 0]:
             # logger.info("Saving features into cached file %s", cached_features_file)
             # torch.save({"features": features, "dataset": dataset, "examples": examples}, cached_features_file)
-            logger.info("Caching is disabled.")
+            pass
 
-    if args.local_rank == 0 and not evaluate:
+    if args.local_rank != -1 and not evaluate:
         # Make sure only the first process in distributed training process the dataset, and the others will use the cache
-        torch.distributed.barrier()
+        dist.barrier()
+        # logger.info(f"Caching is disabled; {len(dataset)} data, {len(features)} features for {args.local_rank}")
 
     # import pdb; pdb.set_trace() # Debug here for tokenization
     if output_examples:
         return dataset, examples, features
     return dataset
-
-
 
 
 class SquadResult(object):
@@ -1288,6 +1348,105 @@ class QuestionResult(object):
         self.input_ids = input_ids
         self.start_vec = start_vec
         self.end_vec = end_vec
+
+
+class LazyDataset(Dataset):
+    def __init__(self, examples, passage_source_path, tokenizer, args):
+        self.examples = examples
+        # self.passage_source = h5py.File(passage_source_path)
+        self.passages = {}
+        with open(passage_source_path) as f:
+            psg_file = csv.reader(f, delimiter='\t')
+            for data_idx, data in tqdm(enumerate(psg_file)):
+                if data_idx == 0:
+                    print('Reading', data)
+                    continue
+                id_, psg, title = data
+                self.passages[id_] = [psg, title]
+        self.passages_len = len(self.passages)
+        self.args = args
+        self.skip = False
+        squad_convert_example_to_features_init(tokenizer)
+
+    def __len__(self):
+        return len(self.examples)
+
+    def get_passage_text(self, p_id):
+        for key in self.passage_source.keys():
+            start, end = [int(se) for se in key.split('-')]
+            if (int(p_id) >= start) and (int(p_id) <= end):
+                psg = self.passage_source[key][str(p_id)]
+                return psg.attrs['title'], psg.attrs['context']
+
+    def __getitem__(self, index):
+        if self.skip:
+            return (torch.tensor([0], dtype=torch.long),)
+        old_example = self.examples[index]
+        assert old_example.context_text is None
+        # title, context_text = self.get_passage_text(old_example.par_idx)
+        context_text, title = self.passages[str(old_example.par_idx)]
+
+        # get hard negatives (back-off to random if none)
+        if old_example.hard_neg_pids is not None:
+            if len(old_example.hard_neg_pids) > 0:
+                hard_pid = old_example.hard_neg_pids[np.random.randint(len(old_example.hard_neg_pids))]
+                # hard_pid = old_example.hard_neg_pids[0]
+            else:
+                hard_pid = np.random.randint(1, self.passages_len+1)
+            neg_context_text, neg_title = self.passages[str(hard_pid)]
+        else:
+            neg_context_text, neg_title = None, None
+
+        new_example = SquadExample(
+            qas_id=old_example.qas_id,
+            question_text=old_example.question_text,
+            context_text=context_text,
+            neg_context_text=neg_context_text,
+            answer_text=old_example.answer_text,
+            start_position_character=old_example.start_position_character,
+            title=title,
+            neg_title=neg_title,
+            par_idx=old_example.par_idx,
+            is_impossible=old_example.is_impossible,
+            answers=old_example.answers,
+        )
+
+        feature = squad_convert_example_to_features(
+            new_example,
+            max_seq_length=self.args.max_seq_length,
+            doc_stride=self.args.doc_stride,
+            max_query_length=self.args.max_query_length,
+            is_training=True,
+            context_only=False,
+            question_only=False,
+            append_title=True,
+            skip_no_answer=True,
+        )[0]
+
+        start_position = torch.tensor(feature.start_position, dtype=torch.long)
+        end_position = torch.tensor(feature.end_position, dtype=torch.long)
+        input_ids = torch.tensor(feature.input_ids, dtype=torch.long)
+        attention_mask = torch.tensor(feature.attention_mask, dtype=torch.long)
+        token_type_ids = torch.tensor(feature.token_type_ids, dtype=torch.long)
+        input_ids_ = torch.tensor(feature.input_ids_, dtype=torch.long)
+        attention_mask_ = torch.tensor(feature.attention_mask_, dtype=torch.long)
+        token_type_ids_ = torch.tensor(feature.token_type_ids_, dtype=torch.long)
+        if old_example.hard_neg_pids is not None:
+            neg_input_ids = torch.tensor(feature.neg_input_ids, dtype=torch.long)
+            neg_attention_mask = torch.tensor(feature.neg_attention_mask, dtype=torch.long)
+            neg_token_type_ids = torch.tensor(feature.neg_token_type_ids, dtype=torch.long)
+        else:
+            neg_input_ids = torch.tensor(feature.input_ids, dtype=torch.long)
+            neg_attention_mask = torch.tensor(feature.attention_mask, dtype=torch.long)
+            neg_token_type_ids = torch.tensor(feature.token_type_ids, dtype=torch.long)
+
+        return (
+            input_ids, attention_mask, token_type_ids, start_position, end_position,
+            input_ids, input_ids, input_ids, # dummy
+            input_ids_, attention_mask_, token_type_ids_,
+            input_ids, # dummy
+            neg_input_ids, neg_attention_mask, neg_token_type_ids,
+        )
 
 
 class TrueCaser(object):

@@ -1,4 +1,4 @@
-torch==1.7.1
+torch==1.9.0
 faiss-gpu==1.6.5
 transformers==2.9.0
 h5py

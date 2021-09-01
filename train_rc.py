@@ -25,9 +25,9 @@ import h5py
 import torch
 import wandb
 
+from time import time
 from tqdm import tqdm, trange
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
-from torch.utils.data.distributed import DistributedSampler
 
 from transformers import (
     MODEL_MAPPING,
@@ -54,7 +54,7 @@ print(set([k.split('-')[0] for k in ALL_MODELS]))
 def train(args, train_dataset, model, tokenizer):
     """ Train the model """
     args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
-    train_sampler = RandomSampler(train_dataset) if args.local_rank == -1 else DistributedSampler(train_dataset)
+    train_sampler = RandomSampler(train_dataset) # don't use DistributedSampler due to OOM. Will manually split dataset later.
     train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.train_batch_size)
 
     if args.max_steps > 0:
@@ -63,10 +63,12 @@ def train(args, train_dataset, model, tokenizer):
     else:
         t_total = len(train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs
 
-    def is_train_param(name, verbose=True):
+    def is_train_param(name, verbose=False):
         if name.endswith(".embeddings.word_embeddings.weight"):
             if verbose:
                 logger.info(f'freezing {name}')
+            return False
+        if name.startswith("cross_encoder"):
             return False
 
         return True
@@ -100,8 +102,12 @@ def train(args, train_dataset, model, tokenizer):
             os.path.join(args.load_dir, "scheduler.pt")
         ):
             # Load in optimizer and scheduler states
-            optimizer.load_state_dict(torch.load(os.path.join(args.load_dir, "optimizer.pt")))
-            scheduler.load_state_dict(torch.load(os.path.join(args.load_dir, "scheduler.pt")))
+            optimizer.load_state_dict(
+                torch.load(os.path.join(args.load_dir, "optimizer.pt"), map_location=torch.device('cpu'))
+            )
+            scheduler.load_state_dict(
+                torch.load(os.path.join(args.load_dir, "scheduler.pt"), map_location=torch.device('cpu'))
+            )
             logger.info(f'optimizer and scheduler loaded from {args.load_dir}')
 
     if args.fp16:
@@ -166,11 +172,31 @@ def train(args, train_dataset, model, tokenizer):
     for ep_idx, _ in enumerate(train_iterator):
         logger.info(f"\n[Epoch {ep_idx+1}]")
         if args.pbn_size > 0 and ep_idx + 1 > args.pbn_tolerance:
-            model.init_pre_batch(args.pbn_size)
+            if hasattr(model, 'module'):
+                model.module.init_pre_batch(args.pbn_size)
+            else:
+                model.init_pre_batch(args.pbn_size)
             logger.info(f"Initialize pre-batch of size {args.pbn_size} for Epoch {ep_idx+1}")
 
-        epoch_iterator = tqdm(train_dataloader, desc="Iteration", disable=args.local_rank not in [-1, 0])
+        # Skip batch
+        train_iterator = iter(train_dataloader)
+        initial_step = steps_trained_in_current_epoch
+        if steps_trained_in_current_epoch > 0:
+            train_dataloader.dataset.skip = True # used for LazyDataloader
+            while steps_trained_in_current_epoch > 0:
+                steps_trained_in_current_epoch -= 1
+                next(train_iterator)
+            train_dataloader.dataset.skip = False
+        assert steps_trained_in_current_epoch == 0
+
+        epoch_iterator = tqdm(
+            train_iterator, initial=initial_step, desc="Iteration", disable=args.local_rank not in [-1, 0]
+        )
+        # logger.setLevel(logging.DEBUG)
+        start_time = time()
         for step, batch in enumerate(epoch_iterator):
+            logger.debug(f'1) {time()-start_time:.3f}s: on-the-fly pre-processing')
+            start_time = time()
 
             # Skip past any already trained steps if resuming training
             if steps_trained_in_current_epoch > 0:
@@ -189,12 +215,18 @@ def train(args, train_dataset, model, tokenizer):
                 "input_ids_": batch[8],
                 "attention_mask_": batch[9],
                 "token_type_ids_": batch[10],
+                # "neg_input_ids": batch[12], # should be commented out if none
+                # "neg_attention_mask": batch[13],
+                # "neg_token_type_ids": batch[14],
             }
 
             outputs = model(**inputs)
             # model outputs are always tuple in transformers (see doc)
             loss = outputs[0]
-            epoch_iterator.set_description(f"Loss={loss.item():.3f}")
+            epoch_iterator.set_description(f"Loss={loss.item():.3f}, lr={scheduler.get_lr()[0]:.6f}")
+
+            logger.debug(f'2) {time()-start_time:.3f}s: forward')
+            start_time = time()
 
             if args.n_gpu > 1:
                 loss = loss.mean()  # mean() to average on multi-gpu parallel (not distributed) training
@@ -207,6 +239,9 @@ def train(args, train_dataset, model, tokenizer):
             else:
                 loss.backward()
 
+            logger.debug(f'3) {time()-start_time:.3f}s: backward')
+            start_time = time()
+
             tr_loss += loss.item()
             if (step + 1) % args.gradient_accumulation_steps == 0:
                 if args.fp16:
@@ -218,6 +253,9 @@ def train(args, train_dataset, model, tokenizer):
                 scheduler.step()  # Update learning rate schedule
                 model.zero_grad()
                 global_step += 1
+
+                logger.debug(f'4) {time()-start_time:.3f}s: optimize')
+                start_time = time()
 
                 # Log metrics
                 if args.local_rank in [-1, 0] and args.logging_steps > 0 and global_step % args.logging_steps == 0:
@@ -524,6 +562,7 @@ def main():
     parser.add_argument("--do_eval", action="store_true", help="Whether to run eval on the dev set.")
     parser.add_argument("--do_filter_test", action="store_true", help="Whether to test filters.")
     parser.add_argument("--truecase_path", default='truecase/english_with_questions.dist', type=str)
+    parser.add_argument("--truecase", action="store_true", help="Dummy (automatic truecasing supported)")
     parser.add_argument(
         "--evaluate_during_training", action="store_true", help="Run evaluation during training at each logging step."
     )
@@ -614,6 +653,10 @@ def main():
 
     parser.add_argument("--threads", type=int, default=20, help="multiple threads for converting example to features")
     args = parser.parse_args()
+
+    if args.local_rank != -1:
+        if args.local_rank > 0:
+            logger.setLevel(logging.WARN)
 
     if args.doc_stride >= args.max_seq_length - args.max_query_length:
         logger.warning(
@@ -724,7 +767,6 @@ def main():
     if args.fp16:
         try:
             import apex
-
             apex.amp.register_half_function(torch, "einsum")
         except ImportError:
             raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
@@ -737,6 +779,9 @@ def main():
         # Load pre-trained DensePhrases
         if args.load_dir:
             model_dict = torch.load(os.path.join(args.load_dir, "pytorch_model.bin"), map_location=torch.device('cpu'))
+            model_dict = {
+                n: p for n, p in model_dict.items() if not (n.startswith('cross_encoder') or n.startswith('qa_outputs'))
+            }
             assert not any(param.startswith('cross_encoder') for param in model_dict.keys())
             model.load_state_dict(model_dict)
             logger.info(f'DensePhrases loaded from {args.load_dir} having {MODEL_MAPPING[config.__class__]}')

@@ -384,8 +384,12 @@ def main():
         model.load_state_dict(backward_compat(
             torch.load(os.path.join(args.load_dir, "pytorch_model.bin"), map_location=torch.device('cpu'))
         ))
-        del model.query_start_encoder
-        del model.query_end_encoder
+        if hasattr(model, "module"):
+            del model.module.query_start_encoder
+            del model.module.query_end_encoder
+        else:
+            del model.query_start_encoder
+            del model.query_end_encoder
         model.to(args.device)
         logger.info(f'DensePhrases loaded from {args.load_dir} having {MODEL_MAPPING[config.__class__]}')
         logger.info('Number of model params while dumping: {:,}'.format(sum(p.numel() for p in model.parameters())))

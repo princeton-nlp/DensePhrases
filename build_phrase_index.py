@@ -146,14 +146,14 @@ def train_index(start_data, quantizer_path, trained_index_path, num_clusters,
     else:
         raise ValueError(fine_quant)
 
-    start_index.verbose = True
+    start_index.verbose = False
     if cuda:
         # Convert to GPU index
         res = faiss.StandardGpuResources()
         co = faiss.GpuClonerOptions()
         co.useFloat16 = True
         gpu_index = faiss.index_cpu_to_gpu(res, 0, start_index, co)
-        gpu_index.verbose = True
+        gpu_index.verbose = False
 
         # Train on GPU and back to CPU
         gpu_index.train(start_data)

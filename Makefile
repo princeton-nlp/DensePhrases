@@ -23,13 +23,23 @@ nqsqd-rc-data:
 	$(eval DEV_DATA=nq/dev_wiki3.json)
 	$(eval SOD_DATA=open-qa/nq-open/dev_wiki3_open.json)
 	$(eval OPTIONS=--truecase)
+multi-rc-data:
+	$(eval TRAIN_QG_DATA=squad-nq/train-sqdqg_nqqg_filtered.json)
+	$(eval TRAIN_DATA=nq-wq-trec-tqa-sqd_train.json)
+	$(eval DEV_DATA=nq/dev_wiki3.json)
+	$(eval SOD_DATA=open-qa/nq-open/dev_wiki3_open.json)
+	$(eval OPTIONS=--truecase)
+paq-rc-data:
+	$(eval TRAIN_DATA=paq/PAQ.metadata.jsonl)
+	$(eval DEV_DATA=nq/dev_wiki3.json)
+	$(eval SOD_DATA=open-qa/nq-open/dev_wiki3_open.json)
 	
 # Choose hyperparameter
 pbn-param:
 	$(eval PBN_OPTIONS=--pbn_size 2 --pbn_tolerance 0)
 nq-param:
-	$(eval BS=64)
-	$(eval LR=1e-4)
+	$(eval BS=48)
+	$(eval LR=3e-5)
 	$(eval MAX_SEQ_LEN=192)
 	$(eval LAMBDA_KL=2.0)
 	$(eval LAMBDA_NEG=4.0)
@@ -42,8 +52,8 @@ sqd-param:
 	$(eval LAMBDA_NEG=2.0)
 	$(eval TEACHER_NAME=spanbert-base-cased-squad)
 nqsqd-param:
-	$(eval BS=64)
-	$(eval LR=1e-4)
+	$(eval BS=48)
+	$(eval LR=3e-5)
 	$(eval MAX_SEQ_LEN=192)
 	$(eval LAMBDA_KL=4.0)
 	$(eval LAMBDA_NEG=4.0)
@@ -68,7 +78,7 @@ large-index-sq:
 
 # Followings are template commands. See 'run-rc-nq' for a detailed use.
 # 1) Training phrase and question encoders on reading comprehension.
-train-rc:
+train-rc: model-name nq-rc-data nq-param
 	python train_rc.py \
 		--model_type bert \
 		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
@@ -78,11 +88,11 @@ train-rc:
 		--predict_file $(DEV_DATA) \
 		--do_train \
 		--do_eval \
+		--fp16 \
 		--per_gpu_train_batch_size $(BS) \
 		--learning_rate $(LR) \
 		--num_train_epochs 2.0 \
 		--max_seq_length $(MAX_SEQ_LEN) \
-		--fp16 \
 		--lambda_kl $(LAMBDA_KL) \
 		--lambda_neg $(LAMBDA_NEG) \
 		--lambda_flt 1.0 \
@@ -91,6 +101,36 @@ train-rc:
 		--evaluate_during_training \
 		--teacher_dir $(SAVE_DIR)/$(TEACHER_NAME) \
 		--output_dir $(SAVE_DIR)/$(MODEL_NAME) \
+		--overwrite_output_dir \
+		--save_steps 10000 \
+		$(OPTIONS)
+
+# 1-1) Sams as train-rc but with DDP
+train-rc-ddp:
+	OMP_NUM_THREADS=20 python -m torch.distributed.launch \
+		--nnode=1 --node_rank=0 --nproc_per_node=4 train_rc.py \
+		--model_type bert \
+		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
+		--data_dir $(DATA_DIR)/single-qa \
+		--cache_dir $(CACHE_DIR) \
+		--train_file $(TRAIN_DATA) \
+		--predict_file $(DEV_DATA) \
+		--do_train \
+		--do_eval \
+		--fp16 \
+		--per_gpu_train_batch_size $(BS) \
+		--learning_rate $(LR) \
+		--num_train_epochs 2.0 \
+		--max_seq_length $(MAX_SEQ_LEN) \
+		--lambda_kl $(LAMBDA_KL) \
+		--lambda_neg $(LAMBDA_NEG) \
+		--lambda_flt 1.0 \
+		--filter_threshold -2.0 \
+		--append_title \
+		--evaluate_during_training \
+		--teacher_dir $(SAVE_DIR)/$(TEACHER_NAME) \
+		--output_dir $(SAVE_DIR)/$(MODEL_NAME) \
+		--save_steps 10000 \
 		$(OPTIONS)
 
 # 2) Trained phrase encoders can be used to generate phrase vectors
@@ -112,7 +152,7 @@ gen-vecs:
 		$(OPTIONS)
 
 # 3) Build an IVFOPQ index for generated phrase vectors
-index-vecs: dump-dir medium1-index
+index-vecs: dump-dir large-index
 	python build_phrase_index.py \
 		$(DUMP_DIR) all \
 		--replace \
@@ -127,9 +167,11 @@ compress-meta:
 		--output_dir $(DUMP_DIR)
 
 # 5) Evaluate the phrase index for phrase retrieval
-eval-index: dump-dir model-name large-index nq-open-data
+eval-index: dump-dir model-name large-index eqa-14-data
 	python eval_phrase_retrieval.py \
 		--run_mode eval \
+		--model_type bert \
+		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
 		--cuda \
 		--dump_dir $(DUMP_DIR) \
 		--index_dir start/$(NUM_CLUSTERS)_flat_$(INDEX_TYPE) \
@@ -146,7 +188,7 @@ draft: model-name nq-rc-data nq-param pbn-param small-index
 		TEACHER_NAME=$(TEACHER_NAME) MODEL_NAME=$(MODEL_NAME) \
 		BS=$(BS) LR=$(LR) MAX_SEQ_LEN=$(MAX_SEQ_LEN) \
 		LAMBDA_KL=$(LAMBDA_KL) LAMBDA_NEG=$(LAMBDA_NEG) \
-		OPTIONS='$(PBN_OPTIONS) --draft'
+		OPTIONS='$(PBN_OPTIONS)'
 	make gen-vecs \
 		DEV_DATA=$(DEV_DATA) MODEL_NAME=$(MODEL_NAME)
 	make index-vecs \
@@ -160,10 +202,11 @@ draft: model-name nq-rc-data nq-param pbn-param small-index
 		MODEL_LANE=$(MODEL_NAME) TEST_DATA=$(SOD_DATA) \
 		OPTIONS=$(OPTIONS)
 
+
 # Single-passage training + additional negatives for NQ
 # Available datasets: NQ (nq-rc-data), SQuAD (sqd-rc-data), NQ+SQuAD (nqsqd-rc-data)
 # Should change hyperparams (e.g., nq-param) accordingly
-run-rc-nq: model-name nq-rc-data nq-param pbn-param small-index
+run-rc-nq: model-name multi-rc-data nqsqd-param pbn-param small-index
 	make train-rc \
 		TRAIN_DATA=$(TRAIN_QG_DATA) DEV_DATA=$(DEV_DATA) \
 		TEACHER_NAME=$(TEACHER_NAME) MODEL_NAME=$(MODEL_NAME)_tmp \
@@ -198,10 +241,26 @@ filter-test: model-name nq-rc-data
 		--predict_file $(DEV_DATA) \
 		--do_filter_test \
 		--append_title \
-		--filter_threshold_list " -4,-3,-2,-1,-0.5,0" \
+		--filter_threshold_list " -4,-3,-2,-1,-0.5,0,1" \
 		--load_dir $(SAVE_DIR)/$(MODEL_NAME) \
 		--output_dir $(SAVE_DIR)/$(MODEL_NAME) \
-		--draft
+
+# Training cross encoder
+train-cross: model-name nq-rc-data
+	python train_cross_encoder.py \
+		--model_type bert \
+		--model_name_or_path SpanBERT/spanbert-large-cased \
+		--do_train \
+		--do_eval \
+		--cache_dir $(CACHE_DIR) \
+		--train_file $(DATA_DIR)/single-qa/$(TRAIN_DATA) \
+		--predict_file $(DATA_DIR)/single-qa/$(DEV_DATA) \
+		--per_gpu_train_batch_size 8 \
+		--learning_rate 1e-5 \
+		--num_train_epochs 2.0 \
+		--max_seq_length 384 \
+		--doc_stride 128 \
+		--output_dir $(SAVE_DIR)/$(MODEL_NAME)
 
 ############################## Large-scale Dump & Indexing ###############################
 
@@ -289,8 +348,17 @@ zsre-open-data: kilt-options
 	$(eval OPTIONS=$(OPTIONS) --kilt_gold_path $(DATA_DIR)/kilt/zsre/structured_zeroshot-dev-kilt.jsonl --agg_strat opt2)
 benchmark-data:
 	$(eval TEST_DATA=scripts/benchmark/data/nq_1000_dev_denspi.json)
+all-open-data:
+	$(eval TEST_DATA=$(DATA_DIR)/open-qa/nq-open/dev_wiki3_open.json)
+	$(eval TEST_DATA=$(TEST_DATA),$(DATA_DIR)/open-qa/nq-open/test_preprocessed.json)
+	$(eval TEST_DATA=$(TEST_DATA),$(DATA_DIR)/open-qa/webq/WebQuestions-test_preprocessed.json)
+	$(eval TEST_DATA=$(TEST_DATA),$(DATA_DIR)/open-qa/trec/CuratedTrec-test_preprocessed.json)
+	$(eval TEST_DATA=$(TEST_DATA),$(DATA_DIR)/open-qa/triviaqa-unfiltered/test_preprocessed.json)
+	$(eval TEST_DATA=$(TEST_DATA),$(DATA_DIR)/open-qa/squad/test_preprocessed.json)
+	$(eval OPTIONS=--truecase)
 
-train-query: dump-dir model-name trex-open-data large-index
+# Query-side fine-tuning
+train-query: dump-dir model-name nq-open-data large-index
 	python train_query.py \
 		--run_mode train_query \
 		--cache_dir $(CACHE_DIR) \
@@ -307,6 +375,21 @@ train-query: dump-dir model-name trex-open-data large-index
 		--output_dir $(SAVE_DIR)/$(MODEL_NAME) \
 		--top_k 100 \
 		--cuda \
+		--save_pred \
+		$(OPTIONS)
+
+# Evalute all datasets
+eval-index-all: dump-dir model-name large-index all-open-data
+	python eval_phrase_retrieval.py \
+		--run_mode eval_all \
+		--model_type bert \
+		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
+		--cuda \
+		--dump_dir $(DUMP_DIR) \
+		--index_dir start/$(NUM_CLUSTERS)_flat_$(INDEX_TYPE) \
+		--query_encoder_path $(SAVE_DIR)/$(MODEL_NAME) \
+		--test_path $(TEST_DATA) \
+		--aggregate \
 		$(OPTIONS)
 
 ################################ Demo Serving ###################################

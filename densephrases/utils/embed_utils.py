@@ -41,7 +41,8 @@ def get_metadata(features, results, max_answer_length, do_lower_case, tokenizer,
     global id2example
 
     # Get rid of titles + save start only (as start and end are shared)
-    toffs = [(f.input_ids.index(tokenizer.sep_token_id))*int(has_title) for f in features]
+    roberta_add = 1 if "roberta" in str(type(tokenizer)) else 0
+    toffs = [(f.input_ids.index(tokenizer.sep_token_id))*int(has_title) + roberta_add for f in features]
     start = np.concatenate(
         [result.start_vecs[to+1:len(feature.tokens) - 1] for feature, result, to in zip(features, results, toffs)],
         axis=0
@@ -414,13 +415,14 @@ def get_bertqa_results(examples, eval_features, dataloader, device, model, batch
             feature_indices = batch[3]
             assert len(feature_indices.size()) > 0
 
-            outputs = model(**inputs)
+            outputs = model[0](**inputs)
+            outputs = model[1](outputs[0]).split(dim=2, split_size=1)
 
         for i, feature_index in enumerate(feature_indices):
             eval_feature = eval_features[feature_index.item()]
             unique_id = int(eval_feature.unique_id)
 
-            output = [to_list(output[i]) for output in outputs]
+            output = [to_list(output[i].squeeze(1)) for output in outputs]
 
             if len(output) != 2:
                 raise NotImplementedError
@@ -430,10 +432,7 @@ def get_bertqa_results(examples, eval_features, dataloader, device, model, batch
                     unique_id,
                     start_logits=start_logits,
                     end_logits=end_logits,
-                    ssp_logits=start_logits, # dummy
-                    esp_logits=start_logits,
-                    span_logits=start_logits,
                     sft_logits=start_logits,
-                    eft_logits=start_logits,
+                    eft_logits=end_logits,
                 )
             yield result

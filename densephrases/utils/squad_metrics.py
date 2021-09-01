@@ -459,6 +459,7 @@ def compute_predictions_logits(
 
     for (example_index, example) in tqdm(enumerate(all_examples)):
         features = example_index_to_features[example_index]
+        # print(example.__dict__)
 
         prelim_predictions = []
         # keep track of the minimum score of null start+end of position 0
@@ -643,6 +644,10 @@ def compute_predictions_logits(
         assert len(nbest_json) >= 1
 
         if not version_2_with_negative:
+            # all_predictions[example.qas_id] = {
+            #     'answer': nbest_json[0]["text"],
+            #     'score': nbest_json[0]["start_logit"] + nbest_json[0]["end_logit"]
+            # }
             all_predictions[example.qas_id] = nbest_json[0]["text"]
         else:
             # predict "" iff the null score - the score of best non-null > threshold
