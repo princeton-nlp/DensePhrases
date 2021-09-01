@@ -47,12 +47,13 @@ def get_args():
     parser.add_argument('--vec_sample_ratio', default=0.2, type=float)
     parser.add_argument('--cuda', default=False, action='store_true')
     parser.add_argument('--replace', default=False, action='store_true')
+    parser.add_argument('--first_passage', default=False, action='store_true')
     parser.add_argument('--num_docs_per_add', default=2000, type=int)
 
     args = parser.parse_args()
 
     coarse = 'hnsw' if args.hnsw else 'flat'
-    args.index_name = '%d_%s_%s' % (args.num_clusters, coarse, args.fine_quant)
+    args.index_name = f'{args.num_clusters}_{coarse}_{args.fine_quant}{"_first" if args.first_passage else ""}'
     args.index_dir = os.path.join(args.dump_dir, 'start', args.index_name)
 
     args.quantizer_path = os.path.join(args.index_dir, args.quantizer_path)
@@ -68,6 +69,7 @@ def get_args():
         args.index_path = os.path.join(args.subindex_dir, '%d.faiss' % args.offset)
         args.idx2id_path = os.path.join(args.subindex_dir, '%d.hdf5' % args.offset)
 
+    print(f"Creating {args.index_name}...")
     return args
 
 
@@ -182,7 +184,7 @@ def add_with_offset(start_index, start_data, start_valids, start_total, offset, 
 
 def add_to_index(dump_paths, trained_index_path, target_index_path, idx2id_path,
                  num_docs_per_add=1000, cuda=False, fine_quant='SQ4', offset=0, norm_th=999,
-                 ignore_ids=None, avg_vec=None, std_vec=None):
+                 ignore_ids=None, avg_vec=None, std_vec=None, first_passage=False):
 
     sidx2doc_id = []
     sidx2word_id = []
@@ -225,9 +227,17 @@ def add_to_index(dump_paths, trained_index_path, target_index_path, idx2id_path,
             if num_start == 0: continue
             cnt += 1
 
-            start = int8_to_float(
-                doc_group['start'][:], doc_group.attrs['offset'], doc_group.attrs['scale']
-            )
+            if first_passage:
+                f2o_start = doc_group['f2o_start'][:]
+                cut = sum(f2o_start < doc_group['len_per_para'][0])
+                start = int8_to_float(
+                    doc_group['start'][:cut], doc_group.attrs['offset'], doc_group.attrs['scale']
+                )
+                num_start = start.shape[0]
+            else:
+                start = int8_to_float(
+                    doc_group['start'][:], doc_group.attrs['offset'], doc_group.attrs['scale']
+                )
             start_valid = np.linalg.norm(start, axis=1) <= norm_th
 
             starts.append(start)
@@ -372,10 +382,12 @@ def run_index(args):
 
     if args.stage in ['all', 'add']:
         if args.replace or not os.path.exists(args.index_path):
-            with open(os.path.join(args.index_dir, 'avg_vec.pkl'), 'rb') as fp:
-                avg_vec = pickle.load(fp)
-            with open(os.path.join(args.index_dir, 'std_vec.pkl'), 'rb') as fp:
-                std_vec = pickle.load(fp)
+            avg_vec = None
+            std_vec = None
+            # with open(os.path.join(args.index_dir, 'avg_vec.pkl'), 'rb') as fp:
+            #     avg_vec = pickle.load(fp)
+            # with open(os.path.join(args.index_dir, 'std_vec.pkl'), 'rb') as fp:
+            #     std_vec = pickle.load(fp)
 
             if args.dump_paths is not None:
                 dump_paths = args.dump_paths
@@ -384,7 +396,7 @@ def run_index(args):
             add_to_index(
                 dump_paths, args.trained_index_path, args.index_path, args.idx2id_path,
                 cuda=args.cuda, num_docs_per_add=args.num_docs_per_add, offset=args.offset, norm_th=args.norm_th,
-                fine_quant=args.fine_quant, avg_vec=avg_vec, std_vec=std_vec
+                fine_quant=args.fine_quant, avg_vec=avg_vec, std_vec=std_vec, first_passage=args.first_passage
             )
 
     if args.stage == 'merge':
