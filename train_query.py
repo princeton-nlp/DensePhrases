@@ -27,6 +27,7 @@ from transformers import (
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s', datefmt='%m/%d/%Y %H:%M:%S',
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
+server = None
 
 
 def train_query_encoder(args, mips=None):
@@ -85,10 +86,10 @@ def train_query_encoder(args, mips=None):
         total_accs_k = []
 
         # Load training dataset
-        q_ids, questions, answers, titles = load_qa_pairs(args.train_path, args, shuffle=True, reduction=False)
+        q_ids, questions, answers, titles = load_qa_pairs(args.train_path, args, shuffle=True)
         pbar = tqdm(get_top_phrases(
             mips, q_ids, questions, answers, titles, pretrained_encoder, tokenizer,
-            args.per_gpu_train_batch_size, args.train_path, args)
+            args.per_gpu_train_batch_size, args)
         )
 
         for step_idx, (q_ids, questions, answers, titles, outs) in enumerate(pbar):
@@ -156,9 +157,10 @@ def train_query_encoder(args, mips=None):
         # Evaluation
         new_args = copy.deepcopy(args)
         new_args.top_k = 10
+        new_args.save_pred = False
         new_args.test_path = args.dev_path
-        dev_em = evaluate(new_args, mips, target_encoder, tokenizer)
-        logger.info(f"Develoment set acc@1: {dev_em:.3f}")
+        dev_em, dev_f1, dev_emk, dev_f1k = evaluate(new_args, mips, target_encoder, tokenizer)
+        logger.info(f"Develoment set acc@1: {dev_em:.3f}, f1@1: {dev_f1:.3f}")
 
         # Save best model
         if dev_em > best_acc:
@@ -171,13 +173,13 @@ def train_query_encoder(args, mips=None):
 
         if (ep_idx + 1) % 1 == 0:
             logger.info('Updating pretrained encoder')
-            pretrained_encoder = target_encoder
+            pretrained_encoder = copy.deepcopy(target_encoder)
 
     print()
     logger.info(f"Best model has acc {best_acc:.3f} saved as {save_path}")
 
 
-def get_top_phrases(mips, q_ids, questions, answers, titles, query_encoder, tokenizer, batch_size, path, args):
+def get_top_phrases(mips, q_ids, questions, answers, titles, query_encoder, tokenizer, batch_size, args):
     # Search
     step = batch_size
     phrase_idxs = []
@@ -203,7 +205,7 @@ def get_top_phrases(mips, q_ids, questions, answers, titles, query_encoder, toke
         )
 
 
-def get_phrase_vecs(mips, q_ids, questions, answers, titles, outs, args):
+def get_phrase_vecs(mips, q_ids, questions, answers, titles, outs, args, label_strategy='gold'):
     assert mips is not None
 
     # Get phrase and vectors
@@ -241,20 +243,40 @@ def get_phrase_vecs(mips, q_ids, questions, answers, titles, outs, args):
     start_vecs = np.reshape(start_vecs, (batch_size, args.top_k*2, -1))
     end_vecs = np.reshape(end_vecs, (batch_size, args.top_k*2, -1))
 
+    # Get cross-encoder results
+    '''
+    result = server.batch_query(
+        [q for question in questions for q in [question]*args.top_k*2],
+        [phrase[6] for phrase_idx in phrase_idxs for phrase in phrase_idx],
+    )
+    ce_answers = [val['answer'] for val in list(result['ret'].values())]
+    ce_scores = [val['score'] for val in list(result['ret'].values())]
+    top_idxs = np.array(ce_scores).argsort()[-10:][::-1]
+    '''
+
     # Find targets based on exact string match
     match_fns = [
         drqa_regex_match_score if args.regex or ('trec' in q_id.lower()) else drqa_exact_match_score for q_id in q_ids
     ]
     no_phrase_tasks = ['fever', 'hotpot', 'eli5', 'wow']
     train_phrase = [
-        True
-        # False if any(task in q_id.lower() for task in no_phrase_tasks) or len(ans[0].split()) > 10 else True
+        # True
+        False if any(task in q_id.lower() for task in no_phrase_tasks) or len(ans[0].split()) > 10 else True
         for q_id, ans in zip(q_ids, answers)
     ]
-    targets = [
-        [drqa_metric_max_over_ground_truths(match_fn, phrase[3], answer) and train_p for phrase in phrase_idx]
-        for phrase_idx, answer, match_fn, train_p in zip(phrase_idxs, answers, match_fns, train_phrase)
-    ]
+
+    if label_strategy == 'gold':
+        targets = [
+            [drqa_metric_max_over_ground_truths(match_fn, phrase[3], answer) and train_p for phrase in phrase_idx]
+            for b_idx, (phrase_idx, answer, match_fn, train_p, question) in enumerate(zip(phrase_idxs, answers, match_fns, train_phrase, questions))
+        ]
+    elif label_strategy == 'pseudo':
+        targets = [
+            [(phrase[7][0].lower() in question.lower()) for phrase in phrase_idx]
+            for b_idx, (phrase_idx, answer, match_fn, train_p, question) in enumerate(zip(phrase_idxs, answers, match_fns, train_phrase, questions))
+        ]
+    else:
+        raise NotImplementedError('invalid strategy')
     targets = [[ii if val else None for ii, val in enumerate(target)] for target in targets]
 
     # Passage (or article) level target
@@ -278,6 +300,146 @@ def get_phrase_vecs(mips, q_ids, questions, answers, titles, outs, args):
     # import pdb; pdb.set_trace()
 
     return start_vecs, end_vecs, targets, p_targets
+
+
+def test_query(args, mips, pretrained_encoder, tokenizer, target_encoder, data, q_idx):
+
+    # Optimizer setting
+    def is_train_param(name):
+        if name.endswith(".embeddings.word_embeddings.weight"):
+            # logger.info(f'freezing {name}')
+            return False
+        return True
+    no_decay = ["bias", "LayerNorm.weight"]
+    optimizer_grouped_parameters = [{
+            "params": [
+                p for n, p in target_encoder.named_parameters() \
+                    if not any(nd in n for nd in no_decay) and is_train_param(n)
+            ],
+            "weight_decay": 0.01,
+        }, {
+            "params": [
+                p for n, p in target_encoder.named_parameters() \
+                    if any(nd in n for nd in no_decay) and is_train_param(n)
+            ],
+            "weight_decay": 0.0
+        },
+    ]
+    optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
+    step_per_epoch = 1
+    t_total = int(step_per_epoch // args.gradient_accumulation_steps * args.num_train_epochs)
+    logger.info(f"Train for {t_total} iterations")
+    scheduler = get_linear_schedule_with_warmup(
+        optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
+     )
+
+    # Train arguments
+    args.per_gpu_train_batch_size = int(args.per_gpu_train_batch_size / args.gradient_accumulation_steps)
+    best_acc = -1000.0
+    for ep_idx in range(int(args.num_train_epochs)):
+
+        # Evaluation
+        new_args = copy.deepcopy(args)
+        new_args.save_pred = False
+        new_args.aggregate = True
+        dev_em, dev_f1, dev_emk, dev_f1k = evaluate(new_args, mips, target_encoder, tokenizer, q_idx=q_idx)
+        logger.info(f"[Epoch {ep_idx+1}] test acc@1: {dev_em:.3f}, f1@1: {dev_f1:.3f}")
+
+        # Training
+        total_loss = 0.0
+        total_accs = []
+        total_accs_k = []
+
+        # Load training dataset
+        # q_ids, questions, answers, titles = load_qa_pairs(args.train_path, args, shuffle=True)
+        q_ids, questions, answers, titles = data
+        pbar = tqdm(get_top_phrases(
+            mips, q_ids, questions, answers, titles, pretrained_encoder, tokenizer,
+            args.per_gpu_train_batch_size, args)
+        )
+
+        for step_idx, (q_ids, questions, answers, titles, outs) in enumerate(pbar):
+            train_dataloader, _, _ = get_question_dataloader(
+                questions, tokenizer, args.max_query_length, batch_size=args.per_gpu_train_batch_size
+            )
+            svs, evs, tgts, p_tgts = get_phrase_vecs(mips, q_ids, questions, answers, titles, outs, args, label_strategy='pseudo')
+
+            target_encoder.train()
+            svs_t = torch.Tensor(svs).to(device)
+            evs_t = torch.Tensor(evs).to(device)
+            tgts_t = [torch.Tensor([tgt_ for tgt_ in tgt if tgt_ is not None]).to(device) for tgt in tgts]
+            if p_tgts is not None:
+                p_tgts_t = [torch.Tensor([sp_ for sp_ in sp if sp_ is not None]).to(device) for sp in p_tgts]
+
+            # Train query encoder
+            assert len(train_dataloader) == 1
+            for batch in train_dataloader:
+                batch = tuple(t.to(device) for t in batch)
+                loss, accs = target_encoder.train_query(
+                    input_ids_=batch[0], attention_mask_=batch[1], token_type_ids_=batch[2],
+                    start_vecs=svs_t,
+                    end_vecs=evs_t,
+                    targets=tgts_t,
+                    p_targets=p_tgts_t if p_tgts is not None else None,
+                )
+
+                # Optimize, get acc and report
+                if loss is not None:
+                    if args.gradient_accumulation_steps > 1:
+                        loss = loss / args.gradient_accumulation_steps
+                    if args.fp16:
+                        with amp.scale_loss(loss, optimizer) as scaled_loss:
+                            scaled_loss.backward()
+                    else:
+                        loss.backward()
+
+                    total_loss += loss.mean().item()
+                    if args.fp16:
+                        torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), args.max_grad_norm)
+                    else:
+                        torch.nn.utils.clip_grad_norm_(target_encoder.parameters(), args.max_grad_norm)
+
+                    optimizer.step()
+                    scheduler.step()  # Update learning rate schedule
+                    target_encoder.zero_grad()
+
+                    pbar.set_description(
+                        f"Ep {ep_idx+1} Tr loss: {loss.mean().item():.2f}, acc: {sum(accs)/len(accs):.3f}"
+                    )
+
+                if accs is not None:
+                    total_accs += accs
+                    total_accs_k += [len(tgt) > 0 for tgt in tgts_t]
+                else:
+                    total_accs += [0.0]*len(tgts_t)
+                    total_accs_k += [0.0]*len(tgts_t)
+
+        step_idx += 1
+        logger.info(
+            f"Avg train loss ({step_idx} iterations): {total_loss/step_idx:.2f} | train " +
+            f"acc@1: {sum(total_accs)/len(total_accs):.3f} | acc@{args.top_k}: {sum(total_accs_k)/len(total_accs_k):.3f}"
+        )
+
+        if (0. in tgts_t[0]) or (len(tgts_t[0]) == 0):
+            return dev_em, dev_f1, dev_emk, dev_f1k
+
+        # Save best model
+        if dev_f1 > best_acc:
+            best_acc = dev_f1
+            # logger.info(f"Best model with acc {best_acc:.3f} into {save_path}")
+
+        if (ep_idx + 1) % 1 == 0:
+            # logger.info('Updating pretrained encoder')
+            pretrained_encoder = copy.deepcopy(target_encoder)
+
+    # Final evaluation
+    new_args = copy.deepcopy(args)
+    new_args.save_pred = False
+    new_args.aggregate = True
+    dev_em, dev_f1, dev_emk, dev_f1k = evaluate(new_args, mips, target_encoder, tokenizer, q_idx=q_idx)
+    logger.info(f"[Final] test acc@1: {dev_em:.3f}, f1@1: {dev_f1:.3f}")
+
+    return dev_em, dev_f1, dev_emk, dev_f1k
 
 
 if __name__ == '__main__':
@@ -356,6 +518,11 @@ if __name__ == '__main__':
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(args.seed)
 
+    from run_demo import DensePhrasesInterface
+    args.index_port = '1111'
+    args.base_ip = 'http://127.0.0.1'
+    server = DensePhrasesInterface(args)
+
     if args.run_mode == 'train_query':
         # Train
         mips = load_phrase_index(args)
@@ -366,6 +533,39 @@ if __name__ == '__main__':
         logger.info(f"Evaluating {args.query_encoder_path}")
         args.top_k = 10
         evaluate(args, mips)
+
+    elif args.run_mode == 'test_query':
+        logging.getLogger("eval_phrase_retrieval").setLevel(logging.DEBUG)
+        logging.getLogger("densephrases.utils.open_utils").setLevel(logging.DEBUG)
+
+        # Train
+        mips = load_phrase_index(args)
+
+        # Query encoder
+        device = 'cuda' if args.cuda else 'cpu'
+        logger.info("Loading pretrained encoder: this one is for MIPS (fixed)")
+        pretrained_encoder, tokenizer = load_query_encoder(device, args)
+
+        # Load test questions
+        q_ids, questions, answers, titles = load_qa_pairs(args.test_path, args, shuffle=False)
+
+        ems = []
+        f1s = []
+        emks = []
+        f1ks = []
+        for q_idx, (q_id, question, answer, title) in tqdm(enumerate(zip(q_ids, questions, answers, titles)), total=len(questions)):
+            em, f1, emk, f1k = test_query(
+                args, mips, copy.deepcopy(pretrained_encoder), tokenizer, copy.deepcopy(pretrained_encoder),
+                data=[[q_id], [question], [answer], [title]], q_idx=q_idx
+            )
+            ems.append(em)
+            f1s.append(f1)
+            emks.append(emk)
+            f1ks.append(f1k)
+
+        logger.info(f"Test-time QSFT on {len(ems)} questions")
+        logger.info(f"Acc={sum(ems)/len(ems):.2f} | F1={sum(f1s)/len(f1s):.2f}")
+        logger.info(f"Acc@{args.top_k}={sum(emks)/len(emks):.2f} | F1@{args.top_k}={sum(f1ks)/len(f1ks):.2f}")
 
     else:
         raise NotImplementedError

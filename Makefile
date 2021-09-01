@@ -167,7 +167,7 @@ compress-meta:
 		--output_dir $(DUMP_DIR)
 
 # 5) Evaluate the phrase index for phrase retrieval
-eval-index: dump-dir model-name large-index eqa-14-data
+eval-index: dump-dir model-name large-index tqa-open-data
 	python eval_phrase_retrieval.py \
 		--run_mode eval \
 		--model_type bert \
@@ -358,19 +358,19 @@ all-open-data:
 	$(eval OPTIONS=--truecase)
 
 # Query-side fine-tuning
-train-query: dump-dir model-name nq-open-data large-index
+train-query: dump-dir model-name ay2-open-data large-index
 	python train_query.py \
 		--run_mode train_query \
 		--cache_dir $(CACHE_DIR) \
-		--train_path $(DATA_DIR)/$(TRAIN_DATA) \
-		--dev_path $(DATA_DIR)/$(DEV_DATA) \
-		--test_path $(DATA_DIR)/$(TEST_DATA) \
+		--train_path $(TRAIN_DATA) \
+		--dev_path $(DEV_DATA) \
+		--test_path $(TEST_DATA) \
 		--per_gpu_train_batch_size 12 \
 		--eval_batch_size 12 \
 		--learning_rate 3e-5 \
 		--num_train_epochs 5 \
 		--dump_dir $(DUMP_DIR) \
-		--index_dir start/$(NUM_CLUSTERS)_flat_$(INDEX_TYPE) \
+		--index_dir start/$(NUM_CLUSTERS)_flat_$(INDEX_TYPE)_first \
 		--query_encoder_path $(SAVE_DIR)/densephrases-multi \
 		--output_dir $(SAVE_DIR)/$(MODEL_NAME) \
 		--top_k 100 \
@@ -434,13 +434,40 @@ single-serve:
 		--query_encoder_path $(SAVE_DIR)/$(MODEL_NAME) \
 		--query_port $(Q_PORT) > $(SAVE_DIR)/logs/s-serve_$(Q_PORT).log &
 
+############################## Passage-level evaluation ###################################
+
+# agg_strat=2 means passage retrieval
+eval-index-psg: dump-dir model-name large-index nq-open-data
+	python eval_phrase_retrieval.py \
+		--run_mode eval \
+		--model_type bert \
+		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
+		--cuda \
+		--dump_dir $(DUMP_DIR) \
+		--index_dir start/$(NUM_CLUSTERS)_flat_$(INDEX_TYPE) \
+		--query_encoder_path $(SAVE_DIR)/$(MODEL_NAME) \
+		--test_path $(DATA_DIR)/$(TEST_DATA) \
+		--save_pred \
+		--aggregate \
+		--agg_strat opt2 \
+		--top_k 200 \
+		$(OPTIONS)
+
+# transform prediction for the recall evaluation
+recall-eval: model-name
+	python scripts/recall_transform.py \
+		--model_dir $(SAVE_DIR)/$(MODEL_NAME) \
+		--pred_file $(PRED_FILE) \
+		--max_context_len 100
+	python scripts/recall.py --k_values 1,5,20,100 --results_file $(SAVE_DIR)/$(MODEL_NAME)/pred/test_preprocessed_3610_top100_top100_mcl100_psg.json --ans_fn string
+
 ############################## Data Pre/Post-processing ###################################
 
 preprocess-openqa:
 	python scripts/preprocess/create_openqa.py \
-		$(DATA_DIR)/single-qa/squad/train-v1.1.json \
-		$(DATA_DIR)/open-qa/squad \
-		--input_type SQuAD
+		$(FS)/fid-data/download/NQ-open.train.jsonl \
+		$(DATA_DIR)/open-qa/nq-new \
+		--input_type jsonl
 
 # Warning: many scripts below are not documented well.
 # Each script may rely on external resources (e.g., original NQ datasets).

@@ -4,6 +4,7 @@ import math
 import random
 import copy
 import logging
+import torch.distributed as dist
 
 from collections import deque
 from torch.nn import CrossEntropyLoss
@@ -67,8 +68,9 @@ class DensePhrases(PreTrainedModel):
         max_len = input_ids_[0].shape[0] + input_ids[0].shape[0]
         for input_id_, att_mask_, input_id, att_mask in zip(input_ids_, attention_mask_, input_ids, attention_mask):
             new_input_id = torch.zeros(max_len).long().to(self.device)
-            sep_input_id = input_id[1:att_mask.sum()]
-            new_input_id[:att_mask_.sum()+att_mask.sum()-1] = torch.cat(
+            title_sep = (input_id == self.tokenizer.sep_token_id).nonzero(as_tuple=True)[0][0] # first sep is title
+            sep_input_id = input_id[title_sep+1:att_mask.sum()]
+            new_input_id[:att_mask_.sum()+att_mask.sum()-1-title_sep] = torch.cat(
                 [input_id_[:att_mask_.sum()], sep_input_id], dim=0
             )
             new_input_ids.append(new_input_id)
@@ -87,19 +89,16 @@ class DensePhrases(PreTrainedModel):
 
     def embed_phrase(self, input_ids, attention_mask, token_type_ids):
         """ Get phrase embeddings (token-wise) """
-        outputs_s = self.phrase_encoder(
+        outputs = self.phrase_encoder(
             input_ids,
             attention_mask=attention_mask,
             token_type_ids=token_type_ids,
         )
-        sequence_output_s = outputs_s[0]
-        sequence_output_e = outputs_s[0]
-        start = sequence_output_s[:,:,:]
-        end = sequence_output_e[:,:,:]
-        return start, end
+        return outputs[0], outputs[0]
 
     def embed_query(self, input_ids_, attention_mask_, token_type_ids_):
         """ Get query start/end embeddings """
+        # Two LM based query reps
         outputs_s_ = self.query_start_encoder(
             input_ids_,
             attention_mask=attention_mask_,
@@ -122,12 +121,16 @@ class DensePhrases(PreTrainedModel):
         input_ids_=None, attention_mask_=None, token_type_ids_=None,
         start_positions=None, end_positions=None,
         return_phrase=False, return_query=False,
+        neg_input_ids=None, neg_attention_mask=None, neg_token_type_ids=None,
     ):
 
         # Context-side
         if input_ids is not None:
             assert len(input_ids.size()) == 2
             start, end = self.embed_phrase(input_ids, attention_mask, token_type_ids)
+
+            if neg_input_ids is not None:
+                neg_start, neg_end = self.embed_phrase(neg_input_ids, neg_attention_mask, neg_token_type_ids)
 
             # Get filter logits
             filter_output = start[:]
@@ -146,10 +149,71 @@ class DensePhrases(PreTrainedModel):
             if return_query:
                 return (query_start, query_end)
 
+        # Gather distributed reps
+        if dist.is_initialized() and self.training:
+            # Dummy vectors for allgather
+            ps_list = [torch.zeros_like(start) for _ in range(dist.get_world_size())]
+            pe_list = [torch.zeros_like(end) for _ in range(dist.get_world_size())]
+            qs_list = [torch.zeros_like(query_start) for _ in range(dist.get_world_size())]
+            qe_list = [torch.zeros_like(query_end) for _ in range(dist.get_world_size())]
+            sp_list = [torch.zeros_like(start_positions) for _ in range(dist.get_world_size())]
+            ep_list = [torch.zeros_like(end_positions) for _ in range(dist.get_world_size())]
+
+            # Allgather
+            dist.all_gather(tensor_list=ps_list, tensor=start.contiguous())
+            dist.all_gather(tensor_list=pe_list, tensor=end.contiguous())
+            dist.all_gather(tensor_list=qs_list, tensor=query_start.contiguous())
+            dist.all_gather(tensor_list=qe_list, tensor=query_end.contiguous())
+            dist.all_gather(tensor_list=sp_list, tensor=start_positions.contiguous())
+            dist.all_gather(tensor_list=ep_list, tensor=end_positions.contiguous())
+
+            # Since allgather results do not have gradients, we replace the
+            # current process's corresponding embeddings with original tensors
+            ps_list[dist.get_rank()] = start
+            pe_list[dist.get_rank()] = end
+            qs_list[dist.get_rank()] = query_start
+            qe_list[dist.get_rank()] = query_end
+
+            # Get full batch embeddings: (bs x N, hidden)
+            all_start = torch.cat(ps_list, 0)
+            all_end = torch.cat(pe_list, 0)
+            all_query_start = torch.cat(qs_list, 0)
+            all_query_end = torch.cat(qe_list, 0)
+            all_start_positions = torch.cat(sp_list, 0)
+            all_end_positions = torch.cat(ep_list, 0)
+            if neg_input_ids is not None:
+                nps_list = [torch.zeros_like(neg_start) for _ in range(dist.get_world_size())]
+                npe_list = [torch.zeros_like(neg_end) for _ in range(dist.get_world_size())]
+                dist.all_gather(tensor_list=nps_list, tensor=neg_start.contiguous())
+                dist.all_gather(tensor_list=npe_list, tensor=neg_end.contiguous())
+                nps_list[dist.get_rank()] = neg_start
+                npe_list[dist.get_rank()] = neg_end
+                all_neg_start = torch.cat(nps_list, 0)
+                all_neg_end = torch.cat(npe_list, 0)
+        else:
+            all_start = start
+            all_end = end
+            all_query_start = query_start
+            all_query_end = query_end
+            all_start_positions = start_positions
+            all_end_positions = end_positions
+            if neg_input_ids is not None:
+                all_neg_start = neg_start
+                all_neg_end = neg_end
+
         # Get dense logits
         start_logits = start.matmul(query_start.transpose(1, 2)).squeeze(-1)
         end_logits = end.matmul(query_end.transpose(1, 2)).squeeze(-1)
         dense_logits = start_logits.unsqueeze(2) + end_logits.unsqueeze(1)
+
+        # get hard negative logits (dynamic max per batch idx)
+        if neg_input_ids is not None:
+            neg_start_logits = (all_query_start.unsqueeze(1) * all_neg_start.unsqueeze(0)).sum(-1).view(
+                all_query_start.shape[0], all_neg_start.shape[0], all_neg_start.shape[1]
+            ).max(-1)[0]
+            neg_end_logits = (all_query_end.unsqueeze(1) * all_neg_end.unsqueeze(0)).sum(-1).view(
+                all_query_end.shape[0], all_neg_end.shape[0], all_neg_end.shape[1]
+            ).max(-1)[0]
 
         # In-batch, pre-batch negatives; diagonal blocks have the gold logits
         if self.training and self.lambda_neg > 0:
@@ -157,30 +221,89 @@ class DensePhrases(PreTrainedModel):
             pinb_end_logits = None
             if self.pre_batch is not None:
                 if len(self.pre_batch) > 0:
-                    pre_start = torch.cat([pb[0] for pb in self.pre_batch], dim=1)
-                    pre_end = torch.cat([pb[1] for pb in self.pre_batch], dim=1)
-                    pinb_start_logits = (query_start.unsqueeze(1) * pre_start.unsqueeze(0)).sum(-1).view(
-                        query_start.shape[0], -1
-                    )
-                    pinb_end_logits = (query_end.unsqueeze(1) * pre_end.unsqueeze(0)).sum(-1).view(
-                        query_end.shape[0], -1
-                    )
+                    pre_start = torch.cat([pb[0] for pb in self.pre_batch], dim=0)
+                    pre_end = torch.cat([pb[1] for pb in self.pre_batch], dim=0)
+                    pinb_start_logits = (all_query_start.unsqueeze(1) * pre_start.unsqueeze(0)).sum(-1).view(
+                        # all_query_start.shape[0], -1
+                        all_query_start.shape[0], pre_start.shape[0], pre_start.shape[1]
+                    ).max(-1)[0]
+                    pinb_end_logits = (all_query_end.unsqueeze(1) * pre_end.unsqueeze(0)).sum(-1).view(
+                        # all_query_end.shape[0], -1
+                        all_query_end.shape[0], pre_end.shape[0], pre_end.shape[1]
+                    ).max(-1)[0]
 
+            # Make sampler based on filter logits + attention mask
+            context_mask = -1e9 * (1 - attention_mask)
+            context_mask[:,0] = -1e9
+            if torch.any(filter_start_logits != filter_start_logits):
+                filter_start_logits = torch.zeros_like(filter_start_logits)
+                filter_end_logits = torch.zeros_like(filter_end_logits)
+            start_dist = torch.distributions.multinomial.Multinomial(logits=filter_start_logits + context_mask)
+            end_dist = torch.distributions.multinomial.Multinomial(logits=filter_end_logits + context_mask)
+
+            # Phrase-level in-batch
             gold_start = torch.stack(
-                [st[start_pos:start_pos+1] if start_pos > 0 else st[start_l.topk(1)[1]]
-                    for st, start_pos, start_l in zip(start, start_positions, start_logits)]
+                [st[start_pos:start_pos+1] if start_pos > 0 else st[0:1]
+                    for st, start_pos in zip(all_start, all_start_positions)]
             )
             gold_end = torch.stack(
-                [en[end_pos:end_pos+1] if end_pos > 0 else en[end_l.topk(1)[1]]
-                    for en, end_pos, end_l in zip(end, end_positions, end_logits)]
+                [en[end_pos:end_pos+1] if end_pos > 0 else en[0:1]
+                    for en, end_pos in zip(all_end, all_end_positions)]
+            )
+            gold_inb_start_logits = (all_query_start.unsqueeze(1) * gold_start.unsqueeze(0)).sum(-1).view(
+                all_query_start.shape[0], -1
+            )
+            gold_inb_end_logits = (all_query_end.unsqueeze(1) * gold_end.unsqueeze(0)).sum(-1).view(
+                all_query_end.shape[0], -1
             )
 
-            inb_start_logits = (query_start.unsqueeze(1) * gold_start.unsqueeze(0)).sum(-1).view(
+            # Dynamic in-batch negatives
+            inb_start_logits = (all_query_start.unsqueeze(1) * all_start.unsqueeze(0)).sum(-1).view(
+                all_query_start.shape[0], all_start.shape[0], all_start.shape[1]
+            ).max(-1)[0]
+            inb_end_logits = (all_query_end.unsqueeze(1) * all_end.unsqueeze(0)).sum(-1).view(
+                all_query_end.shape[0], all_end.shape[0], all_end.shape[1]
+            ).max(-1)[0]
+            inb_start_logits[range(len(inb_start_logits)), range(len(inb_start_logits))] = gold_inb_start_logits.diag()
+            inb_end_logits[range(len(inb_end_logits)), range(len(inb_end_logits))] = gold_inb_end_logits.diag()
+            '''
+
+            # All in-batch negatives
+            inb_start_logits = (all_query_start.unsqueeze(1) * all_start.unsqueeze(0)).sum(-1).view(
+                all_query_start.shape[0], all_start.shape[0] * all_start.shape[1]
+            )
+            inb_end_logits = (all_query_end.unsqueeze(1) * all_end.unsqueeze(0)).sum(-1).view(
+                all_query_end.shape[0], all_end.shape[0] * all_end.shape[1]
+            )
+            '''
+
+            # Passage-level in-batch (only for local batch)
+            rand_start_positions = start_dist.sample().argmax(1) # Resample
+            rand_end_positions = end_dist.sample().argmax(1)
+            rand_start = torch.stack(
+                [st[rand_sp:rand_sp+1] for st, rand_sp in zip(start, rand_start_positions)]
+            )
+            rand_end = torch.stack(
+                [en[rand_ep:rand_ep+1] for en, rand_ep in zip(end, rand_end_positions)]
+            )
+            inb_rand_start_logits_tmp = (query_start.unsqueeze(1) * rand_start.unsqueeze(0)).sum(-1).view(
                 query_start.shape[0], -1
             )
-            inb_end_logits = (query_end.unsqueeze(1) * gold_end.unsqueeze(0)).sum(-1).view(
+            inb_rand_end_logits_tmp = (query_end.unsqueeze(1) * rand_end.unsqueeze(0)).sum(-1).view(
                 query_end.shape[0], -1
             )
+
+            # Use max logits and replace diagonal with random
+            begin = dist.get_rank() * len(rand_start) if dist.is_initialized() else 0
+            end = (dist.get_rank()+1) * len(rand_start) if dist.is_initialized() else len(rand_start)
+            inb_rand_start_logits = inb_start_logits[begin:end,begin:end].clone()
+            inb_rand_end_logits = inb_end_logits[begin:end,begin:end].clone()
+            inb_rand_start_logits[range(len(rand_start)), range(len(rand_start))] = inb_rand_start_logits_tmp.diag()
+            inb_rand_end_logits[range(len(rand_end)), range(len(rand_end))] = inb_rand_end_logits_tmp.diag()
+            
+            if neg_input_ids is not None:
+                inb_start_logits = torch.cat((inb_start_logits, neg_start_logits), dim=1)
+                inb_end_logits = torch.cat((inb_end_logits, neg_end_logits), dim=1)
 
             if pinb_start_logits is not None:
                 inb_start_logits = torch.cat((inb_start_logits, pinb_start_logits), dim=1)
@@ -222,14 +345,19 @@ class DensePhrases(PreTrainedModel):
                     )
                     tmp_sequence_output = outputs_qd[0]
                     sequence_output = []
-                    for seq_output, att_mask_ in zip(tmp_sequence_output, attention_mask_):
-                        sequence_output.append(
-                            torch.cat((seq_output[:1], seq_output[att_mask_.sum():att_mask_.sum()+input_ids.shape[1]-1]))
-                        )
+                    for seq_output, att_mask_, input_id in zip(tmp_sequence_output, attention_mask_, input_ids):
+                        title_sep = (input_id == self.tokenizer.sep_token_id).nonzero(as_tuple=True)[0][0]
+                        title_mask = torch.zeros(size=(title_sep.item(),seq_output.shape[1])).to(self.device)
+                        new_logits = self.qa_outputs(torch.cat((
+                            seq_output[:1], title_mask,
+                            seq_output[att_mask_.sum():att_mask_.sum()+input_ids.shape[1]-1-title_sep.item()])
+                        ))
+                        new_logits[1:title_sep,:] = -1e4
+                        sequence_output.append(new_logits)
                     sequence_output = torch.stack(sequence_output)
 
-                start_logits_qd, end_logits_qd = self.qa_outputs(sequence_output).split(1, dim=-1)
-                start_logits_qd, end_logits_qd = start_logits_qd.squeeze(-1), end_logits_qd.squeeze(-1)
+                    start_logits_qd, end_logits_qd = sequence_output.split(1, dim=-1)
+                    start_logits_qd, end_logits_qd = start_logits_qd.squeeze(-1), end_logits_qd.squeeze(-1)
 
                 # Distill logits
                 temperature = 1.0
@@ -245,18 +373,33 @@ class DensePhrases(PreTrainedModel):
                     log_softmax(end_logits, dim=1), target=softmax(end_logits_qd[:,:end_logits.size(1)], dim=1)
                 ).sum(1)).mean(0)
                 total_loss = total_loss + (kl_start + kl_end)/2.0 * self.lambda_kl
+                
+                # outputs = (start_logits_qd, end_logits_qd, filter_start_logits, filter_end_logits) # test
 
             # 3) Batch-negative loss
             if self.lambda_neg > 0:
-                inb_ignored_index = start_positions.size(0)
-                inb_s_target = torch.arange(start_positions.size(0)).to(self.device)
-                inb_e_target = torch.arange(end_positions.size(0)).to(self.device)
+                inb_ignored_index = all_start_positions.size(0)
+                inb_s_target = torch.arange(all_start_positions.size(0)).to(self.device)
+                inb_e_target = torch.arange(all_end_positions.size(0)).to(self.device)
+                # inb_s_target = torch.arange(all_start_positions.size(0)).to(self.device) * all_start.shape[1] + all_start_positions
+                # inb_e_target = torch.arange(all_end_positions.size(0)).to(self.device) * all_end.shape[1] + all_end_positions
 
+                # Phrase-level in-batch
                 inb_loss_fct = CrossEntropyLoss()
                 inb_start_loss = inb_loss_fct(inb_start_logits, inb_s_target)
                 inb_end_loss = inb_loss_fct(inb_end_logits, inb_e_target)
                 inb_se_loss = (inb_start_loss + inb_end_loss) / 2
                 total_loss = total_loss + inb_se_loss * self.lambda_neg
+
+                # Passage-level in-batch
+                inb_ps_target = torch.arange(start_positions.size(0)).to(self.device)
+                inb_pe_target = torch.arange(end_positions.size(0)).to(self.device)
+                inb_rand_start_loss = inb_loss_fct(inb_rand_start_logits, inb_ps_target)
+                inb_rand_end_loss = inb_loss_fct(inb_rand_end_logits, inb_pe_target)
+                inb_rand_se_loss = (inb_rand_start_loss + inb_rand_end_loss) / 2
+                total_loss = total_loss + inb_rand_se_loss * 0.5
+                '''
+                '''
 
             # 4) Filter loss
             if self.lambda_flt > 0:
@@ -275,7 +418,7 @@ class DensePhrases(PreTrainedModel):
                 # Do not train filter on unanswerables
                 assert all((start_positions > 0) == (end_positions > 0))
                 ans_mask = (start_positions > 0).float()
-                filter_loss = (filter_loss * ans_mask).sum() / ans_mask.sum()
+                filter_loss = (filter_loss * ans_mask).sum() / (ans_mask.sum() + 1e-9)
                 total_loss = total_loss + filter_loss * self.lambda_flt
 
             # Cache pre-batch at the end
@@ -283,9 +426,11 @@ class DensePhrases(PreTrainedModel):
                 assert self.lambda_neg > 0
                 if len(self.pre_batch) > 0:
                     if start.shape[0] == self.pre_batch[-1][0].shape[0]:
-                        self.pre_batch.append([gold_start.clone().detach(), gold_end.clone().detach()])
+                        # self.pre_batch.append([gold_start.clone().detach(), gold_end.clone().detach()])
+                        self.pre_batch.append([all_start.clone().detach(), all_end.clone().detach()])
                 else:
-                    self.pre_batch.append([gold_start.clone().detach(), gold_end.clone().detach()])
+                    # self.pre_batch.append([gold_start.clone().detach(), gold_end.clone().detach()])
+                    self.pre_batch.append([all_start.clone().detach(), all_end.clone().detach()])
 
             outputs = (total_loss,) + outputs
         return outputs  # (loss), start_logits, end_logits, filter_start_logits, filter_end_logits
@@ -298,7 +443,7 @@ class DensePhrases(PreTrainedModel):
     ):
         # Skip if no targets for phrases
         if start_vecs is not None:
-            if all([len(t) == 0 for t in targets]):
+            if all([len(t) == 0 for t in targets]) and all([len(t) == 0 for t in p_targets]):
                 return None, None
 
         # Compute query embedding
@@ -310,23 +455,43 @@ class DensePhrases(PreTrainedModel):
         logits = start_logits + end_logits
 
         # MML over targets
+        log_probs = 0.0
         MIN_PROB = 1e-7
-        log_probs = [
-            -torch.log(softmax(lg, -1)[tg.long()].sum().clamp(MIN_PROB, 1)) for lg, tg in zip(logits, targets)
-            if len(tg) > 0
-        ]
-        log_probs = sum(log_probs)/len(log_probs)
+        if not all([len(t) == 0 for t in targets]):
+            log_probs = [
+                -torch.log(softmax(lg, -1)[tg.long()].sum().clamp(MIN_PROB, 1)) for lg, tg in zip(logits, targets)
+                if len(tg) > 0
+            ]
+            log_probs = sum(log_probs)/len(log_probs)
 
-        # Start/End only loss
-        start_loss = [
-            -torch.log(softmax(lg, -1)[tg.long()].sum().clamp(MIN_PROB, 1)) for lg, tg in zip(start_logits, targets)
-            if len(tg) > 0
-        ]
-        end_loss = [
-            -torch.log(softmax(lg, -1)[tg.long()].sum().clamp(MIN_PROB, 1)) for lg, tg in zip(end_logits, targets)
-            if len(tg) > 0
-        ]
-        log_probs = log_probs + sum(start_loss)/len(start_loss) + sum(end_loss)/len(end_loss)
+            # Start/End only loss
+            start_loss = [
+                -torch.log(softmax(lg, -1)[tg.long()].sum().clamp(MIN_PROB, 1)) for lg, tg in zip(start_logits, targets)
+                if len(tg) > 0
+            ]
+            end_loss = [
+                -torch.log(softmax(lg, -1)[tg.long()].sum().clamp(MIN_PROB, 1)) for lg, tg in zip(end_logits, targets)
+                if len(tg) > 0
+            ]
+            log_probs = log_probs + sum(start_loss)/len(start_loss) + sum(end_loss)/len(end_loss)
+
+        # Passage-level start/end loss
+        if not all([len(t) == 0 for t in p_targets]):
+            p_start_logits = start_logits.clone()
+            for b_idx, p_start_logit in enumerate(p_start_logits):
+                p_start_logits[b_idx][targets[b_idx].long()] = -1e9
+            p_start_loss = [
+                -torch.log(softmax(lg, -1)[tg.long()].sum().clamp(MIN_PROB, 1)) for lg, tg in zip(p_start_logits, p_targets)
+                if len(tg) > 0
+            ]
+            p_end_logits = end_logits.clone()
+            for b_idx, p_end_logit in enumerate(p_end_logits):
+                p_end_logits[b_idx][targets[b_idx].long()] = -1e9
+            p_end_loss = [
+                -torch.log(softmax(lg, -1)[tg.long()].sum().clamp(MIN_PROB, 1)) for lg, tg in zip(p_end_logits, p_targets)
+                if len(tg) > 0
+            ]
+            log_probs = log_probs + sum(p_start_loss)/len(p_start_loss) + sum(p_end_loss)/len(p_end_loss)
 
         _, rerank_idx = torch.sort(logits, -1, descending=True)
         top1_acc = [rerank[0] in target for rerank, target in zip(rerank_idx, targets)]
