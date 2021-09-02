@@ -91,12 +91,12 @@ You can also download each of pre-trained DensePhrases models as listed below.
 | [densephrases-multi-query-trex](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-trex.tar.gz) | Multiple | T-REx | 22.3 | - | Result from [eval.ai](https://eval.ai/web/challenges/challenge-page/689/overview) |
 | [densephrases-multi-query-zsre](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-zsre.tar.gz) | Multiple | Zero-shot RE | - | 40.0 | Result from [eval.ai](https://eval.ai/web/challenges/challenge-page/689/overview) |
 
-- **Train (RC)**          : A reading comprehension dataset on which each model is trained.
+- **Train (RC)**          : A reading comprehension (RC) dataset on which each model is trained.
 - **Train (Query)**          : An open-domain QA dataset on which each model is query-side fine-tuned. 
 - **Multiple**                      : Multiple reading comprehension (or open-domain QA) datasets including NQ, WebQ, TREC, TriviaQA, SQuAD.
 - `spanbert-base-cased-*`             : cross-encoder teacher models trained on \*
 
-All models were trained with the phrase index [densephrases-multi_wiki-20181220](#3-phrase-index) described below. Since these models are trained with an IVFOPQ index, they are mostly better than the ones reported in the paper (except SQuAD).
+All models were trained with the phrase index [densephrases-multi_wiki-20181220](#3-phrase-index) described below. Since these models are trained on 5 RC datasets with an IVFOPQ index, they are mostly better than the ones reported in the paper (except SQuAD).
 
 ### 3. Phrase Index
 Please note that you don't need to download this phrase index unless you want to work on the full Wikipedia scale.
