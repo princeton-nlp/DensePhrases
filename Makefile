@@ -167,7 +167,7 @@ compress-meta:
 		--output_dir $(DUMP_DIR)
 
 # 5) Evaluate the phrase index for phrase retrieval
-eval-index: dump-dir model-name large-index tqa-open-data
+eval-index: dump-dir model-name large-index nq-fid-data
 	python eval_phrase_retrieval.py \
 		--run_mode eval \
 		--model_type bert \
@@ -316,6 +316,11 @@ nq-open-data:
 	$(eval DEV_DATA=open-qa/nq-open/dev_preprocessed.json)
 	$(eval TEST_DATA=open-qa/nq-open/test_preprocessed.json)
 	$(eval OPTIONS=--truecase)
+nq-fid-data:
+	$(eval TRAIN_DATA=open-qa/nq-fid/train_preprocessed.json)
+	$(eval DEV_DATA=open-qa/nq-fid/dev_preprocessed.json)
+	$(eval TEST_DATA=open-qa/nq-fid/test_preprocessed.json)
+	$(eval OPTIONS=--truecase)
 wq-open-data:
 	$(eval TRAIN_DATA=open-qa/webq/WebQuestions-train-nodev_preprocessed.json)
 	$(eval DEV_DATA=open-qa/webq/WebQuestions-dev_preprocessed.json)
@@ -368,7 +373,7 @@ train-query: dump-dir model-name ay2-open-data large-index
 		--per_gpu_train_batch_size 12 \
 		--eval_batch_size 12 \
 		--learning_rate 3e-5 \
-		--num_train_epochs 5 \
+		--num_train_epochs 10 \
 		--dump_dir $(DUMP_DIR) \
 		--index_dir start/$(NUM_CLUSTERS)_flat_$(INDEX_TYPE)_first \
 		--query_encoder_path $(SAVE_DIR)/densephrases-multi \

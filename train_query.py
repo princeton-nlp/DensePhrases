@@ -260,8 +260,8 @@ def get_phrase_vecs(mips, q_ids, questions, answers, titles, outs, args, label_s
     ]
     no_phrase_tasks = ['fever', 'hotpot', 'eli5', 'wow']
     train_phrase = [
-        # True
-        False if any(task in q_id.lower() for task in no_phrase_tasks) or len(ans[0].split()) > 10 else True
+        False
+        # False if any(task in q_id.lower() for task in no_phrase_tasks) or len(ans[0].split()) > 10 else True
         for q_id, ans in zip(q_ids, answers)
     ]
 

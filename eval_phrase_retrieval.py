@@ -207,7 +207,7 @@ def evaluate_results_kilt(predictions, qids, questions, answers, args, evidences
     total=len(predictions)
 
     # load title2id dict and convert predicted titles into wikipedia_ids
-    with open(os.path.join(os.environ['SAVE_DIR'], args.title2wikiid_path)) as f:
+    with open(os.path.join(os.environ['DATA_DIR'], args.title2wikiid_path)) as f:
         title2wikiid = json.load(f)
     pred_wikipedia_ids = [[[title2wikiid[t] for t in title_] for title_ in title] for title in titles]
 
@@ -286,7 +286,7 @@ def evaluate_results_kilt(predictions, qids, questions, answers, args, evidences
     with open(pred_path, 'w') as f:
         json.dump(pred_out, f)
 
-    return result['downstream']['accuracy']
+    return result['retrieval']['Rprec'], result['retrieval']['recall@5'], result['kilt']['KILT-accuracy'], result['kilt']['KILT-f1']
 
 
 def get_hard_negatives(args, mips=None, query_encoder=None, tokenizer=None):
