@@ -230,15 +230,6 @@ class DensePhrases(PreTrainedModel):
                         all_query_end.shape[0], -1
                     ).max(-1)[0]
 
-            # Make sampler based on filter logits + attention mask
-            context_mask = -1e9 * (1 - attention_mask)
-            context_mask[:,0] = -1e9
-            if torch.any(filter_start_logits != filter_start_logits):
-                filter_start_logits = torch.zeros_like(filter_start_logits)
-                filter_end_logits = torch.zeros_like(filter_end_logits)
-            start_dist = torch.distributions.multinomial.Multinomial(logits=filter_start_logits + context_mask)
-            end_dist = torch.distributions.multinomial.Multinomial(logits=filter_end_logits + context_mask)
-
             # Phrase-level in-batch
             gold_start = torch.stack(
                 [st[start_pos:start_pos+1] if start_pos > 0 else st[0:1]
