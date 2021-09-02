@@ -92,7 +92,7 @@ You can also download each of pre-trained DensePhrases models as listed below.
 | [densephrases-multi-query-zsre](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-zsre.tar.gz) | Multiple | Zero-shot RE | - | 40.0 | Result from [eval.ai](https://eval.ai/web/challenges/challenge-page/689/overview) |
 
 - **Train (RC)**          : A reading comprehension dataset on which each model is trained.
-- **Train (Query)**          : A open-domain QA dataset on which each model is query-side fine-tuned. 
+- **Train (Query)**          : An open-domain QA dataset on which each model is query-side fine-tuned. 
 - **Multiple**                      : Multiple reading comprehension (or open-domain QA) datasets including NQ, WebQ, TREC, TriviaQA, SQuAD.
 - `spanbert-base-cased-*`             : cross-encoder teacher models trained on \*
 
