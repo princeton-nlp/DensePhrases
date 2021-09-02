@@ -413,7 +413,7 @@ class MIPS(object):
                     if result['title'][0] not in results[doc_ans[da]]['title']: # For KILT, merge doc titles
                         results[doc_ans[da]]['title'] += result['title']
         results = sorted(results, key=lambda each_out: -each_out['score'])
-        results = list(filter(lambda x: x['score'] > -1e5, results))# [:100] # [:top_k] # get real top_k if you want
+        results = list(filter(lambda x: x['score'] > -1e5, results)) # not exactly top-k but will be cut during evaluation
         return results
 
     def search(self, query, q_texts=None,

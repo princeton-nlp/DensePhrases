@@ -102,7 +102,6 @@ train-rc: model-name nq-rc-data nq-param
 		--teacher_dir $(SAVE_DIR)/$(TEACHER_NAME) \
 		--output_dir $(SAVE_DIR)/$(MODEL_NAME) \
 		--overwrite_output_dir \
-		--save_steps 10000 \
 		$(OPTIONS)
 
 # 1-1) Sams as train-rc but with DDP
@@ -130,7 +129,6 @@ train-rc-ddp:
 		--evaluate_during_training \
 		--teacher_dir $(SAVE_DIR)/$(TEACHER_NAME) \
 		--output_dir $(SAVE_DIR)/$(MODEL_NAME) \
-		--save_steps 10000 \
 		$(OPTIONS)
 
 # 2) Trained phrase encoders can be used to generate phrase vectors
@@ -167,7 +165,7 @@ compress-meta:
 		--output_dir $(DUMP_DIR)
 
 # 5) Evaluate the phrase index for phrase retrieval
-eval-index: dump-dir model-name large-index nq-fid-data
+eval-index: dump-dir model-name large-index nq-open-data
 	python eval_phrase_retrieval.py \
 		--run_mode eval \
 		--model_type bert \
@@ -201,7 +199,6 @@ draft: model-name nq-rc-data nq-param pbn-param small-index
 		NUM_CLUSTERS=$(NUM_CLUSTERS) INDEX_TYPE=$(INDEX_TYPE) \
 		MODEL_LANE=$(MODEL_NAME) TEST_DATA=$(SOD_DATA) \
 		OPTIONS=$(OPTIONS)
-
 
 # Single-passage training + additional negatives for NQ
 # Available datasets: NQ (nq-rc-data), SQuAD (sqd-rc-data), NQ+SQuAD (nqsqd-rc-data)
@@ -316,11 +313,6 @@ nq-open-data:
 	$(eval DEV_DATA=open-qa/nq-open/dev_preprocessed.json)
 	$(eval TEST_DATA=open-qa/nq-open/test_preprocessed.json)
 	$(eval OPTIONS=--truecase)
-nq-fid-data:
-	$(eval TRAIN_DATA=open-qa/nq-fid/train_preprocessed.json)
-	$(eval DEV_DATA=open-qa/nq-fid/dev_preprocessed.json)
-	$(eval TEST_DATA=open-qa/nq-fid/test_preprocessed.json)
-	$(eval OPTIONS=--truecase)
 wq-open-data:
 	$(eval TRAIN_DATA=open-qa/webq/WebQuestions-train-nodev_preprocessed.json)
 	$(eval DEV_DATA=open-qa/webq/WebQuestions-dev_preprocessed.json)
@@ -339,6 +331,11 @@ sqd-open-data:
 	$(eval TRAIN_DATA=open-qa/squad/train_preprocessed.json)
 	$(eval DEV_DATA=open-qa/squad/dev_preprocessed.json)
 	$(eval TEST_DATA=open-qa/squad/test_preprocessed.json)
+nq-fid-data:
+	$(eval TRAIN_DATA=open-qa/nq-fid/train_preprocessed.json)
+	$(eval DEV_DATA=open-qa/nq-fid/dev_preprocessed.json)
+	$(eval TEST_DATA=open-qa/nq-fid/test_preprocessed.json)
+	$(eval OPTIONS=--truecase)
 kilt-options:
 	$(eval OPTIONS=--is_kilt --title2wikiid_path $(DATA_DIR)/wikidump/title2wikiid.json)
 trex-open-data: kilt-options
@@ -351,11 +348,31 @@ zsre-open-data: kilt-options
 	$(eval DEV_DATA=kilt/zsre/structured_zeroshot-dev-kilt_open.json)
 	$(eval TEST_DATA=kilt/zsre/structured_zeroshot-dev-kilt_open.json)
 	$(eval OPTIONS=$(OPTIONS) --kilt_gold_path $(DATA_DIR)/kilt/zsre/structured_zeroshot-dev-kilt.jsonl --agg_strat opt2)
+ay2-open-data: kilt-options
+	$(eval TRAIN_DATA=kilt/ay2/aidayago2-train-kilt_open.json)
+	$(eval DEV_DATA=kilt/ay2/aidayago2-dev-kilt_open.json)
+	$(eval TEST_DATA=kilt/ay2/aidayago2-dev-kilt_open.json)
+	$(eval OPTIONS=$(OPTIONS) --truecase --kilt_gold_path $(DATA_DIR)/kilt/ay2/aidayago2-dev-kilt.jsonl --agg_strat opt2)
+cweb-open-data: kilt-options
+	$(eval TRAIN_DATA=kilt/ay2/aidayago2-train-kilt_open.json)
+	$(eval DEV_DATA=kilt/cweb/cweb-dev-kilt_open.json)
+	$(eval TEST_DATA=kilt/cweb/cweb-dev-kilt_open.json)
+	$(eval OPTIONS=$(OPTIONS) --truecase --kilt_gold_path $(DATA_DIR)/kilt/cweb/cweb-dev-kilt.jsonl --agg_strat opt2)
+wned-open-data: kilt-options
+	$(eval TRAIN_DATA=kilt/ay2/aidayago2-train-kilt_open.json)
+	$(eval DEV_DATA=kilt/wned/wned-dev-kilt_open.json)
+	$(eval TEST_DATA=kilt/wned/wned-dev-kilt_open.json)
+	$(eval OPTIONS=$(OPTIONS) --truecase --kilt_gold_path $(DATA_DIR)/kilt/wned/wned-dev-kilt.jsonl --agg_strat opt2)
+wow-open-data: kilt-options
+	$(eval TRAIN_DATA=kilt/wow/wow-train-kilt_open.json)
+	$(eval DEV_DATA=kilt/wow/wow-dev-kilt_open.json)
+	$(eval TEST_DATA=kilt/wow/wow-dev-kilt_open.json)
+	$(eval OPTIONS=$(OPTIONS) --truecase --kilt_gold_path $(DATA_DIR)/kilt/wow/wow-dev-kilt.jsonl --agg_strat opt2 --max_query_length 384)
+
 benchmark-data:
 	$(eval TEST_DATA=scripts/benchmark/data/nq_1000_dev_denspi.json)
 all-open-data:
-	$(eval TEST_DATA=$(DATA_DIR)/open-qa/nq-open/dev_wiki3_open.json)
-	$(eval TEST_DATA=$(TEST_DATA),$(DATA_DIR)/open-qa/nq-open/test_preprocessed.json)
+	$(eval TEST_DATA=$(DATA_DIR)/open-qa/nq-open/test_preprocessed.json)
 	$(eval TEST_DATA=$(TEST_DATA),$(DATA_DIR)/open-qa/webq/WebQuestions-test_preprocessed.json)
 	$(eval TEST_DATA=$(TEST_DATA),$(DATA_DIR)/open-qa/trec/CuratedTrec-test_preprocessed.json)
 	$(eval TEST_DATA=$(TEST_DATA),$(DATA_DIR)/open-qa/triviaqa-unfiltered/test_preprocessed.json)
@@ -367,15 +384,15 @@ train-query: dump-dir model-name ay2-open-data large-index
 	python train_query.py \
 		--run_mode train_query \
 		--cache_dir $(CACHE_DIR) \
-		--train_path $(TRAIN_DATA) \
-		--dev_path $(DEV_DATA) \
-		--test_path $(TEST_DATA) \
+		--train_path $(DATA_DIR)/$(TRAIN_DATA) \
+		--dev_path $(DATA_DIR)/$(DEV_DATA) \
+		--test_path $(DATA_DIR)/$(TEST_DATA) \
 		--per_gpu_train_batch_size 12 \
 		--eval_batch_size 12 \
 		--learning_rate 3e-5 \
-		--num_train_epochs 10 \
+		--num_train_epochs 5 \
 		--dump_dir $(DUMP_DIR) \
-		--index_dir start/$(NUM_CLUSTERS)_flat_$(INDEX_TYPE)_first \
+		--index_dir start/$(NUM_CLUSTERS)_flat_$(INDEX_TYPE) \
 		--query_encoder_path $(SAVE_DIR)/densephrases-multi \
 		--output_dir $(SAVE_DIR)/$(MODEL_NAME) \
 		--top_k 100 \
@@ -396,6 +413,16 @@ eval-index-all: dump-dir model-name large-index all-open-data
 		--test_path $(TEST_DATA) \
 		--aggregate \
 		$(OPTIONS)
+
+# Post-processing KILT predictions
+trex-gold:
+	$(eval GOLD_FILE=$(DATA_DIR)/kilt/trex/trex-dev-kilt.jsonl)
+zsre-gold:
+	$(eval GOLD_FILE=$(DATA_DIR)/kilt/zsre/structured_zeroshot-dev-kilt.jsonl)
+strip-kilt: zsre-gold
+	python scripts/kilt/strip_pred.py \
+		$(INPUT_PRED) \
+		$(GOLD_FILE)	
 
 ################################ Demo Serving ###################################
 
@@ -441,7 +468,7 @@ single-serve:
 
 ############################## Passage-level evaluation ###################################
 
-# agg_strat=2 means passage retrieval
+# agg_strat=opt2 means passage retrieval
 eval-index-psg: dump-dir model-name large-index nq-open-data
 	python eval_phrase_retrieval.py \
 		--run_mode eval \
@@ -597,12 +624,3 @@ sample-nq-reader-doc-wiki-dev: data-config
 		--wiki_dir $(WIKI_DIR)/20181220_concat \
 		--docs_wiki_dir $(NQREADER_DOC_DIR)/dev_wiki \
 		--output_dir $(NQREADER_DOC_DIR)/dev_wiki_noise
-
-trex-gold:
-	$(eval GOLD_FILE=$(DATA_DIR)/kilt/trex/trex-dev-kilt.jsonl)
-zsre-gold:
-	$(eval GOLD_FILE=$(DATA_DIR)/kilt/zsre/structured_zeroshot-dev-kilt.jsonl)
-strip-kilt: zsre-gold
-	python scripts/kilt/strip_pred.py \
-		$(INPUT_PRED) \
-		$(GOLD_FILE)	

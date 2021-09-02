@@ -71,11 +71,11 @@ def evaluate(args, mips=None, query_encoder=None, tokenizer=None, q_idx=None):
             top_k=args.top_k, max_answer_length=args.max_answer_length,
             aggregate=args.aggregate, agg_strat=args.agg_strat,
         )
-        prediction = [[ret['answer'] for ret in out] if len(out) > 0 else [''] for out in result]
-        evidence = [[ret['context'] for ret in out] if len(out) > 0 else [''] for out in result]
-        title = [[ret['title'] for ret in out] if len(out) > 0 else [['']] for out in result]
-        score = [[ret['score'] for ret in out] if len(out) > 0 else [-1e10] for out in result]
-        se_pos = [[(ret['start_pos'], ret['end_pos']) for ret in out] if len(out) > 0 else [(0,0)] for out in result]
+        prediction = [[ret['answer'] for ret in out][:args.top_k] if len(out) > 0 else [''] for out in result]
+        evidence = [[ret['context'] for ret in out][:args.top_k] if len(out) > 0 else [''] for out in result]
+        title = [[ret['title'] for ret in out][:args.top_k] if len(out) > 0 else [['']] for out in result]
+        score = [[ret['score'] for ret in out][:args.top_k] if len(out) > 0 else [-1e10] for out in result]
+        se_pos = [[(ret['start_pos'], ret['end_pos']) for ret in out][:args.top_k] if len(out) > 0 else [(0,0)] for out in result]
         predictions += prediction
         evidences += evidence
         titles += title
@@ -207,7 +207,7 @@ def evaluate_results_kilt(predictions, qids, questions, answers, args, evidences
     total=len(predictions)
 
     # load title2id dict and convert predicted titles into wikipedia_ids
-    with open(os.path.join(os.environ['DATA_DIR'], args.title2wikiid_path)) as f:
+    with open(args.title2wikiid_path) as f:
         title2wikiid = json.load(f)
     pred_wikipedia_ids = [[[title2wikiid[t] for t in title_] for title_ in title] for title in titles]
 
@@ -223,18 +223,22 @@ def evaluate_results_kilt(predictions, qids, questions, answers, args, evidences
         os.path.splitext(os.path.basename(args.test_path))[0] + f'_{total}.jsonl'
     )
     official_preds_to_save = []
-    for prediction, question, pred_wikipedia_id, qid in zip(predictions, questions, pred_wikipedia_ids, qids):
-        outputs = []
-        for pred, pred_wid in zip(prediction, pred_wikipedia_id):
-            outputs.append({
-                'answer': pred,
-                'provenance':[{'wikipedia_id':pred_wid_} for pred_wid_ in pred_wid]
-            })
-            
+    for prediction, title, question, pred_wikipedia_id, qid in zip(predictions, titles, questions, pred_wikipedia_ids, qids):
+        if ("wned" in pred_official_path or
+            "cweb" in pred_official_path or
+            "aidayago2" in pred_official_path):
+            answer = title[0][0]
+        else:
+            answer = prediction[0].strip(string.punctuation)
+
+        output = {
+            'answer': answer,
+            'provenance': [{'wikipedia_id': pred_wid_} for pred_wid in pred_wikipedia_id for pred_wid_ in pred_wid]
+        }
         official_preds_to_save.append({
             'id': qid,
             'input': question,
-            'output': [outputs[0]]
+            'output': [output]
         })
 
     logger.info(f'Saving official prediction file to {pred_official_path}')
@@ -287,125 +291,6 @@ def evaluate_results_kilt(predictions, qids, questions, answers, args, evidences
         json.dump(pred_out, f)
 
     return result['retrieval']['Rprec'], result['retrieval']['recall@5'], result['kilt']['KILT-accuracy'], result['kilt']['KILT-f1']
-
-
-def get_hard_negatives(args, mips=None, query_encoder=None, tokenizer=None):
-    # Load dataset and encode queries
-    if query_encoder is None:
-        logger.info(f'Query encoder will be loaded from {args.query_encoder_path}')
-        device = 'cuda' if args.cuda else 'cpu'
-        query_encoder, tokenizer = load_query_encoder(device, args)
-        query2vec = get_query2vec(
-            query_encoder=query_encoder, tokenizer=tokenizer, args=args, batch_size=64
-        )
-
-    # Load passages
-    passages = {}
-    logger.info('Loading 21M Wikipedia passages...')
-    # with open('/scratch/jinhyuk/paq/psgs_w100.tsv') as f:
-    with open('/n/fs/nlp-jl5167/paq/psgs_w100.tsv') as f:
-        psg_file = csv.reader(f, delimiter='\t')
-        for data_idx, data in tqdm(enumerate(psg_file)):
-            if data_idx == 0:
-                print('Reading', data)
-                continue
-            id_, psg, title = data
-            passages[psg] = [id_, title]
-            # break
-
-    # Load MIPS
-    if mips is None:
-        mips = load_phrase_index(args)
-        logger.info(f'Aggergation strategy used: {args.agg_strat}')
-    '''
-    '''
-
-    # Example json line
-    # {"question":"how many popes have the name gregory",
-    #  "subsets":["L1"],
-    #  "answer":["Sixteen"],
-    #  "answers":[{"passage_id":"2581755","offset":487,"text":"Sixteen","extractor":"L"}],
-    #  "passage_score":"-0.06620407104492188"}
-
-    num_split = 8
-    partition = 3
-    logger.info(f'Partition {partition} of {num_split} splits')
-    # with open(args.test_path) as f, open(f'/scratch/jinhyuk/paq/PAQ.metadata.hard0-{partition}.jsonl', 'w') as fw:
-    prev_f = open(f'/n/fs/nlp-jl5167/paq/PAQ.metadata.hard0-{partition}-orig.jsonl', 'r')
-    with open(args.test_path) as f, open(f'/n/fs/nlp-jl5167/paq/PAQ.metadata.hard0-{partition}.jsonl', 'w') as fw:
-        json_list = list(f)
-        batch_questions = []
-        batch_meta = []
-
-        # check_list = {json.loads(data)['question']: json.loads(data) for data in list(prev_f)[:-1]} # last line broken
-        # skip = False
-        # if len(check_list) > 0:
-        #     logger.info(f'Skip first {len(check_list)} Qs = {num_split * len(check_list)} steps')
-        #     skip = True # one time skipper
-
-        for qa_idx, json_str in tqdm(enumerate(json_list), total=len(json_list)):
-            if qa_idx % num_split != partition:
-                continue
-            qa_data = json.loads(json_str) 
-            question = qa_data['question']
-            question = question[:-1] if question.endswith('?') else question
-            
-            prev_q = prev_f.readline()
-            if len(prev_q) > 0:
-                try:
-                    prev_data = json.loads(prev_q)
-                    assert qa_data['question'] == prev_data['question']
-                    skip = True
-                except Exception as e:
-                    logger.info(e)
-                    logger.info('end of prev file')
-                    skip = False
-            else:
-                skip = False
-
-            if skip:
-                # json.dump(check_list[qa_data['question']], fw)
-                json.dump(prev_data, fw)
-                fw.write('\n')
-                continue
-
-            answer = qa_data['answer']
-            gold_psg_ids = [ans['passage_id'] for ans in qa_data['answers']]
-
-            batch_questions.append(question)
-            batch_meta.append(qa_data)
-
-            if (len(batch_questions) == args.eval_batch_size) or (qa_idx + num_split > len(json_list) - 1):
-                outs = query2vec(batch_questions)
-                start = np.concatenate([out[0] for out in outs], 0)
-                end = np.concatenate([out[1] for out in outs], 0)
-                query_vec = np.concatenate([start, end], 1)
-                
-                # Search
-                result = mips.search(
-                    query_vec,
-                    q_texts=batch_questions, nprobe=args.nprobe,
-                    top_k=args.top_k, max_answer_length=args.max_answer_length,
-                    aggregate=args.aggregate, agg_strat=args.agg_strat,
-                )
-                context = [[ret['context'] for ret in out] if len(out) > 0 else [''] for out in result]
-
-                # Write
-                for ctx_idx, top_ctx in enumerate(context):
-                    new_qa_data = copy.deepcopy(batch_meta[ctx_idx])
-                    new_qa_data['hard_neg_pids'] = [
-                        passages[ctx][0] for ctx in top_ctx
-                        if (ctx in passages) and not any(ans in ctx for ans in new_qa_data['answer'])
-                    ]
-                    new_qa_data['hard_neg_pids'] = list(
-                        set(new_qa_data['hard_neg_pids']) - set([ans['passage_id'] for ans in new_qa_data['answers']])
-                    )
-                    json.dump(new_qa_data, fw)
-                    fw.write('\n')
-
-                # Flush
-                batch_questions = []
-                batch_meta = []
 
 
 if __name__ == '__main__':
@@ -498,8 +383,5 @@ if __name__ == '__main__':
         logger.info(f"Results of {args.query_encoder_path}")
         print(f'Top1 EMs: {" ".join(ems)}')
     
-    elif args.run_mode == 'get_hard_neg':
-        get_hard_negatives(args)
-
     else:
         raise NotImplementedError
