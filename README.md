@@ -12,7 +12,7 @@ Learning Dense Representations of Phrases at Scale (Lee et al., 2021)](https://a
 #### Updates
 **\*\*\*\*\* New June 14, 2021: Major code updates \*\*\*\*\***
 
-## Quick Links
+## Quick Link
 * [Installation](#installation)
 * [Resources](#resources)
 * [Creating a Custom Phrase Index with DensePhrases](#creating-a-custom-phrase-index-with-densephrases)
@@ -76,27 +76,27 @@ ls $SAVE_DIR
 densephrases-multi  densephrases-multi-query-nq  ...  spanbert-base-cased-squad
 ```
 You can also download each of pre-trained DensePhrases models as listed below.
-|              Model              | Evaluation (Test) | OpenQA (EM) |
-|:-------------------------------|:--------:|:--------:|
-| [densephrases-multi](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi.tar.gz) | NaturalQuestions | 31.9 |
-| [densephrases-multi-query-nq](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-nq.tar.gz) | NaturalQuestions | 41.3 |
-| [densephrases-multi-query-trec](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-trec.tar.gz) | CuratedTREC | 52.9 |
-| [densephrases-multi-query-wq](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-wq.tar.gz) | WebQuestions | 41.5 |
-| [densephrases-multi-query-tqa](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-tqa.tar.gz) | TriviaQA | 53.5 |
-| [densephrases-multi-query-sqd](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-sqd.tar.gz) | SQuAD | 34.5 |
-| [densephrases-multi-query-multi](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-multi.tar.gz) | NaturalQuestions | 40.9 |
+|              Model              | Train (RC) | Train (Query) | NQ (EM) | WebQ (EM) | TREC (EM) | TriviaQA (EM) | SQuAD (EM) | Description |
+|:----------------------------------|:---------------:|:--------:|:--------:|:--------:|:--------:|:--------:|:--------:|:--------:|
+| [densephrases-multi](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi.tar.gz) | Multiple | None | 31.9 | 25.5 | 35.7 | 44.4	| 29.3 |
+| [densephrases-multi-query-nq](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-nq.tar.gz) | Multiple | NQ | 41.3 | - | - | - | - |
+| [densephrases-multi-query-wq](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-wq.tar.gz) | Multiple | WebQ | - | 41.5 | - | - | - |
+| [densephrases-multi-query-trec](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-trec.tar.gz) | Multiple | TREC | - | - | 52.9 |  - | -| `--regex` required |
+| [densephrases-multi-query-tqa](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-tqa.tar.gz) | Multiple | TriviaQA | - | - | - | 53.5 | - |
+| [densephrases-multi-query-sqd](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-sqd.tar.gz) | Multiple | SQuAD | - | - | - | - | 34.5 |
+| [densephrases-multi-query-multi](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-multi.tar.gz) | Multiple | Multiple | 40.8 | 35.0 | 48.8 | 53.3 | 34.2 | Used for [demo] |
 
-|              Model              | Evaluation (Test) | SlotFilling (KILT-AC) |
-|:-------------------------------|:--------:|:--------:|
-| [densephrases-multi-query-trex](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-trex.tar.gz) | T-REx | 22.3 |
-| [densephrases-multi-query-zsre](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-zsre.tar.gz) | Zero shot RE | 40.0 |
+|              Model              | Train (RC) | Train (Query) | T-REx (KILT-Accuracy) | Zero-shot RE (KILT-Accuracy) | Description |
+|:-------------------------------|:--------:|:--------:|:--------:|:--------:|:--------:|
+| [densephrases-multi-query-trex](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-trex.tar.gz) | Multiple | T-REx | 22.3 | - | Result from [eval.ai](https://eval.ai/web/challenges/challenge-page/689/overview) |
+| [densephrases-multi-query-zsre](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-zsre.tar.gz) | Multiple | Zero-shot RE | - | 40.0 | Result from [eval.ai](https://eval.ai/web/challenges/challenge-page/689/overview) |
 
-- `densephrases-multi`                      : DensePhrases trained on multiple reading comprehension datasets (C\_phrase = {NQ, WQ, TREC, TQA, SQuAD}) without any query-side fine-tuning
-- `densephrases-multi-query-*`          : `densephrases-multi` query-side fine-tuned on *
-- `densephrases-multi-query-multi`         : `densephrases-multi` query-side fine-tuned on 5 open-domain QA datasets (NQ, WQ, TREC, TQA, SQuAD); Used for the [demo]
+- **Train (RC)**          : A reading comprehension dataset on which each model is trained.
+- **Train (Query)**          : A open-domain QA dataset on which each model is query-side fine-tuned. 
+- **Multiple**                      : Multiple reading comprehension (or open-domain QA) datasets including NQ, WebQ, TREC, TriviaQA, SQuAD.
 - `spanbert-base-cased-*`             : cross-encoder teacher models trained on \*
 
-Test set performance was measured on [the phrase index for the full Wikipedia scale](#3-phrase-index). Note that the query-side fine-tuned models are trained with a different index structure (i.e., IVFOPQ) compared to IVFSQ described in the paper, hence showing slightly different performances.
+All models were trained with the phrase index [densephrases-multi_wiki-20181220](#3-phrase-index) described below. Since these models are trained with an IVFOPQ index, they are mostly better than the ones reported in the paper (except SQuAD).
 
 ### 3. Phrase Index
 Please note that you don't need to download this phrase index unless you want to work on the full Wikipedia scale.
@@ -358,7 +358,7 @@ Note that the pre-trained query encoder is specified in `train-query` as `--quer
 
 #### IVFOPQ vs IVFSQ
 Currently, `train-query` uses the IVFOPQ index for query-side fine-tuning, and you should apply minor changes in the code to train with an IVFSQ index.
-For IVFOPQ, training takes 2 to 3 hours per epoch for large datasets (NQ, TQA, SQuAD), and 3 to 8 minutes for small datasets (WQ, TREC). We recommend using IVFOPQ since it has similar or better performance than IVFSQ while being much faster than IVFSQ. With IVFSQ, the training time will be highly dependent on the File I/O speed, so using SSDs is recommended for IVFSQ.
+For IVFOPQ, training takes 2 to 3 hours per epoch for large datasets (NQ, TriviaQA, SQuAD), and 3 to 8 minutes for small datasets (WQ, TREC). We recommend using IVFOPQ since it has similar or better performance than IVFSQ while being much faster than IVFSQ. With IVFSQ, the training time will be highly dependent on the File I/O speed, so using SSDs is recommended for IVFSQ.
 
 ### 4. Inference
 With any DensePhrases query encoders (e.g., `densephrases-multi-query-nq`) and a phrase index (e.g., `densephrases-multi_wiki-20181220`), you can test your queries as follows and the retrieval results will be saved as a json file with the `--save_pred` option:
