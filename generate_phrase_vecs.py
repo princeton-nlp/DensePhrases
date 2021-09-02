@@ -37,7 +37,7 @@ from transformers import (
 from densephrases.utils.squad_utils import ContextResult, load_and_cache_examples
 from densephrases.utils.single_utils import set_seed, to_list, to_numpy, backward_compat
 from densephrases.utils.embed_utils import write_phrases
-from densephrases.models import DensePhrases
+from densephrases.encoder import DensePhrases
 
 
 logger = logging.getLogger(__name__)

@@ -396,12 +396,12 @@ class MIPS(object):
         out = []
         doc_ans = {}
         for r_idx, result in enumerate(results):
-            if agg_strat == 'opt1': # standard + QSFT
+            if agg_strat == 'opt1': # standard (for open QA)
                 da = f'{result["title"]}_{result["start_pos"]}_{result["end_pos"]}'
-            elif agg_strat == 'opt2': # for passage retrieval
+            elif agg_strat == 'opt2': # for passage retrieval (for KILT)
                 da = f'{result["context"]}'
-            elif agg_strat == 'opt3': # for KILT
-                da = f'{normalize_answer(result["answer"])}' # For KILT, merge based on answer string
+            elif agg_strat == 'opt3': # for aggregate with answer and merge titles (for KILT)
+                da = f'{normalize_answer(result["answer"])}'
             else:
                 raise NotImplementedError("wrong aggregation strategy")
 
@@ -410,7 +410,7 @@ class MIPS(object):
             else:
                 result['score'] = -1e8
                 if agg_strat == 'opt3':
-                    if result['title'][0] not in results[doc_ans[da]]['title']: # For KILT, merge doc titles
+                    if result['title'][0] not in results[doc_ans[da]]['title']: # Merge doc titles
                         results[doc_ans[da]]['title'] += result['title']
         results = sorted(results, key=lambda each_out: -each_out['score'])
         results = list(filter(lambda x: x['score'] > -1e5, results)) # not exactly top-k but will be cut during evaluation

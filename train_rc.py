@@ -40,7 +40,7 @@ from transformers import (
 from densephrases.utils.squad_utils import SquadResult, load_and_cache_examples
 from densephrases.utils.single_utils import set_seed, to_list, to_numpy, backward_compat
 from densephrases.utils.squad_metrics import compute_predictions_log_probs, compute_predictions_logits, squad_evaluate
-from densephrases.models import DensePhrases
+from densephrases.encoder import DensePhrases
 
 
 logger = logging.getLogger(__name__)

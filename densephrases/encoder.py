@@ -224,12 +224,10 @@ class DensePhrases(PreTrainedModel):
                     pre_start = torch.cat([pb[0] for pb in self.pre_batch], dim=0)
                     pre_end = torch.cat([pb[1] for pb in self.pre_batch], dim=0)
                     pinb_start_logits = (all_query_start.unsqueeze(1) * pre_start.unsqueeze(0)).sum(-1).view(
-                        # all_query_start.shape[0], -1
-                        all_query_start.shape[0], pre_start.shape[0], pre_start.shape[1]
+                        all_query_start.shape[0], -1
                     ).max(-1)[0]
                     pinb_end_logits = (all_query_end.unsqueeze(1) * pre_end.unsqueeze(0)).sum(-1).view(
-                        # all_query_end.shape[0], -1
-                        all_query_end.shape[0], pre_end.shape[0], pre_end.shape[1]
+                        all_query_end.shape[0], -1
                     ).max(-1)[0]
 
             # Make sampler based on filter logits + attention mask
@@ -250,57 +248,13 @@ class DensePhrases(PreTrainedModel):
                 [en[end_pos:end_pos+1] if end_pos > 0 else en[0:1]
                     for en, end_pos in zip(all_end, all_end_positions)]
             )
-            gold_inb_start_logits = (all_query_start.unsqueeze(1) * gold_start.unsqueeze(0)).sum(-1).view(
+            inb_start_logits = (all_query_start.unsqueeze(1) * gold_start.unsqueeze(0)).sum(-1).view(
                 all_query_start.shape[0], -1
             )
-            gold_inb_end_logits = (all_query_end.unsqueeze(1) * gold_end.unsqueeze(0)).sum(-1).view(
+            inb_end_logits = (all_query_end.unsqueeze(1) * gold_end.unsqueeze(0)).sum(-1).view(
                 all_query_end.shape[0], -1
             )
 
-            # Dynamic in-batch negatives
-            inb_start_logits = (all_query_start.unsqueeze(1) * all_start.unsqueeze(0)).sum(-1).view(
-                all_query_start.shape[0], all_start.shape[0], all_start.shape[1]
-            ).max(-1)[0]
-            inb_end_logits = (all_query_end.unsqueeze(1) * all_end.unsqueeze(0)).sum(-1).view(
-                all_query_end.shape[0], all_end.shape[0], all_end.shape[1]
-            ).max(-1)[0]
-            inb_start_logits[range(len(inb_start_logits)), range(len(inb_start_logits))] = gold_inb_start_logits.diag()
-            inb_end_logits[range(len(inb_end_logits)), range(len(inb_end_logits))] = gold_inb_end_logits.diag()
-            '''
-
-            # All in-batch negatives
-            inb_start_logits = (all_query_start.unsqueeze(1) * all_start.unsqueeze(0)).sum(-1).view(
-                all_query_start.shape[0], all_start.shape[0] * all_start.shape[1]
-            )
-            inb_end_logits = (all_query_end.unsqueeze(1) * all_end.unsqueeze(0)).sum(-1).view(
-                all_query_end.shape[0], all_end.shape[0] * all_end.shape[1]
-            )
-            '''
-
-            # Passage-level in-batch (only for local batch)
-            rand_start_positions = start_dist.sample().argmax(1) # Resample
-            rand_end_positions = end_dist.sample().argmax(1)
-            rand_start = torch.stack(
-                [st[rand_sp:rand_sp+1] for st, rand_sp in zip(start, rand_start_positions)]
-            )
-            rand_end = torch.stack(
-                [en[rand_ep:rand_ep+1] for en, rand_ep in zip(end, rand_end_positions)]
-            )
-            inb_rand_start_logits_tmp = (query_start.unsqueeze(1) * rand_start.unsqueeze(0)).sum(-1).view(
-                query_start.shape[0], -1
-            )
-            inb_rand_end_logits_tmp = (query_end.unsqueeze(1) * rand_end.unsqueeze(0)).sum(-1).view(
-                query_end.shape[0], -1
-            )
-
-            # Use max logits and replace diagonal with random
-            begin = dist.get_rank() * len(rand_start) if dist.is_initialized() else 0
-            end = (dist.get_rank()+1) * len(rand_start) if dist.is_initialized() else len(rand_start)
-            inb_rand_start_logits = inb_start_logits[begin:end,begin:end].clone()
-            inb_rand_end_logits = inb_end_logits[begin:end,begin:end].clone()
-            inb_rand_start_logits[range(len(rand_start)), range(len(rand_start))] = inb_rand_start_logits_tmp.diag()
-            inb_rand_end_logits[range(len(rand_end)), range(len(rand_end))] = inb_rand_end_logits_tmp.diag()
-            
             if neg_input_ids is not None:
                 inb_start_logits = torch.cat((inb_start_logits, neg_start_logits), dim=1)
                 inb_end_logits = torch.cat((inb_end_logits, neg_end_logits), dim=1)
@@ -330,9 +284,8 @@ class DensePhrases(PreTrainedModel):
             single_loss = (start_loss + end_loss) / 2
             total_loss = single_loss
 
-            # 2) Distillation loss
+            # 2) Distillation loss with a cross-encoder model
             if self.lambda_kl > 0:
-                # QD BERT (nograd)
                 self.cross_encoder.eval()
                 with torch.no_grad():
                     new_input_ids, new_attention_mask, new_token_type_ids = self.merge_inputs(
@@ -373,16 +326,13 @@ class DensePhrases(PreTrainedModel):
                     log_softmax(end_logits, dim=1), target=softmax(end_logits_qd[:,:end_logits.size(1)], dim=1)
                 ).sum(1)).mean(0)
                 total_loss = total_loss + (kl_start + kl_end)/2.0 * self.lambda_kl
-                
-                # outputs = (start_logits_qd, end_logits_qd, filter_start_logits, filter_end_logits) # test
+                # outputs = (start_logits_qd, end_logits_qd, filter_start_logits, filter_end_logits) # test cross encoder
 
             # 3) Batch-negative loss
             if self.lambda_neg > 0:
                 inb_ignored_index = all_start_positions.size(0)
                 inb_s_target = torch.arange(all_start_positions.size(0)).to(self.device)
                 inb_e_target = torch.arange(all_end_positions.size(0)).to(self.device)
-                # inb_s_target = torch.arange(all_start_positions.size(0)).to(self.device) * all_start.shape[1] + all_start_positions
-                # inb_e_target = torch.arange(all_end_positions.size(0)).to(self.device) * all_end.shape[1] + all_end_positions
 
                 # Phrase-level in-batch
                 inb_loss_fct = CrossEntropyLoss()
@@ -390,16 +340,6 @@ class DensePhrases(PreTrainedModel):
                 inb_end_loss = inb_loss_fct(inb_end_logits, inb_e_target)
                 inb_se_loss = (inb_start_loss + inb_end_loss) / 2
                 total_loss = total_loss + inb_se_loss * self.lambda_neg
-
-                # Passage-level in-batch
-                inb_ps_target = torch.arange(start_positions.size(0)).to(self.device)
-                inb_pe_target = torch.arange(end_positions.size(0)).to(self.device)
-                inb_rand_start_loss = inb_loss_fct(inb_rand_start_logits, inb_ps_target)
-                inb_rand_end_loss = inb_loss_fct(inb_rand_end_logits, inb_pe_target)
-                inb_rand_se_loss = (inb_rand_start_loss + inb_rand_end_loss) / 2
-                total_loss = total_loss + inb_rand_se_loss * 0.5
-                '''
-                '''
 
             # 4) Filter loss
             if self.lambda_flt > 0:
@@ -426,11 +366,9 @@ class DensePhrases(PreTrainedModel):
                 assert self.lambda_neg > 0
                 if len(self.pre_batch) > 0:
                     if start.shape[0] == self.pre_batch[-1][0].shape[0]:
-                        # self.pre_batch.append([gold_start.clone().detach(), gold_end.clone().detach()])
-                        self.pre_batch.append([all_start.clone().detach(), all_end.clone().detach()])
+                        self.pre_batch.append([gold_start.clone().detach(), gold_end.clone().detach()])
                 else:
-                    # self.pre_batch.append([gold_start.clone().detach(), gold_end.clone().detach()])
-                    self.pre_batch.append([all_start.clone().detach(), all_end.clone().detach()])
+                    self.pre_batch.append([gold_start.clone().detach(), gold_end.clone().detach()])
 
             outputs = (total_loss,) + outputs
         return outputs  # (loss), start_logits, end_logits, filter_start_logits, filter_end_logits
@@ -454,7 +392,7 @@ class DensePhrases(PreTrainedModel):
         end_logits = query_end.matmul(end_vecs.transpose(1, 2)).squeeze(1)
         logits = start_logits + end_logits
 
-        # MML over targets
+        # L_phrase: MML over phrase-level annotation
         log_probs = 0.0
         MIN_PROB = 1e-7
         if not all([len(t) == 0 for t in targets]):
@@ -475,7 +413,7 @@ class DensePhrases(PreTrainedModel):
             ]
             log_probs = log_probs + sum(start_loss)/len(start_loss) + sum(end_loss)/len(end_loss)
 
-        # Passage-level start/end loss
+        # L_doc: MML over passage-level annotation
         if not all([len(t) == 0 for t in p_targets]):
             p_start_logits = start_logits.clone()
             for b_idx, p_start_logit in enumerate(p_start_logits):

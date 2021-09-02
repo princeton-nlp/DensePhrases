@@ -256,11 +256,8 @@ def write_phrases(all_examples, all_features, all_results, max_answer_length, do
         condition = len(features) > 0 and example.par_idx == 0 and feature.span_idx == 0
 
         if condition:
-            # print('put')
-            # in_ = (id2example_, features, results)
             in_ = (features, results)
             inqueue.put(in_)
-            # import pdb; pdb.set_trace()
             prev_ex = id2example[results[0].unique_id]
             if prev_ex.doc_idx % 200 == 0:
                 logger.info(f'saving {len(features)} features from doc {prev_ex.title} (doc_idx: {prev_ex.doc_idx})')
@@ -273,14 +270,11 @@ def write_phrases(all_examples, all_features, all_results, max_answer_length, do
         else:
             features.append(feature)
             results.append(result)
-    # in_ = (id2example, features, results)
     in_ = (features, results)
     inqueue.put(in_)
     for _ in range(NUM_THREAD):
         inqueue.put(None)
 
-    # p.join()
-    # write_p.join()
     for in_p in in_p_list:
         in_p.join()
     for out_p in out_p_list:
@@ -292,8 +286,6 @@ def write_phrases(all_examples, all_features, all_results, max_answer_length, do
         print(k, v)
     for k, v in stats.items():
         print(k, v)
-    '''
-    '''
 
 
 def get_question_results(question_examples, query_eval_features, question_dataloader, device, model, batch_size):
