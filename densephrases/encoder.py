@@ -368,7 +368,7 @@ class DensePhrases(PreTrainedModel):
         self,
         input_ids_=None, attention_mask_=None, token_type_ids_=None,
         start_vecs=None, end_vecs=None,
-        targets=None, p_targets=None, # TODO: reimplement p_targets supervision
+        targets=None, p_targets=None,
     ):
         # Skip if no targets for phrases
         if start_vecs is not None:
