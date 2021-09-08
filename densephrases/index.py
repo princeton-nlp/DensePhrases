@@ -119,6 +119,14 @@ class MIPS(object):
     def get_idxs(self, I):
         # use max_idx 1e9 for IVFPQ 1048576
         max_idx = self.max_idx
+
+        if any([(idx < 0) or (idx >= self.index.ntotal) for ii in I for idx in ii]):
+            logger.info("index out of range!")
+            for ii in I:
+                for idx in ii:
+                    if (idx < 0) or (idx >= self.index.ntotal): print(idx, end=' ')
+            I = np.clip(I, a_min=0, a_max=self.index.ntotal-1) 
+            
         offsets = (I / max_idx).astype(np.int64) * int(max_idx)
         idxs = I % int(max_idx)
         doc = np.array(
@@ -373,7 +381,7 @@ class MIPS(object):
             'start_vec': start_vecs[group_idx] if return_idxs else None,
             'end_vec': end_vecs[group_idx] if return_idxs else None,
             } if doc_idx >= 0 else {
-                'score': -1e8, 'context': 'dummy', 'start_pos': 0, 'end_pos': 0}
+                'score': -1e8, 'context': 'dummy', 'start_pos': 0, 'end_pos': 0, 'title': ['']}
             for group_idx, (doc_idx, start_idx, end_idx, score) in enumerate(zip(
                 doc_idxs.tolist(), start_idxs.tolist(), end_idxs.tolist(), max_scores.tolist()))
         ]
