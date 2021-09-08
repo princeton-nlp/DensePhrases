@@ -327,6 +327,7 @@ if __name__ == '__main__':
     parser.add_argument('--is_kilt', default=False, action='store_true')
     parser.add_argument('--kilt_gold_path', default='kilt/trex/trex-dev-kilt.jsonl')
     parser.add_argument('--title2wikiid_path', default='wikidump/title2wikiid.json')
+    parser.add_argument('--label_strat', default='dummy')
     
     # Serving options
     parser.add_argument('--examples_path', default='examples.txt')
