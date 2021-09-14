@@ -1,0 +1,427 @@
+include Makefile
+
+############################## Single-passage Training + Normalization ###################################
+
+# Dataset paths for single-passage training (QG, train, dev, semi-od)
+multi-single-data:
+	$(eval TRAIN_DATA=nq-wq-trec-tqa-sqd_train.json)
+	$(eval DEV_DATA=nq/dev_wiki3.json)
+	$(eval SOD_DATA=open-qa/nq-open/dev_wiki3_open.json)
+wq-single-data:
+	$(eval TRAIN_DATA=webq/webq-train_ds.json)
+	$(eval DEV_DATA=webq/webq-dev_ds.json)
+	$(eval SOD_DATA=open-qa/webq/WebQuestions-dev_preprocessed.json)
+	$(eval OPTIONS=--truecase)
+trec-single-data:
+	$(eval TRAIN_DATA=trec/trec-train_ds.json)
+	$(eval DEV_DATA=trec/trec-dev_ds.json)
+	$(eval SOD_DATA=open-qa/trec/CuratedTrec-dev_preprocessed.json)
+	$(eval OPTIONS=--regex)
+tqa-single-data:
+	$(eval TRAIN_DATA=tqa/tqa-train_ds.json)
+	$(eval DEV_DATA=tqa/tqa-dev_ds.json)
+	$(eval SOD_DATA=open-qa/triviaqa-unfiltered/dev_preprocessed.json)
+	
+# $(eval OPTIONS=--truecase)
+# Command with default setting. Use train-single-nq instead.
+my-train-single:
+	python -m densephrases.experiments.run_single \
+		--model_type bert \
+		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
+		--data_dir $(DPH_DATA_DIR)/single-qa \
+		--cache_dir $(DPH_CACHE_DIR) \
+		--train_file $(TRAIN_DATA) \
+		--predict_file $(DEV_DATA) \
+		--per_gpu_train_batch_size $(BS) \
+		--learning_rate $(LR) \
+		--num_train_epochs 2.0 \
+		--max_seq_length $(MAX_SEQ_LEN) \
+		--fp16 \
+		--do_eval \
+		--lambda_kl $(LAMBDA_KL) \
+		--lambda_neg $(LAMBDA_NEG) \
+		--lambda_flt 1.0 \
+		--filter_threshold 1.0 \
+		--append_title \
+		--evaluate_during_training \
+		--load_dir $(DPH_SAVE_DIR)/$(MODEL_NAME) \
+		--teacher_dir $(DPH_SAVE_DIR)/$(TEACHER_NAME) \
+		--output_dir $(DPH_SAVE_DIR)/$(MODEL_NAME)_1 \
+		--overwrite_cache \
+		$(OPTIONS)
+
+		--do_train \
+
+train-single-multi: model-name multi-single-data nqsqd-param pbn-param
+	make -f makefile.local my-train-single \
+		TRAIN_DATA=$(TRAIN_DATA) DEV_DATA=$(DEV_DATA) \
+		TEACHER_NAME=$(TEACHER_NAME) MODEL_NAME=$(MODEL_NAME) \
+		BS=$(BS) LR=$(LR) MAX_SEQ_LEN=$(MAX_SEQ_LEN) \
+		LAMBDA_KL=$(LAMBDA_KL) LAMBDA_NEG=$(LAMBDA_NEG) \
+		OPTIONS='$(PBN_OPTIONS) --do_dump --load_dir $(DPH_SAVE_DIR)/dph-nqsqd3-pb2_tmp'
+	make index-sod
+	make eval-sod SOD_DATA=$(SOD_DATA) OPTIONS=$(OPTIONS)
+
+eval-single: model-name nq-single-data nq-param
+	make -f makefile.local my-train-single \
+		TRAIN_DATA=$(TRAIN_DATA) DEV_DATA=$(DEV_DATA) \
+		TEACHER_NAME=$(TEACHER_NAME) MODEL_NAME=$(MODEL_NAME) \
+		BS=$(BS) LR=$(LR) MAX_SEQ_LEN=$(MAX_SEQ_LEN) \
+		LAMBDA_KL=$(LAMBDA_KL) LAMBDA_NEG=$(LAMBDA_NEG) \
+		OPTIONS='$(PBN_OPTIONS) --do_dump' # --load_dir $(DPH_SAVE_DIR)/dph-nqsqd3-multi5-pb2'
+	make index-sod
+	make eval-sod SOD_DATA=$(SOD_DATA) OPTIONS=$(OPTIONS)
+
+############################## Open-domain Search & Query-side Fine-tuning ###################################
+	# $(eval OPTIONS=--truecase)
+
+multi-open-data:
+	$(eval TRAIN_DATA=open-qa/multi_nq-wq-trec-tqa-sqd.json)
+	$(eval DEV_DATA=open-qa/nq-open/dev_preprocessed.json)
+	$(eval TEST_DATA=open-qa/nq-open/test_preprocessed.json)
+lama-open-data:
+	$(eval TRAIN_DATA=lama/lama-train_preprocessed.json)
+	$(eval DEV_DATA=lama/nq-lama-dev_preprocessed.json)
+	$(eval TEST_DATA=lama/lama-test-P19_preprocessed.json)
+	$(eval OPTIONS=--truecase)
+nqlama-open-data:
+	$(eval TRAIN_DATA=lama/nq-lama-train_fixed_preprocessed.json)
+	$(eval DEV_DATA=lama/nq-lama-dev_fixed_preprocessed.json)
+	$(eval TEST_DATA=lama/lama-test-P19_preprocessed.json)
+	$(eval OPTIONS=--truecase)
+wqsp-open-data:
+	$(eval TRAIN_DATA=webq-sp/data/WebQSP.train_preprocessed.json)
+	$(eval DEV_DATA=webq-sp/data/WebQSP.test_preprocessed.json)
+	$(eval TEST_DATA=webq-sp/data/WebQSP.test_preprocessed.json)
+	$(eval OPTIONS=--truecase --candidate_path $(DPH_DATA_DIR)/open-qa/webq/freebase-entities.txt)
+nqqg-open-data:
+	$(eval TRAIN_DATA=open-qa/nq-open/train_wiki3_na_filtered_qg_t5l35-sqd_filtered_preprocessed.json)
+	$(eval DEV_DATA=open-qa/nq-open/dev_preprocessed.json)
+	$(eval TEST_DATA=open-qa/nq-open/test_preprocessed.json)
+	$(eval OPTIONS=--truecase)
+paq-open-data:
+	$(eval TRAIN_DATA=paq/PAQ/PAQ.filtered_preprocessed.json)
+	$(eval DEV_DATA=open-qa/nq-open/dev_preprocessed.json)
+	$(eval TEST_DATA=open-qa/nq-open/test_preprocessed.json)
+	$(eval OPTIONS=--truecase --draft)
+trex-new-open-data:
+	$(eval TRAIN_DATA=trex-new/trex-train_preprocessed.json)
+	$(eval DEV_DATA=trex-new/trex-dev-all_preprocessed.json)
+	$(eval TEST_DATA=trex-new/trex-test-all_preprocessed.json)
+	$(eval OPTIONS=--truecase)
+all-open-data:
+	$(eval TEST_DATA=$(DPH_DATA_DIR)/open-qa/nq-open/dev_wiki3_open.json)
+	$(eval TEST_DATA=$(TEST_DATA),$(DPH_DATA_DIR)/open-qa/nq-open/test_preprocessed.json)
+	$(eval TEST_DATA=$(TEST_DATA),$(DPH_DATA_DIR)/open-qa/webq/WebQuestions-test_preprocessed.json)
+	$(eval TEST_DATA=$(TEST_DATA),$(DPH_DATA_DIR)/open-qa/trec/CuratedTrec-test_preprocessed.json)
+	$(eval TEST_DATA=$(TEST_DATA),$(DPH_DATA_DIR)/open-qa/triviaqa-unfiltered/test_preprocessed.json)
+	$(eval TEST_DATA=$(TEST_DATA),$(DPH_DATA_DIR)/open-qa/squad/test_preprocessed.json)
+	$(eval TEST_DATA=$(TEST_DATA),$(DPH_DATA_DIR)/trex-new/trex-test-all_preprocessed.json)
+	$(eval OPTIONS=--truecase)
+trex-all-data:
+	$(eval TEST_DATA=$(DPH_DATA_DIR)/trex-new/trex-test-P19_preprocessed.json)
+	$(eval TEST_DATA=$(TEST_DATA),$(DPH_DATA_DIR)/lama/lama-test-P19_preprocessed.json)
+	$(eval TEST_DATA=$(TEST_DATA),$(DPH_DATA_DIR)/lama/lama-test-P20_preprocessed.json)
+	$(eval TEST_DATA=$(TEST_DATA),$(DPH_DATA_DIR)/trex-new/trex-test-P20_preprocessed.json)
+	$(eval TEST_DATA=$(TEST_DATA),$(DPH_DATA_DIR)/trex-new-notemp/trex-test-all_preprocessed.json)
+tmp1:
+	$(eval TEST_DATA=$(DPH_DATA_DIR)/trex-new/trex-test-all_preprocessed.json)
+	$(eval TEST_DATA=$(TEST_DATA),$(DPH_DATA_DIR)/trex-new/trex-test-P20_preprocessed.json)
+	$(eval TEST_DATA=$(TEST_DATA),$(DPH_DATA_DIR)/trex-new/trex-test-P413_preprocessed.json)
+	$(eval TEST_DATA=$(TEST_DATA),$(DPH_DATA_DIR)/trex-new/trex-test-P176_preprocessed.json)
+	$(eval TEST_DATA=$(TEST_DATA),$(DPH_DATA_DIR)/trex-new/trex-test-P407_preprocessed.json)
+	$(eval TEST_DATA=$(TEST_DATA),$(DPH_DATA_DIR)/trex-new/trex-test-P30_preprocessed.json)
+	$(eval TEST_DATA=$(TEST_DATA),$(DPH_DATA_DIR)/trex-new/trex-test-P136_preprocessed.json)
+	$(eval TEST_DATA=$(TEST_DATA),$(DPH_DATA_DIR)/trex-new/trex-test-P17_preprocessed.json)
+	$(eval TEST_DATA=$(TEST_DATA),$(DPH_DATA_DIR)/trex-new/trex-test-P264_preprocessed.json)
+	$(eval TEST_DATA=$(TEST_DATA),$(DPH_DATA_DIR)/trex-new/trex-test-P276_preprocessed.json)
+	$(eval TEST_DATA=$(TEST_DATA),$(DPH_DATA_DIR)/trex-new/trex-test-P127_preprocessed.json)
+	$(eval TEST_DATA=$(TEST_DATA),$(DPH_DATA_DIR)/trex-new/trex-test-P495_preprocessed.json)
+	$(eval TEST_DATA=$(TEST_DATA),$(DPH_DATA_DIR)/trex-new/trex-test-P159_preprocessed.json)
+	$(eval TEST_DATA=$(TEST_DATA),$(DPH_DATA_DIR)/trex-new/trex-test-P740_preprocessed.json)
+	$(eval OPTIONS=--truecase)
+tmp:
+	$(eval OPTIONS=--truecase)
+	$(eval TEST_DATA=$(DPH_DATA_DIR)/open-qa/nq-open/dev_preprocessed.json)
+	$(eval TEST_DATA=$(TEST_DATA),$(DPH_DATA_DIR)/open-qa/nq-open/dev_wiki3_open.json)
+	$(eval TEST_DATA=$(TEST_DATA),$(DPH_DATA_DIR)/open-qa/nq-open/dev_sub_open.json)
+kilt-open-data:
+	$(eval TRAIN_DATA=/n/fs/nlp-awettig/decomposable-qa/kilt/kilt-combined-train-15k_open.json)
+	$(eval DEV_DATA=/n/fs/nlp-awettig/decomposable-qa/kilt/kilt-combined-dev-2k_open.json)
+	$(eval TEST_DATA=open-qa/nq-open/test_preprocessed.json)
+	$(eval OPTIONS=--truecase)
+
+fev-open-data:
+	$(eval TRAIN_DATA=/n/fs/nlp-awettig/decomposable-qa/kilt/fever-train-kilt_open.json)
+	$(eval DEV_DATA=/n/fs/nlp-awettig/decomposable-qa/kilt/fever-dev-kilt_open.json)
+	$(eval TEST_DATA=/n/fs/nlp-awettig/decomposable-qa/kilt/fever-dev-kilt_open.json)
+	$(eval OPTIONS=--truecase)
+
+nq-14-data:
+	$(eval TRAIN_DATA=open-qa/nq-open/test_preprocessed.json)
+	$(eval DEV_DATA=open-qa/nq-open/test_preprocessed.json)
+	$(eval TEST_DATA=open-qa/nq-open/test_preprocessed.json)
+	$(eval OPTIONS=--truecase)
+eqa-14-data:
+	$(eval TRAIN_DATA=trex-new/trex-test-all_preprocessed.json)
+	$(eval DEV_DATA=trex-new/trex-test-all_preprocessed.json)
+	$(eval TEST_DATA=trex-new/trex-test-all_preprocessed.json)
+
+eval-od-all: dump-dir model-name all-open-data
+	python -m densephrases.experiments.run_open \
+		--run_mode eval_all \
+		--model_type bert \
+		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
+		--cuda \
+		--eval_batch_size 64 \
+		--dump_dir $(DUMP_DIR) \
+		--index_dir start/1048576_flat_PQ96_OPQ \
+		--query_encoder_path $(DPH_SAVE_DIR)/$(MODEL_NAME) \
+		--test_path $(TEST_DATA) \
+		--save_pred \
+		--aggregate \
+		--top_k 200 \
+		$(OPTIONS)
+
+		--index_name phrase_index_744500_km90_flat.faiss \
+		--idx2id_name idx2phrase_744500_km90_flat.pkl \
+		# OPQ w/o residual
+		--index_name phrase_index_503471_km90_wh.faiss \
+		--idx2id_name idx2phrase_503471_km90_wh.pkl \
+		# OPQ
+		--index_name phrase_index_503415_km90_flat.faiss \
+		--idx2id_name idx2phrase_503415_km90_flat.pkl \
+		--save_pred \
+
+# Test-time Query-side fine-tuning
+test-query: dump-dir model-name eqa-14-data large-index
+	python train_query.py \
+		--run_mode test_query \
+		--cache_dir $(CACHE_DIR) \
+		--train_path $(DATA_DIR)/$(TRAIN_DATA) \
+		--dev_path $(DATA_DIR)/$(DEV_DATA) \
+		--test_path $(DATA_DIR)/$(TEST_DATA) \
+		--per_gpu_train_batch_size 12 \
+		--eval_batch_size 12 \
+		--learning_rate 3e-5 \
+		--num_train_epochs 5 \
+		--dump_dir $(DUMP_DIR) \
+		--index_dir start/$(NUM_CLUSTERS)_flat_$(INDEX_TYPE) \
+		--query_encoder_path $(SAVE_DIR)/densephrases-multi-query-nq \
+		--output_dir $(SAVE_DIR)/$(MODEL_NAME) \
+		--top_k 100 \
+		--cuda \
+		--save_pred \
+		$(OPTIONS)
+
+# Get hard negatives
+get-hard-neg: dump-dir model-name large-index paq-rc-data
+	python eval_phrase_retrieval.py \
+		--run_mode get_hard_neg \
+		--model_type bert \
+		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
+		--cuda \
+		--dump_dir $(DUMP_DIR) \
+		--index_dir start/$(NUM_CLUSTERS)_flat_PQ96_OPQ \
+		--query_encoder_path $(SAVE_DIR)/$(MODEL_NAME) \
+		--test_path $(DATA_DIR)/single-qa/$(TRAIN_DATA) \
+		--save_pred \
+		--aggregate \
+		--agg_strat opt2 \
+		$(OPTIONS)
+
+############################## Data Pre/Post-processing ###################################
+
+gather-phrases: nq-single-data
+	python -m densephrases.scripts.dump.gather_phrases \
+		--dump_dir $(DUMP_DIR)/phrase \
+		--doc_group_path $(DUMP_DIR)/dph_meta_compressed.pkl \
+		--output_dir $(DUMP_DIR) \
+		--min_phrase_freq 0 \
+		--penalty_ngram 0 \
+		--test_path $(DPH_DATA_DIR)/$(SOD_DATA)
+
+query-phrases:
+	python -m densephrases.experiments.query_phrases \
+		--dump_dir $(DUMP_DIR) \
+		--doc_group_path $(DUMP_DIR)/dph_meta_compressed.pkl \
+		--phrase_path $(DUMP_DIR)/phrases_min0_ngram0.pkl \
+		--output_dir $(DUMP_DIR) \
+		--index_dir start/256_flat_PQ96_8 \
+		--aggregate \
+		--cuda \
+
+		--test_path $(TEST_DATA)
+		--debug \
+
+# TODO copying h5py + remove does not decrease the file size
+remove-phrases: model-name
+	mkdir -p $(DUMP_DIR)-$(SIZE)/
+	cp -r $(DUMP_DIR)/phrase $(DUMP_DIR)-$(SIZE)/
+	du -sch $(DUMP_DIR)/phrase $(DUMP_DIR)-$(SIZE)/phrase
+	python -m densephrases.scripts.dump.remove_phrases \
+		--dump_dir $(DUMP_DIR)-$(SIZE)/phrase \
+		--doc_group_path $(DUMP_DIR)/dph_meta_compressed.pkl \
+		--remove_path $(DUMP_DIR)/start/131072_flat_PQ96_8/remove_idxs_$(SIZE).pkl
+	du -sch $(DUMP_DIR)/phrase $(DUMP_DIR)-$(SIZE)/phrase
+	make compress-meta DUMP_DIR=$(DUMP_DIR)-$(SIZE)
+	make index-large-pq DUMP_DIR=$(DUMP_DIR)-$(SIZE)
+	make eval-dump DUMP_DIR=$(DUMP_DIR)-$(SIZE) MODEL_NAME=$(MODEL_NAME)
+
+eval-phrases: nq-single-data
+	python -m densephrases.experiments.run_phrase \
+		--dump_dir $(DUMP_DIR) \
+		--index_dir start/1048576_flat_PQ96_8 \
+		--phrase_index_name phrase_index_$(SIZE).faiss \
+		--idx2phrase_name idx2phrase_$(SIZE).pkl \
+		--orig_phrase_name phrase_vecs_476303.pkl \
+		--query_path /n/fs/nlp-jl5167/nq-dev-wiki3_qvecs.pkl \
+		--test_path $(DPH_DATA_DIR)/$(SOD_DATA)
+
+train-phrases: nq-open-data
+	python -m densephrases.experiments.run_phrase \
+		--dump_dir $(DUMP_DIR) \
+		--index_dir start/1048576_flat_PQ96_8 \
+		--phrase_index_name phrase_index_$(SIZE).faiss \
+		--idx2phrase_name idx2phrase_$(SIZE).pkl \
+		--query_encoder_path $(DPH_SAVE_DIR)/dph-nqsqd3-multi5-pb2 \
+		--train_path $(DPH_DATA_DIR)/$(TRAIN_DATA) \
+		--dev_path $(DPH_DATA_DIR)/$(DEV_DATA) \
+		--test_path $(DPH_DATA_DIR)/$(TEST_DATA)
+
+# Deprecated
+filter-phrases: nq-single-data
+	python -m densephrases.scripts.dump.filter_phrases \
+		--dump_dir $(DUMP_DIR)/phrase \
+		--doc_group_path $(DUMP_DIR)/dph_meta_compressed.pkl \
+		--phrase_path $(DUMP_DIR)/phrases_min5.pkl \
+		--output_dir $(DUMP_DIR) \
+		--test_path $(DPH_DATA_DIR)/$(SOD_DATA)
+
+		--freq_filter \
+		--rand_filter \
+
+# Deprecated
+index-phrase: dump-dir
+	python -m densephrases.experiments.create_index_phrase \
+		$(DUMP_DIR) all \
+		--num_clusters 131072 \
+		--fine_quant SQ4 \
+		--cuda \
+		--phrase_path phrases_ngram5-freq5_randln.pkl
+
+		--replace \
+################################ Demo Serving ###################################
+d-serve:
+	nohup python -m densephrases.demo.serve \
+		--run_mode d_serve \
+		--dump_dir $(DUMP_DIR) \
+		--doc_ranker_name 20181220_concat-tfidf-ngram=2-hash=16777216-tokenizer=simple.npz \
+		--doc_port $(D_PORT) > $(DPH_SAVE_DIR)/logs/d-serve_$(D_PORT).log &
+
+recall-dir:
+	$(eval RECALL_DIR=/n/fs/nlp-jl5167/dph-recall)
+recall-eval: model-name
+	python scripts/recall_transform.py \
+		--model_dir $(SAVE_DIR)/$(MODEL_NAME) \
+		--pred_file $(PRED_FILE)
+
+# python scripts/recall --k_values 1,5,20,100 --results_file $(SAVE_DIR)/$(MODEL_NAME)/pred/$(PRED_FILE)_top100_psg.json --ans_fn string
+
+recall-eval-batch: recall-dir
+	python -m densephrases.scripts.recall --k_values 1,5,20,100 --results_file $(RECALL_DIR)/pt_dpr_nq__nq.dev.json --ans_fn string
+	python -m densephrases.scripts.recall --k_values 1,5,20,100 --results_file $(RECALL_DIR)/pt_dpr_nq__nq.test.jsonl --jsonl --ans_fn string
+	python -m densephrases.scripts.recall --k_values 1,5,20,100 --results_file $(RECALL_DIR)/dph-nqqg-pb2_opq96-nq_test_preprocessed_3610_top100.json --ans_fn string
+	python -m densephrases.scripts.recall --k_values 1,5,20,100 --results_file $(RECALL_DIR)/dph-nqsqd3-multi5-pb2_dwr-opq96-nq-re_test_preprocessed_3610_top100.json --ans_fn string
+	python -m densephrases.scripts.recall --k_values 1,5,20,100 --results_file $(RECALL_DIR)/dph-nqsqd3-multi5-pb2_dwr-opq96-tqa_test_preprocessed_11313_top100.json --ans_fn string
+	python -m densephrases.scripts.recall --k_values 1,5,20,100 --results_file $(RECALL_DIR)/pt_dpr_multi__nq.test.json --ans_fn string
+	python -m densephrases.scripts.recall --k_values 1,5,20,100 --results_file $(RECALL_DIR)/pt_dpr_multi__tqa.test.json --ans_fn string
+
+tmp-analysis:
+	python -m densephrases.scripts.recall --k_values 1,5,20,100 --results_file $(RECALL_DIR)/rt_dpr_nq_singlemodel__nq.test.json --ans_fn string
+	python -m densephrases.scripts.recall --k_values 1,5,20,100 --results_file $(RECALL_DIR)/rt_dpr_nq_qsft_nq_hnsw_fl__nq.test.json --ans_fn string
+	python -m densephrases.scripts.recall --k_values 1,5,20,100 --results_file $(FS)/fid-data/NQ/test.json --ans_fn string
+	python -m densephrases.scripts.recall --k_values 1,5,20,100 --results_file $(RECALL_DIR)/dph-nqsqd3-multi5-pb2_dwr-opq96-nq-topic_top100.json --ans_fn string
+	python -m densephrases.scripts.recall --k_values 1,5,20,100 --results_file $(RECALL_DIR)/dph-nqsqd3-multi5-pb2_dwr-opq96-nq-re_top100.json --ans_fn string
+	python -m densephrases.scripts.recall --k_values 1,5,20,100 --results_file $(RECALL_DIR)/dph-nqqg-pb2_opq96-nq_top100.json --ans_fn string
+	python densephrases/scripts/recall_transform.py dph-nqqg-pb2_opq96-nq
+	python -m densephrases.scripts.recall --k_values 1,5,20,100 --results_file $(RECALL_DIR)/dph-p100-dd-merge-tr100.json --ans_fn string
+	python -m densephrases.scripts.recall --k_values 1,5,20,100 --results_file dph-p100-dd-tr100.json --ans_fn string
+	python -m densephrases.scripts.recall --k_values 1,5,20,100 --results_file dph-p100.json --ans_fn string
+
+sample-pairs:
+	python -m densephrases.scripts.preprocess.sample_pairs \
+		/n/fs/nlp-jl5167/dph-data/wikidump/dpr_wiki.json \
+		/n/fs/nlp-jl5167/dph-data/single-qa/nq/dev_wiki3.json \
+		--output_path /n/fs/nlp-jl5167/dph-data/nq-dev_p-pairs_hard2.json
+
+bm25-negatives:
+	python -m densephrases.scripts.preprocess.bm25_negatives \
+		/n/fs/nlp-jl5167/dph-data/single-qa/nq/train_wiki3.json \
+		/n/fs/nlp-jl5167/DPR-data/nq/biencoder-nq-train.json \
+		/n/fs/nlp-jl5167/dph-data/wikidump/dpr_wiki.json \
+		--output_path /n/fs/nlp-jl5167/dph-data/single-qa/nq/train_wiki3_bm25.json
+
+phrase-negatives:
+	python -m densephrases.scripts.preprocess.phrase_negatives \
+		/n/fs/nlp-jl5167/dph-data/single-qa/nq/train_wiki3.json \
+		/n/fs/nlp-jl5167/dph-data/wikidump/dpr_wiki.json \
+		--output_path /n/fs/nlp-jl5167/dph-data/single-qa/nq/train_wiki3_phrase.json
+
+run-analysis:
+	python -m densephrases.experiments.run_analysis \
+		--model_type bert \
+		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
+		--data_dir $(DPH_DATA_DIR)/single-qa \
+		--cache_dir $(DPH_CACHE_DIR) \
+		--pair_file $(PAIR_DATA) \
+		--do_analysis \
+		--max_seq_length 512 \
+		--doc_stride 500 \
+		--filter_threshold -2 \
+		--append_title \
+		--load_dir $(DPH_SAVE_DIR)/$(MODEL_NAME)
+
+pair-data:
+	$(eval PAIR_DATA=/n/fs/nlp-jl5167/dph-data/nq-dev_p-pairs_syn.json)
+batch-analysis: pair-data
+	make -f makefile.local run-analysis PAIR_DATA=$(PAIR_DATA) MODEL_NAME=dph-nqsqd3-multi5-pb2_opq96-kilt-new
+	make -f makefile.local run-analysis PAIR_DATA=$(PAIR_DATA) MODEL_NAME=dph-nq_kl0-neg0
+	make -f makefile.local run-analysis PAIR_DATA=$(PAIR_DATA) MODEL_NAME=dph-nq_kl0-neg4-s0
+	make -f makefile.local run-analysis PAIR_DATA=$(PAIR_DATA) MODEL_NAME=dph-nq_kl0-neg4
+	make -f makefile.local run-analysis PAIR_DATA=$(PAIR_DATA) MODEL_NAME=dph-nqqg-pb2_opq96-nq
+	make -f makefile.local run-analysis PAIR_DATA=$(PAIR_DATA) MODEL_NAME=dph-nqsqd3-multi5-pb2
+	make -f makefile.local run-analysis PAIR_DATA=$(PAIR_DATA) MODEL_NAME=dph-nqsqd3-multi5-pb2_dwr-opq96-nq-re
+	make -f makefile.local run-analysis PAIR_DATA=$(PAIR_DATA) MODEL_NAME=dph-nqsqd3-multi5-pb2_dwr-opq96-multi5
+
+tmptmp:
+	make -f makefile.local run-analysis PAIR_DATA=$(PAIR_DATA) MODEL_NAME=dph-nqqg-bm25-pb2-ctrl
+	make -f makefile.local run-analysis PAIR_DATA=$(PAIR_DATA) MODEL_NAME=dph-nqqg-phrase-pb2-ctrl
+	make -f makefile.local run-analysis PAIR_DATA=$(PAIR_DATA) MODEL_NAME=dph-nqqg-rand-pb2
+	make -f makefile.local run-analysis PAIR_DATA=$(PAIR_DATA) MODEL_NAME=dph-nqsqd3-pb2_tmp
+	make -f makefile.local run-analysis PAIR_DATA=$(PAIR_DATA) MODEL_NAME=dph-nq_kl0-neg0
+	make -f makefile.local run-analysis PAIR_DATA=$(PAIR_DATA) MODEL_NAME=dph-nq_kl2-neg0
+	make -f makefile.local run-analysis PAIR_DATA=$(PAIR_DATA) MODEL_NAME=dph-nq_kl0-neg4-s0
+	make -f makefile.local run-analysis PAIR_DATA=$(PAIR_DATA) MODEL_NAME=dph-nq_kl0-neg4-b16
+	make -f makefile.local run-analysis PAIR_DATA=$(PAIR_DATA) MODEL_NAME=dph-nq_kl0-neg4-b32
+	make -f makefile.local run-analysis PAIR_DATA=$(PAIR_DATA) MODEL_NAME=dph-nq_kl0-neg4
+	make -f makefile.local run-analysis PAIR_DATA=$(PAIR_DATA) MODEL_NAME=dph-nq_kl2-neg4
+	make -f makefile.local run-analysis PAIR_DATA=$(PAIR_DATA) MODEL_NAME=dph-nqqg-pb2_tmp
+	make -f makefile.local run-analysis PAIR_DATA=$(PAIR_DATA) MODEL_NAME=dph-nqqg-pb2
+	make -f makefile.local run-analysis PAIR_DATA=$(PAIR_DATA) MODEL_NAME=dph-nqsqd3-multi5-pb2_pq96-nq
+	make -f makefile.local run-analysis PAIR_DATA=$(PAIR_DATA) MODEL_NAME=dph-nqsqd3-multi5-pb2_pq96-multi5
+
+
+run-analysis-dpr: pair-data
+	python -m densephrases.experiments.run_analysis_dpr \
+		model_file=/n/fs/nlp-jl5167/DPR-data/models/$(MODEL_NAME) \
+		pair_file=$(PAIR_DATA)
+
+batch-analysis-dpr: pair-data
+	make -f makefile.local run-analysis-dpr PAIR_DATA=$(PAIR_DATA) MODEL_NAME=bert-base-encoder.cp
+	make -f makefile.local run-analysis-dpr PAIR_DATA=$(PAIR_DATA) MODEL_NAME=bert-base-encoder-multi.cp
+	make -f makefile.local run-analysis-dpr PAIR_DATA=$(PAIR_DATA) MODEL_NAME=bert-base-encoder-rt.cp
+	make -f makefile.local run-analysis-dpr PAIR_DATA=$(PAIR_DATA) MODEL_NAME=bert-base-encoder-rt-nohard.cp
+
+tmp2:
+	make -f makefile.local run-analysis-dpr PAIR_DATA=$(PAIR_DATA) MODEL_NAME=bert-base-encoder-adv.cp
