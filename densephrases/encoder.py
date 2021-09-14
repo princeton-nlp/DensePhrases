@@ -221,14 +221,14 @@ class DensePhrases(PreTrainedModel):
             pinb_end_logits = None
             if self.pre_batch is not None:
                 if len(self.pre_batch) > 0:
-                    pre_start = torch.cat([pb[0] for pb in self.pre_batch], dim=0)
-                    pre_end = torch.cat([pb[1] for pb in self.pre_batch], dim=0)
+                    pre_start = torch.cat([pb[0] for pb in self.pre_batch], dim=1)
+                    pre_end = torch.cat([pb[1] for pb in self.pre_batch], dim=1)
                     pinb_start_logits = (all_query_start.unsqueeze(1) * pre_start.unsqueeze(0)).sum(-1).view(
                         all_query_start.shape[0], -1
-                    ).max(-1)[0]
+                    )
                     pinb_end_logits = (all_query_end.unsqueeze(1) * pre_end.unsqueeze(0)).sum(-1).view(
                         all_query_end.shape[0], -1
-                    ).max(-1)[0]
+                    )
 
             # Phrase-level in-batch
             gold_start = torch.stack(
