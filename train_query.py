@@ -274,73 +274,14 @@ def annotate_phrase_vecs(mips, q_ids, questions, answers, titles, phrase_groups,
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    # QueryEncoder
-    parser.add_argument('--model_type', default='bert', type=str)
-    parser.add_argument("--pretrained_name_or_path", default='SpanBERT/spanbert-base-cased', type=str)
-    parser.add_argument("--config_name", default="", type=str)
-    parser.add_argument("--tokenizer_name", default="", type=str)
-    parser.add_argument("--do_lower_case", default=False, action='store_true')
-    parser.add_argument('--max_query_length', default=64, type=int)
-    parser.add_argument("--cache_dir", default=None, type=str)
-    parser.add_argument("--query_encoder_path", default='', type=str)
-    parser.add_argument("--query_port", default='-1', type=str)
-
-    # PhraseIndex
-    parser.add_argument('--dump_dir', default='dump')
-    parser.add_argument('--phrase_dir', default='phrase')
-    parser.add_argument('--index_dir', default='256_flat_SQ4')
-    parser.add_argument('--index_name', default='index.faiss')
-    parser.add_argument('--idx2id_name', default='idx2id.hdf5')
-    parser.add_argument('--index_port', default='-1', type=str)
-
-    # These can be dynamically changed.
-    parser.add_argument('--max_answer_length', default=10, type=int)
-    parser.add_argument('--top_k', default=10, type=int)
-    parser.add_argument('--nprobe', default=256, type=int)
-    parser.add_argument('--aggregate', default=False, action='store_true')
-    parser.add_argument('--agg_strat', default='opt1', type=str)
-    parser.add_argument('--truecase', default=False, action='store_true')
-    parser.add_argument("--truecase_path", default='truecase/english_with_questions.dist', type=str)
-
-    # KILT
-    parser.add_argument('--is_kilt', default=False, action='store_true')
-    parser.add_argument('--kilt_gold_path', default='kilt/trex/trex-dev-kilt.jsonl')
-    parser.add_argument('--title2wikiid_path', default='wikidump/title2wikiid.json')
-    
-    # Serving options
-    parser.add_argument('--examples_path', default='examples.txt')
-
-    # Training query encoder
-    parser.add_argument('--train_path', default=None)
-    parser.add_argument('--per_gpu_train_batch_size', default=48, type=int)
-    parser.add_argument('--num_train_epochs', default=10, type=float)
-    parser.add_argument("--learning_rate", default=3e-5, type=float)
-    parser.add_argument("--warmup_steps", default=0.1, type=int)
-    parser.add_argument('--gradient_accumulation_steps', type=int, default=1)
-    parser.add_argument("--weight_decay", default=0.1, type=float, help="Weight decay if we apply some.")
-    parser.add_argument("--adam_epsilon", default=1e-8, type=float, help="Epsilon for Adam optimizer.")
-    parser.add_argument("--max_grad_norm", default=1.0, type=float, help="Max gradient norm.")
-    parser.add_argument('--label_strat', default='phrase', type=str, help="labeling scheme={phrase|doc|phrase,doc}")
-    parser.add_argument("--fp16", action="store_true", help="For fp16")
-    parser.add_argument('--output_dir', default=None, type=str)
-
-    # Evaluation
-    parser.add_argument('--dev_path', default='open-qa/nq-open/dev_preprocessed.json')
-    parser.add_argument('--test_path', default='open-qa/nq-open/test_preprocessed.json')
-    parser.add_argument('--candidate_path', default=None)
-    parser.add_argument('--regex', default=False, action='store_true')
-    parser.add_argument('--eval_batch_size', default=10, type=int)
-    parser.add_argument('--filter_threshold', default=None, type=float)
-
-    # Run mode
-    parser.add_argument('--run_mode', default='train_query')
-    parser.add_argument('--cuda', default=False, action='store_true')
-    parser.add_argument('--draft', default=False, action='store_true')
-    parser.add_argument('--debug', default=False, action='store_true')
-    parser.add_argument('--save_pred', default=False, action='store_true')
-    parser.add_argument('--seed', default=1992, type=int)
-    args = parser.parse_args()
+    # See options in densephrases.options
+    options = Options()
+    options.add_model_options()
+    options.add_index_options()
+    options.add_retrieval_options()
+    options.add_data_options()
+    options.add_qsft_options()
+    args = options.parse()
 
     # Seed for reproducibility
     random.seed(args.seed)
@@ -355,8 +296,8 @@ if __name__ == '__main__':
         train_query_encoder(args, mips)
 
         # Eval
-        args.query_encoder_path = args.output_dir
-        logger.info(f"Evaluating {args.query_encoder_path}")
+        args.load_dir = args.output_dir
+        logger.info(f"Evaluating {args.load_dir}")
         args.top_k = 10
         evaluate(args, mips)
 

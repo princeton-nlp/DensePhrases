@@ -20,6 +20,8 @@ from densephrases.utils.eval_utils import normalize_answer, f1_score, exact_matc
 from densephrases.utils.open_utils import load_query_encoder, load_phrase_index, get_query2vec, load_qa_pairs
 from densephrases.utils.kilt.eval import evaluate as kilt_evaluate
 from densephrases.utils.kilt.kilt_utils import store_data as kilt_store_data
+from densephrases import Options
+
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s', datefmt='%m/%d/%Y %H:%M:%S',
                     level=logging.INFO)
@@ -47,7 +49,7 @@ def evaluate(args, mips=None, query_encoder=None, tokenizer=None, q_idx=None):
     qids, questions, answers, _ = load_qa_pairs(args.test_path, args, q_idx)
 
     if query_encoder is None:
-        print(f'Query encoder will be loaded from {args.query_encoder_path}')
+        print(f'Query encoder will be loaded from {args.load_dir}')
         device = 'cuda' if args.cuda else 'cpu'
         query_encoder, tokenizer = load_query_encoder(device, args)
     query_vec = embed_all_query(questions, args, query_encoder, tokenizer)
@@ -185,10 +187,10 @@ def evaluate_results(predictions, qids, questions, answers, args, evidences, sco
     logger.info({f'redundancy of top{args.top_k}': redundant_topk})
 
     # Dump predictions
-    if len(args.query_encoder_path) == 0:
+    if len(args.load_dir) == 0:
         pred_dir = os.path.join(os.environ['SAVE_DIR'], 'pred')
     else:
-        pred_dir = os.path.join(args.query_encoder_path, 'pred')
+        pred_dir = os.path.join(args.load_dir, 'pred')
     if not os.path.exists(pred_dir):
         os.makedirs(pred_dir)
 
@@ -212,14 +214,14 @@ def evaluate_results_kilt(predictions, qids, questions, answers, args, evidences
     pred_wikipedia_ids = [[[title2wikiid[t] for t in title_] for title_ in title] for title in titles]
 
     # dump official predictions
-    if len(args.query_encoder_path) == 0:
+    if len(args.load_dir) == 0:
         pred_dir = os.path.join(os.environ['SAVE_DIR'], 'pred-kilt')
     else:
-        pred_dir = os.path.join(args.query_encoder_path, 'pred-kilt')
+        pred_dir = os.path.join(args.load_dir, 'pred-kilt')
     if not os.path.exists(pred_dir):
         os.makedirs(pred_dir)
     pred_official_path = os.path.join(
-        pred_dir, f'{args.query_encoder_path.split("/")[-1]}_' +
+        pred_dir, f'{args.load_dir.split("/")[-1]}_' +
         os.path.splitext(os.path.basename(args.test_path))[0] + f'_{total}.jsonl'
     )
     official_preds_to_save = []
@@ -294,59 +296,13 @@ def evaluate_results_kilt(predictions, qids, questions, answers, args, evidences
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    # QueryEncoder
-    parser.add_argument('--model_type', default='bert', type=str)
-    parser.add_argument("--pretrained_name_or_path", default='SpanBERT/spanbert-base-cased', type=str)
-    parser.add_argument("--config_name", default="", type=str)
-    parser.add_argument("--tokenizer_name", default="", type=str)
-    parser.add_argument("--do_lower_case", default=False, action='store_true')
-    parser.add_argument('--max_query_length', default=64, type=int)
-    parser.add_argument("--cache_dir", default=None, type=str)
-    parser.add_argument("--query_encoder_path", default='', type=str)
-    parser.add_argument("--query_port", default='-1', type=str)
-
-    # PhraseIndex
-    parser.add_argument('--dump_dir', default='dump')
-    parser.add_argument('--phrase_dir', default='phrase')
-    parser.add_argument('--index_dir', default='256_flat_SQ4')
-    parser.add_argument('--index_name', default='index.faiss')
-    parser.add_argument('--idx2id_name', default='idx2id.hdf5')
-    parser.add_argument('--index_port', default='-1', type=str)
-
-    # These can be dynamically changed.
-    parser.add_argument('--max_answer_length', default=10, type=int)
-    parser.add_argument('--top_k', default=10, type=int)
-    parser.add_argument('--nprobe', default=256, type=int)
-    parser.add_argument('--aggregate', default=False, action='store_true')
-    parser.add_argument('--agg_strat', default='opt1', type=str)
-    parser.add_argument('--truecase', default=False, action='store_true')
-    parser.add_argument("--truecase_path", default='truecase/english_with_questions.dist', type=str)
-
-    # KILT
-    parser.add_argument('--is_kilt', default=False, action='store_true')
-    parser.add_argument('--kilt_gold_path', default='kilt/trex/trex-dev-kilt.jsonl')
-    parser.add_argument('--title2wikiid_path', default='wikidump/title2wikiid.json')
-    parser.add_argument('--label_strat', default='dummy')
-    
-    # Serving options
-    parser.add_argument('--examples_path', default='examples.txt')
-
-    # Evaluation
-    parser.add_argument('--dev_path', default='open-qa/nq-open/dev_preprocessed.json')
-    parser.add_argument('--test_path', default='open-qa/nq-open/test_preprocessed.json')
-    parser.add_argument('--candidate_path', default=None)
-    parser.add_argument('--regex', default=False, action='store_true')
-    parser.add_argument('--eval_batch_size', default=64, type=int)
-
-    # Run mode
-    parser.add_argument('--run_mode', default='eval')
-    parser.add_argument('--cuda', default=False, action='store_true')
-    parser.add_argument('--draft', default=False, action='store_true')
-    parser.add_argument('--debug', default=False, action='store_true')
-    parser.add_argument('--save_pred', default=False, action='store_true')
-    parser.add_argument('--seed', default=1992, type=int)
-    args = parser.parse_args()
+    # See options in densephrases.options
+    options = Options()
+    options.add_model_options()
+    options.add_index_options()
+    options.add_retrieval_options()
+    options.add_data_options()
+    args = options.parse()
 
     # Seed for reproducibility
     random.seed(args.seed)
@@ -381,7 +337,7 @@ if __name__ == '__main__':
                 logger.info('Enable candidates for WebQuestions')
             em, _, _, _ = evaluate(new_args, mips, query_encoder, tokenizer)
             ems.append(f'{em:.1f}')
-        logger.info(f"Results of {args.query_encoder_path}")
+        logger.info(f"Results of {args.load_dir}")
         print(f'Top1 EMs: {" ".join(ems)}')
     
     else:

@@ -2,7 +2,7 @@ import argparse
 import json
 import os
 import random
-
+import logging
 import pickle
 import torch
 import faiss
@@ -11,46 +11,15 @@ import numpy as np
 from tqdm import tqdm
 
 from densephrases.utils.embed_utils import int8_to_float
+from densephrases import Options
+
+logger = logging.getLogger(__name__)
 
 
 def get_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('dump_dir')
-    parser.add_argument('stage')
-
-    # large-scale add option
-    parser.add_argument('--dump_paths', default=None,
-                        help='Relative to `dump_dir/phrase`. '
-                             'If specified, creates subindex dir and save there with same name')
-    parser.add_argument('--subindex_name', default='index', help='used only if dump_path is specified.')
-    parser.add_argument('--offset', default=0, type=int)
-
-    # relative paths in dump_dir/index_name
-    parser.add_argument('--quantizer_path', default='quantizer.faiss')
-    parser.add_argument('--trained_index_path', default='trained.faiss')
-    parser.add_argument('--index_path', default='index.faiss')
-    parser.add_argument('--idx2id_path', default='idx2id.hdf5')
-    parser.add_argument('--inv_path', default='merged.invdata')
-
-    # adding options
-    parser.add_argument('--add_all', default=False, action='store_true')
-
-    # coarse, fine, add
-    parser.add_argument('--num_clusters', type=int, default=16384)
-    parser.add_argument('--hnsw', default=False, action='store_true')
-    parser.add_argument('--fine_quant', default='SQ4',
-                        help='SQ4|PQ# where # is number of bytes per vector')
-    # stable params
-    parser.add_argument('--norm_th', default=999, type=float)
-    parser.add_argument('--para', default=False, action='store_true')
-    parser.add_argument('--doc_sample_ratio', default=0.2, type=float)
-    parser.add_argument('--vec_sample_ratio', default=0.2, type=float)
-    parser.add_argument('--cuda', default=False, action='store_true')
-    parser.add_argument('--replace', default=False, action='store_true')
-    parser.add_argument('--first_passage', default=False, action='store_true')
-    parser.add_argument('--num_docs_per_add', default=2000, type=int)
-
-    args = parser.parse_args()
+    options = Options()
+    options.add_index_options()
+    args = options.parse()
 
     coarse = 'hnsw' if args.hnsw else 'flat'
     args.index_name = f'{args.num_clusters}_{coarse}_{args.fine_quant}{"_first" if args.first_passage else ""}'
@@ -65,11 +34,11 @@ def get_args():
         args.index_path = os.path.join(args.index_dir, args.index_path)
         args.idx2id_path = os.path.join(args.index_dir, args.idx2id_path)
     else:
-        args.dump_paths = [os.path.join(args.dump_dir, 'phrase', path) for path in args.dump_paths.split(',')]
+        args.dump_paths = [os.path.join(args.dump_dir, args.phrase_dir, path) for path in args.dump_paths.split(',')]
         args.index_path = os.path.join(args.subindex_dir, '%d.faiss' % args.offset)
         args.idx2id_path = os.path.join(args.subindex_dir, '%d.hdf5' % args.offset)
 
-    print(f"Creating {args.index_name}...")
+    logger.info(f"Creating {args.index_name}...")
     return args
 
 
@@ -349,8 +318,10 @@ def merge_indexes(subindex_dir, trained_index_path, target_index_path, target_id
 
 
 def run_index(args):
-    dump_names = os.listdir(os.path.join(args.dump_dir, 'phrase'))
-    dump_paths = sorted([os.path.join(args.dump_dir, 'phrase', name) for name in dump_names if name.endswith('.hdf5')])
+    dump_names = os.listdir(os.path.join(args.dump_dir, args.phrase_dir))
+    dump_paths = sorted(
+        [os.path.join(args.dump_dir, args.phrase_dir, name) for name in dump_names if name.endswith('.hdf5')]
+    )
 
     data = None
     if args.stage in ['all', 'coarse']:

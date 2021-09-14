@@ -40,15 +40,16 @@ from transformers import (
 from densephrases.utils.squad_utils import SquadResult, load_and_cache_examples
 from densephrases.utils.single_utils import set_seed, to_list, to_numpy, backward_compat
 from densephrases.utils.squad_metrics import compute_predictions_log_probs, compute_predictions_logits, squad_evaluate
-from densephrases.encoder import DensePhrases
-
+from densephrases import DensePhrases
+from densephrases import Options
 
 logger = logging.getLogger(__name__)
 
 MODEL_CONFIG_CLASSES = list(MODEL_MAPPING.keys())
 MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
 ALL_MODELS = sum((tuple(conf.pretrained_config_archive_map.keys()) for conf in MODEL_CONFIG_CLASSES), (),)
-print(set([k.split('-')[0] for k in ALL_MODELS]))
+logger.info(f"Possible model types: {MODEL_TYPES}")
+logger.info(f"Possible models: {set([k.split('-')[0] for k in ALL_MODELS])}")
 
 
 def train(args, train_dataset, model, tokenizer):
@@ -433,254 +434,16 @@ def filter_test(args, model, tokenizer):
 
 
 def main():
-    parser = argparse.ArgumentParser()
-
-    # Required parameters
-    parser.add_argument(
-        "--model_type",
-        default=None,
-        type=str,
-        required=True,
-        help="Model type selected in the list: " + ", ".join(MODEL_TYPES),
-    )
-    parser.add_argument(
-        "--pretrained_name_or_path",
-        default=None,
-        type=str,
-        required=True,
-        help="Path to pre-trained model or shortcut name selected in the list: " + ", ".join(ALL_MODELS),
-    )
-    parser.add_argument(
-        "--load_dir",
-        default=None,
-        type=str,
-        help="The load directory where the model checkpoints are saved. Set to output_dir if not specified.",
-    )
-    parser.add_argument(
-        "--output_dir",
-        default=None,
-        type=str,
-        required=True,
-        help="The output directory where the model checkpoints and predictions will be written.",
-    )
-    parser.add_argument(
-        "--teacher_dir",
-        default=None,
-        type=str,
-        help="The teacher directory where the model checkpoints are saved.",
-    )
-
-    # Other parameters
-    parser.add_argument(
-        "--data_dir",
-        default=None,
-        type=str,
-        help="The input data dir. Should contain the .json files for the task."
-        + "If no data dir or train/predict files are specified, will run with tensorflow_datasets.",
-    )
-    parser.add_argument(
-        "--train_file",
-        default=None,
-        type=str,
-        help="The input training file. If a data dir is specified, will look for the file there"
-        + "If no data dir or train/predict files are specified, will run with tensorflow_datasets.",
-    )
-    parser.add_argument(
-        "--predict_file",
-        default=None,
-        type=str,
-        help="The input evaluation file. If a data dir is specified, will look for the file there"
-        + "If no data dir or train/predict files are specified, will run with tensorflow_datasets.",
-    )
-    parser.add_argument(
-        "--config_name", default="", type=str, help="Pretrained config name or path if not the same as model_name"
-    )
-    parser.add_argument(
-        "--tokenizer_name",
-        default="",
-        type=str,
-        help="Pretrained tokenizer name or path if not the same as model_name",
-    )
-    parser.add_argument(
-        "--cache_dir",
-        default="",
-        type=str,
-        help="Where do you want to store the pre-trained models downloaded from s3 and pre-processed data",
-    )
-
-    parser.add_argument(
-        "--version_2_with_negative",
-        action="store_true",
-        help="If true, the SQuAD examples contain some that do not have an answer.",
-    )
-    parser.add_argument(
-        "--null_score_diff_threshold",
-        type=float,
-        default=0.0,
-        help="If null_score - best_non_null is greater than the threshold predict null.",
-    )
-    parser.add_argument(
-        "--filter_threshold",
-        type=float,
-        default=-1e8,
-        help="model-based filtering threshold.",
-    )
-    parser.add_argument(
-        "--filter_threshold_list",
-        type=str,
-        default='-1e8',
-        help="model-based filtering threshold for filter testing. comma seperated values are given",
-    )
-
-    parser.add_argument(
-        "--max_seq_length",
-        default=384,
-        type=int,
-        help="The maximum total input sequence length after WordPiece tokenization. Sequences "
-        "longer than this will be truncated, and sequences shorter than this will be padded.",
-    )
-    parser.add_argument(
-        "--doc_stride",
-        default=128,
-        type=int,
-        help="When splitting up a long document into chunks, how much stride to take between chunks.",
-    )
-    parser.add_argument(
-        "--max_query_length",
-        default=64,
-        type=int,
-        help="The maximum number of tokens for the question. Questions longer than this will "
-        "be truncated to this length.",
-    )
-    parser.add_argument("--do_train", action="store_true", help="Whether to run training.")
-    parser.add_argument("--lambda_kl", default=0.0, type=float, help="Lambda for distillation")
-    parser.add_argument("--lambda_neg", default=0.0, type=float, help="Lambda for in-batch negative")
-    parser.add_argument("--lambda_flt", default=0.0, type=float, help="Lambda for filtering")
-    parser.add_argument("--pbn_size", default=0, type=int, help="pre-batch negative size")
-    parser.add_argument("--pbn_tolerance", default=9999, type=int, help="pre-batch tolerance epoch")
-    parser.add_argument("--append_title", action="store_true", help="Whether to append title in context.")
-    parser.add_argument("--do_eval", action="store_true", help="Whether to run eval on the dev set.")
-    parser.add_argument("--do_filter_test", action="store_true", help="Whether to test filters.")
-    parser.add_argument("--truecase_path", default='truecase/english_with_questions.dist', type=str)
-    parser.add_argument("--truecase", action="store_true", help="Dummy (automatic truecasing supported)")
-    parser.add_argument(
-        "--evaluate_during_training", action="store_true", help="Run evaluation during training at each logging step."
-    )
-    parser.add_argument(
-        "--do_lower_case", action="store_true", help="Set this flag if you are using an uncased model."
-    )
-
-    parser.add_argument("--per_gpu_train_batch_size", default=12, type=int, help="Batch size per GPU/CPU for training.")
-    parser.add_argument(
-        "--per_gpu_eval_batch_size", default=12, type=int, help="Batch size per GPU/CPU for evaluation."
-    )
-    parser.add_argument("--learning_rate", default=3e-5, type=float, help="The initial learning rate for Adam.")
-    parser.add_argument(
-        "--gradient_accumulation_steps",
-        type=int,
-        default=1,
-        help="Number of updates steps to accumulate before performing a backward/update pass.",
-    )
-    parser.add_argument("--weight_decay", default=0.0, type=float, help="Weight decay if we apply some.")
-    parser.add_argument("--adam_epsilon", default=1e-8, type=float, help="Epsilon for Adam optimizer.")
-    parser.add_argument("--max_grad_norm", default=1.0, type=float, help="Max gradient norm.")
-    parser.add_argument(
-        "--num_train_epochs", default=2.0, type=float, help="Total number of training epochs to perform."
-    )
-    parser.add_argument(
-        "--max_steps",
-        default=-1,
-        type=int,
-        help="If > 0: set total number of training steps to perform. Override num_train_epochs.",
-    )
-    parser.add_argument("--warmup_steps", default=0, type=int, help="Linear warmup over warmup_steps.")
-    parser.add_argument(
-        "--n_best_size",
-        default=20,
-        type=int,
-        help="The total number of n-best predictions to generate in the nbest_predictions.json output file.",
-    )
-    parser.add_argument(
-        "--max_answer_length",
-        default=10,
-        type=int,
-        help="The maximum length of an answer that can be generated. This is needed because the start "
-        "and end predictions are not conditioned on one another.",
-    )
-    parser.add_argument(
-        "--verbose_logging",
-        action="store_true",
-        help="If true, all of the warnings related to data processing will be printed. "
-        "A number of warnings are expected for a normal SQuAD evaluation.",
-    )
-    parser.add_argument(
-        "--lang_id",
-        default=0,
-        type=int,
-        help="language id of input for language-specific xlm models (see tokenization_xlm.PRETRAINED_INIT_CONFIGURATION)",
-    )
-
-    parser.add_argument("--logging_steps", type=int, default=5000, help="Log every X updates steps.")
-    parser.add_argument("--save_steps", type=int, default=9999999999, help="Save checkpoint every X updates steps.")
-    parser.add_argument(
-        "--eval_all_checkpoints",
-        action="store_true",
-        help="Evaluate all checkpoints starting with the same prefix as model_name ending and ending with step number",
-    )
-    parser.add_argument("--no_cuda", action="store_true", help="Whether not to use CUDA when available")
-    parser.add_argument("--wandb", action="store_true", help="Whether to use Weights and Biases logging")
-    parser.add_argument(
-        "--overwrite_output_dir", action="store_true", help="Overwrite the content of the output directory"
-    )
-    parser.add_argument(
-        "--draft", action="store_true", help="Run draft mode to use 20 examples only"
-    )
-    parser.add_argument("--seed", type=int, default=42, help="random seed for initialization")
-
-    parser.add_argument("--local_rank", type=int, default=-1, help="local_rank for distributed training on gpus")
-    parser.add_argument(
-        "--fp16",
-        action="store_true",
-        help="Whether to use 16-bit (mixed) precision (through NVIDIA apex) instead of 32-bit",
-    )
-    parser.add_argument(
-        "--fp16_opt_level",
-        type=str,
-        default="O1",
-        help="For fp16: Apex AMP optimization level selected in ['O0', 'O1', 'O2', and 'O3']."
-        "See details at https://nvidia.github.io/apex/amp.html",
-    )
-
-    parser.add_argument("--threads", type=int, default=20, help="multiple threads for converting example to features")
-    args = parser.parse_args()
+    # See options in densephrases.options
+    options = Options()
+    options.add_model_options()
+    options.add_data_options()
+    options.add_rc_options()
+    args = options.parse()
 
     if args.local_rank != -1:
         if args.local_rank > 0:
             logger.setLevel(logging.WARN)
-
-    if args.doc_stride >= args.max_seq_length - args.max_query_length:
-        logger.warning(
-            "WARNING - You've set a doc stride which may be superior to the document length in some "
-            "examples. This could result in errors when building features from the examples. Please reduce the doc "
-            "stride or increase the maximum length to ensure the features are correctly built."
-        )
-
-    if args.draft:
-        args.overwrite_output_dir = True
-        args.logging_steps = 999999999 # Do not log
-        logger.warning(f'Save model in {args.output_dir} in draft version')
-
-    if (
-        os.path.exists(args.output_dir)
-        and os.listdir(args.output_dir)
-        and args.do_train
-        and not args.overwrite_output_dir
-    ):
-        raise ValueError(
-            "Output directory ({}) already exists and is not empty. Use --overwrite_output_dir to overcome.".format(
-                args.output_dir
-            )
-        )
 
     # Setup CUDA, GPU & distributed training
     if args.local_rank == -1 or args.no_cuda:

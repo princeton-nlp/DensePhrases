@@ -5,8 +5,8 @@ import json
 import torch
 import numpy as np
 
-from densephrases.encoder import DensePhrases
-from densephrases.index import MIPS
+from densephrases import DensePhrases
+from densephrases import MIPS
 from densephrases.utils.single_utils import backward_compat
 from densephrases.utils.squad_utils import get_question_dataloader, TrueCaser
 from densephrases.utils.embed_utils import get_question_results
@@ -25,9 +25,9 @@ truecase = None
 
 
 def load_query_encoder(device, args):
-    assert args.query_encoder_path
+    assert args.load_dir
 
-    # Configure paths for query encoder serving
+    # Configure paths for DnesePhrases
     args.model_type = args.model_type.lower()
     config = AutoConfig.from_pretrained(
         args.config_name if args.config_name else args.pretrained_name_or_path,
@@ -47,14 +47,14 @@ def load_query_encoder(device, args):
     )
     try:
         model.load_state_dict(backward_compat(
-            torch.load(os.path.join(args.query_encoder_path, 'pytorch_model.bin'), map_location=torch.device('cpu'))
+            torch.load(os.path.join(args.load_dir, 'pytorch_model.bin'), map_location=torch.device('cpu'))
         ))
     except Exception as e:
         print(e)
-        model.load_state_dict(torch.load(os.path.join(args.query_encoder_path, 'pytorch_model.bin')), strict=False)
+        model.load_state_dict(torch.load(os.path.join(args.load_dir, 'pytorch_model.bin')), strict=False)
     model.to(device)
 
-    logger.info(f'DensePhrases loaded from {args.query_encoder_path} having {MODEL_MAPPING[config.__class__]}')
+    logger.info(f'DensePhrases loaded from {args.load_dir} having {MODEL_MAPPING[config.__class__]}')
     logger.info('Number of model parameters: {:,}'.format(sum(p.numel() for p in model.parameters())))
     return model, tokenizer
 
@@ -62,9 +62,9 @@ def load_query_encoder(device, args):
 def load_phrase_index(args):
     # Configure paths for index serving
     phrase_dump_dir = os.path.join(args.dump_dir, args.phrase_dir)
-    index_dir = os.path.join(args.dump_dir, args.index_dir)
-    index_path = os.path.join(index_dir, args.index_name)
-    idx2id_path = os.path.join(index_dir, args.idx2id_name)
+    index_dir = os.path.join(args.dump_dir, args.index_name)
+    index_path = os.path.join(index_dir, args.index_path)
+    idx2id_path = os.path.join(index_dir, args.idx2id_path)
 
     # Load mips
     if 'aggregate' in args.__dict__.keys():
@@ -74,16 +74,16 @@ def load_phrase_index(args):
         index_path=index_path,
         idx2id_path=idx2id_path,
         cuda=args.cuda,
-        logging_level=logging.DEBUG if args.debug else logging.INFO,
+        logging_level=logging.DEBUG if args.verbose_logging else logging.INFO,
     )
     return mips
 
 
 def load_cross_encoder(device, args):
 
-    # Configure paths for query encoder serving
+    # Configure paths for cross-encoder serving
     cross_encoder = torch.load(
-        os.path.join(args.query_encoder_path, "pytorch_model.bin"), map_location=torch.device('cpu')
+        os.path.join(args.load_dir, "pytorch_model.bin"), map_location=torch.device('cpu')
     )
     new_qd = {n[len('bert')+1:]: p for n, p in cross_encoder.items() if 'bert' in n}
     new_linear = {n[len('qa_outputs')+1:]: p for n, p in cross_encoder.items() if 'qa_outputs' in n}
@@ -111,7 +111,7 @@ def load_cross_encoder(device, args):
     )
     ce_model.to(device)
 
-    logger.info(f'CrossEncoder loaded from {args.query_encoder_path} having {MODEL_MAPPING[config.__class__]}')
+    logger.info(f'CrossEncoder loaded from {args.load_dir} having {MODEL_MAPPING[config.__class__]}')
     logger.info('Number of model parameters: {:,}'.format(sum(p.numel() for p in ce_model.parameters())))
     return ce_model, tokenizer
 
@@ -125,7 +125,7 @@ def get_query2vec(query_encoder, tokenizer, args, batch_size=64):
         question_results = get_question_results(
             question_examples, query_features, question_dataloader, device, query_encoder, batch_size=batch_size
         )
-        if args.debug:
+        if args.verbose_logging:
             logger.info(f"{len(query_features)} queries: {' '.join(query_features[0].tokens_)}")
         outs = []
         for qr_idx, question_result in enumerate(question_results):

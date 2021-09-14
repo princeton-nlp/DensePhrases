@@ -152,7 +152,8 @@ gen-vecs:
 # 3) Build an IVFOPQ index for generated phrase vectors
 index-vecs: dump-dir large-index
 	python build_phrase_index.py \
-		$(DUMP_DIR) all \
+		--dump_dir $(DUMP_DIR) \
+		--stage all \
 		--replace \
 		--num_clusters $(NUM_CLUSTERS) \
 		--fine_quant $(INDEX_TYPE) \
@@ -172,8 +173,8 @@ eval-index: dump-dir model-name large-index cweb-kilt-data
 		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
 		--cuda \
 		--dump_dir $(DUMP_DIR) \
-		--index_dir start/$(NUM_CLUSTERS)_flat_$(INDEX_TYPE) \
-		--query_encoder_path $(SAVE_DIR)/$(MODEL_NAME) \
+		--index_name start/$(NUM_CLUSTERS)_flat_$(INDEX_TYPE) \
+		--load_dir $(SAVE_DIR)/$(MODEL_NAME) \
 		--test_path $(DATA_DIR)/$(TEST_DATA) \
 		--save_pred \
 		--aggregate \
@@ -186,7 +187,7 @@ draft: model-name nq-rc-data nq-param pbn-param small-index
 		TEACHER_NAME=$(TEACHER_NAME) MODEL_NAME=$(MODEL_NAME) \
 		BS=$(BS) LR=$(LR) MAX_SEQ_LEN=$(MAX_SEQ_LEN) \
 		LAMBDA_KL=$(LAMBDA_KL) LAMBDA_NEG=$(LAMBDA_NEG) \
-		OPTIONS='$(PBN_OPTIONS)'
+		OPTIONS='$(PBN_OPTIONS) --draft'
 	make gen-vecs \
 		DEV_DATA=$(DEV_DATA) MODEL_NAME=$(MODEL_NAME)
 	make index-vecs \
@@ -300,7 +301,8 @@ index-add: dump-dir large-index-sq
 # Merge for large-scale on-disk IVFSQ
 index-merge: dump-dir large-index-sq
 	python build_phrase_index.py \
-		$(DUMP_DIR) merge \
+		--dump_dir $(DUMP_DIR) \
+		--stage merge \
 		--replace \
 		--num_clusters $(NUM_CLUSTERS) \
 		--fine_quant $(INDEX_TYPE)
@@ -395,8 +397,8 @@ train-query: dump-dir model-name nq-open-data large-index
 		--learning_rate 3e-5 \
 		--num_train_epochs 5 \
 		--dump_dir $(DUMP_DIR) \
-		--index_dir start/$(NUM_CLUSTERS)_flat_$(INDEX_TYPE) \
-		--query_encoder_path $(SAVE_DIR)/densephrases-multi \
+		--index_name start/$(NUM_CLUSTERS)_flat_$(INDEX_TYPE) \
+		--load_dir $(SAVE_DIR)/densephrases-multi \
 		--output_dir $(SAVE_DIR)/$(MODEL_NAME) \
 		--top_k 100 \
 		--cuda \
@@ -411,8 +413,8 @@ eval-index-all: dump-dir model-name large-index all-open-data
 		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
 		--cuda \
 		--dump_dir $(DUMP_DIR) \
-		--index_dir start/$(NUM_CLUSTERS)_flat_$(INDEX_TYPE) \
-		--query_encoder_path $(SAVE_DIR)/$(MODEL_NAME) \
+		--index_name start/$(NUM_CLUSTERS)_flat_$(INDEX_TYPE) \
+		--load_dir $(SAVE_DIR)/$(MODEL_NAME) \
 		--test_path $(TEST_DATA) \
 		--aggregate \
 		$(OPTIONS)
@@ -434,7 +436,7 @@ q-serve:
 	nohup python run_demo.py \
 		--run_mode q_serve \
 		--cache_dir $(CACHE_DIR) \
-		--query_encoder_path $(SAVE_DIR)/$(MODEL_NAME) \
+		--load_dir $(SAVE_DIR)/$(MODEL_NAME) \
 		--cuda \
 		--max_query_length 32 \
 		--query_port $(Q_PORT) > $(SAVE_DIR)/logs/q-serve_$(Q_PORT).log &
@@ -443,7 +445,7 @@ q-serve:
 p-serve: dump-dir large-index
 	nohup python run_demo.py \
 		--run_mode p_serve \
-		--index_dir start/$(NUM_CLUSTERS)_flat_$(INDEX_TYPE) \
+		--index_name start/$(NUM_CLUSTERS)_flat_$(INDEX_TYPE) \
 		--cuda \
 		--truecase \
 		--dump_dir $(DUMP_DIR) \
@@ -466,7 +468,7 @@ single-serve:
 		--run_mode single_serve \
 		--cuda \
 		--cache_dir $(CACHE_DIR) \
-		--query_encoder_path $(SAVE_DIR)/$(MODEL_NAME) \
+		--load_dir $(SAVE_DIR)/$(MODEL_NAME) \
 		--query_port $(Q_PORT) > $(SAVE_DIR)/logs/s-serve_$(Q_PORT).log &
 
 ############################## Passage-level evaluation ###################################
@@ -479,8 +481,8 @@ eval-index-psg: dump-dir model-name large-index nq-open-data
 		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
 		--cuda \
 		--dump_dir $(DUMP_DIR) \
-		--index_dir start/$(NUM_CLUSTERS)_flat_$(INDEX_TYPE) \
-		--query_encoder_path $(SAVE_DIR)/$(MODEL_NAME) \
+		--index_name start/$(NUM_CLUSTERS)_flat_$(INDEX_TYPE) \
+		--load_dir $(SAVE_DIR)/$(MODEL_NAME) \
 		--test_path $(DATA_DIR)/$(TEST_DATA) \
 		--save_pred \
 		--aggregate \
