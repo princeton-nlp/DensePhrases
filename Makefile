@@ -165,7 +165,7 @@ compress-meta:
 		--output_dir $(DUMP_DIR)
 
 # 5) Evaluate the phrase index for phrase retrieval
-eval-index: dump-dir model-name large-index nq-open-data
+eval-index: dump-dir model-name large-index cweb-kilt-data
 	python eval_phrase_retrieval.py \
 		--run_mode eval \
 		--model_type bert \
@@ -338,36 +338,39 @@ nq-fid-data:
 	$(eval OPTIONS=--truecase)
 kilt-options:
 	$(eval OPTIONS=--is_kilt --title2wikiid_path $(DATA_DIR)/wikidump/title2wikiid.json)
-trex-open-data: kilt-options
+trex-kilt-data: kilt-options
 	$(eval TRAIN_DATA=kilt/trex/trex-train-kilt_open_10000.json)
 	$(eval DEV_DATA=kilt/trex/trex-dev-kilt_open.json)
 	$(eval TEST_DATA=kilt/trex/trex-dev-kilt_open.json)
 	$(eval OPTIONS=$(OPTIONS) --kilt_gold_path $(DATA_DIR)/kilt/trex/trex-dev-kilt.jsonl --agg_strat opt2)
-zsre-open-data: kilt-options
+zsre-kilt-data: kilt-options
 	$(eval TRAIN_DATA=kilt/zsre/structured_zeroshot-train-kilt_open_10000.json)
 	$(eval DEV_DATA=kilt/zsre/structured_zeroshot-dev-kilt_open.json)
 	$(eval TEST_DATA=kilt/zsre/structured_zeroshot-dev-kilt_open.json)
 	$(eval OPTIONS=$(OPTIONS) --kilt_gold_path $(DATA_DIR)/kilt/zsre/structured_zeroshot-dev-kilt.jsonl --agg_strat opt2)
-ay2-open-data: kilt-options
+ay2-kilt-data: kilt-options
 	$(eval TRAIN_DATA=kilt/ay2/aidayago2-train-kilt_open.json)
 	$(eval DEV_DATA=kilt/ay2/aidayago2-dev-kilt_open.json)
-	$(eval TEST_DATA=kilt/ay2/aidayago2-dev-kilt_open.json)
-	$(eval OPTIONS=$(OPTIONS) --truecase --kilt_gold_path $(DATA_DIR)/kilt/ay2/aidayago2-dev-kilt.jsonl --agg_strat opt2)
-cweb-open-data: kilt-options
-	$(eval TRAIN_DATA=kilt/ay2/aidayago2-train-kilt_open.json)
+	$(eval TEST_DATA=kilt/ay2/aidayago2-test_without_answers-kilt-fake_open.json)
+	$(eval OPTIONS=$(OPTIONS) --truecase --kilt_gold_path $(DATA_DIR)/kilt/ay2/aidayago2-dev-kilt.jsonl --agg_strat opt2 --max_query_length 384 --label_strat doc)
+cweb-kilt-data: kilt-options
 	$(eval DEV_DATA=kilt/cweb/cweb-dev-kilt_open.json)
-	$(eval TEST_DATA=kilt/cweb/cweb-dev-kilt_open.json)
-	$(eval OPTIONS=$(OPTIONS) --truecase --kilt_gold_path $(DATA_DIR)/kilt/cweb/cweb-dev-kilt.jsonl --agg_strat opt2)
-wned-open-data: kilt-options
-	$(eval TRAIN_DATA=kilt/ay2/aidayago2-train-kilt_open.json)
+	$(eval TEST_DATA=kilt/cweb/cweb-test_without_answers-kilt-fake_open.json)
+	$(eval OPTIONS=$(OPTIONS) --truecase --kilt_gold_path $(DATA_DIR)/kilt/cweb/cweb-dev-kilt.jsonl --agg_strat opt2 --max_query_length 384)
+wned-kilt-data: kilt-options
 	$(eval DEV_DATA=kilt/wned/wned-dev-kilt_open.json)
-	$(eval TEST_DATA=kilt/wned/wned-dev-kilt_open.json)
-	$(eval OPTIONS=$(OPTIONS) --truecase --kilt_gold_path $(DATA_DIR)/kilt/wned/wned-dev-kilt.jsonl --agg_strat opt2)
-wow-open-data: kilt-options
+	$(eval TEST_DATA=kilt/wned/wned-test_without_answers-kilt-fake_open.json)
+	$(eval OPTIONS=$(OPTIONS) --truecase --kilt_gold_path $(DATA_DIR)/kilt/wned/wned-dev-kilt.jsonl --agg_strat opt2 --max_query_length 384)
+wow-kilt-data: kilt-options
 	$(eval TRAIN_DATA=kilt/wow/wow-train-kilt_open.json)
 	$(eval DEV_DATA=kilt/wow/wow-dev-kilt_open.json)
 	$(eval TEST_DATA=kilt/wow/wow-dev-kilt_open.json)
-	$(eval OPTIONS=$(OPTIONS) --truecase --kilt_gold_path $(DATA_DIR)/kilt/wow/wow-dev-kilt.jsonl --agg_strat opt2 --max_query_length 384)
+	$(eval OPTIONS=$(OPTIONS) --truecase --kilt_gold_path $(DATA_DIR)/kilt/wow/wow-dev-kilt.jsonl --agg_strat opt2 --max_query_length 384 --label_strat doc)
+all-kilt-data: kilt-options
+	$(eval TRAIN_DATA=kilt/kilt-combined-train-15k_open.json)
+	$(eval DEV_DATA=kilt/kilt-combined-dev-2k_open.json)
+	$(eval TEST_DATA=kilt/kilt-combined-dev-2k_open.json)
+	$(eval OPTIONS=$(OPTIONS) --truecase --kilt_gold_path $(DATA_DIR)/kilt/kilt-combined-dev-2k.jsonl --agg_strat opt2 --max_query_length 384 --label_strat dynamic)
 
 benchmark-data:
 	$(eval TEST_DATA=scripts/benchmark/data/nq_1000_dev_denspi.json)
@@ -380,7 +383,7 @@ all-open-data:
 	$(eval OPTIONS=--truecase)
 
 # Query-side fine-tuning
-train-query: dump-dir model-name ay2-open-data large-index
+train-query: dump-dir model-name nq-open-data large-index
 	python train_query.py \
 		--run_mode train_query \
 		--cache_dir $(CACHE_DIR) \
@@ -487,11 +490,15 @@ eval-index-psg: dump-dir model-name large-index nq-open-data
 
 # transform prediction for the recall evaluation
 recall-eval: model-name
-	python scripts/recall_transform.py \
+	python scripts/postprocess/recall_transform.py \
 		--model_dir $(SAVE_DIR)/$(MODEL_NAME) \
-		--pred_file $(PRED_FILE) \
-		--max_context_len 100
-	python scripts/recall.py --k_values 1,5,20,100 --results_file $(SAVE_DIR)/$(MODEL_NAME)/pred/test_preprocessed_3610_top100_top100_mcl100_psg.json --ans_fn string
+		--pred_file $(PRED_NAME).pred \
+		--max_context_len 100 \
+		--top_k 100
+	python scripts/postprocess/recall.py \
+		--k_values 1,5,20,100 \
+		--results_file $(SAVE_DIR)/$(MODEL_NAME)/pred/$(PRED_NAME)_top100_mcl100_psg.json \
+		--ans_fn string
 
 ############################## Data Pre/Post-processing ###################################
 
