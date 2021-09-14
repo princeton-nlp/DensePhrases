@@ -57,8 +57,7 @@ class Options():
         self.parser.add_argument('--add_all', action='store_true', default=False)
         self.parser.add_argument('--num_clusters', type=int, default=16384)
         self.parser.add_argument('--hnsw', action='store_true', default=False)
-        self.parser.add_argument('--fine_quant', default='SQ4',
-                        help='SQ4|PQ# where # is number of bytes per vector')
+        self.parser.add_argument('--fine_quant', default='SQ4', help='SQ4|OPQ# where # is number of bytes per vector')
         self.parser.add_argument('--norm_th', type=float, default=999)
         self.parser.add_argument('--doc_sample_ratio', type=float, default=0.2)
         self.parser.add_argument('--vec_sample_ratio', type=float, default=0.2)
@@ -69,8 +68,7 @@ class Options():
 
         # For merging IVFSQ subindexes
         self.parser.add_argument('--dump_paths', default=None,
-                        help='Relative to `dump_dir/phrase`. '
-                        'If specified, creates subindex dir and save there with same name')
+                        help='Relative to `dump_dir/phrase`. If specified, creates subindex dir')
         self.parser.add_argument('--inv_path', default='merged.invdata')
         self.parser.add_argument('--subindex_name', default='index', help='used only if dump_path is specified.')
 
@@ -96,20 +94,17 @@ class Options():
                         help="If true, the SQuAD examples contain some that do not have an answer.",)
         self.parser.add_argument("--null_score_diff_threshold", type=float, default=0.0,
                         help="If null_score - best_non_null is greater than the threshold predict null.",)
-        self.parser.add_argument("--filter_threshold", type=float, default=-1e8,
-                        help="model-based filtering threshold.",)
         self.parser.add_argument("--filter_threshold_list", type=str, default='-1e8',
                         help="model-based filtering threshold for filter testing. comma seperated values are given",)
         self.parser.add_argument("--do_train", action="store_true", help="Whether to run training.")
+        self.parser.add_argument("--do_eval", action="store_true", help="Whether to run eval on the dev set.")
+        self.parser.add_argument("--do_filter_test", action="store_true", help="Whether to test filters.")
         self.parser.add_argument("--lambda_kl", default=0.0, type=float, help="Lambda for distillation")
         self.parser.add_argument("--lambda_neg", default=0.0, type=float, help="Lambda for in-batch negative")
         self.parser.add_argument("--lambda_flt", default=0.0, type=float, help="Lambda for filtering")
         self.parser.add_argument("--pbn_size", default=0, type=int, help="pre-batch negative size")
         self.parser.add_argument("--pbn_tolerance", default=9999, type=int, help="pre-batch tolerance epoch")
         self.parser.add_argument("--append_title", action="store_true", help="Whether to append title in context.")
-        self.parser.add_argument("--do_eval", action="store_true", help="Whether to run eval on the dev set.")
-        self.parser.add_argument("--do_dump", action="store_true", help="Whether to run dumping on the dev set.")
-        self.parser.add_argument("--do_filter_test", action="store_true", help="Whether to test filters.")
         self.parser.add_argument("--evaluate_during_training", action="store_true",
                         help="Run evaluation during training at each logging step.")
         self.parser.add_argument("--per_gpu_train_batch_size", type=int, default=12,
@@ -141,14 +136,13 @@ class Options():
         self.parser.add_argument("--overwrite_output_dir", action="store_true",
                         help="Overwrite the content of the output directory")
         self.parser.add_argument("--local_rank", type=int, default=-1, help="local_rank for distributed training on gpus")
-        self.parser.add_argument("--fp16", action="store_true",
-                        help="Whether to use 16-bit (mixed) precision (through NVIDIA apex) instead of 32-bit",)
-        self.parser.add_argument("--fp16_opt_level", type=str, default="O1",
-                        help="For fp16: Apex AMP optimization level selected in ['O0', 'O1', 'O2', and 'O3']."
-                        "See details at https://nvidia.github.io/apex/amp.html",)
 
+        # For generating phrase vectors
+        self.parser.add_argument("--do_dump", action="store_true", help="Whether to run dumping on the dev set.")
         self.parser.add_argument('--dense_offset', type=float, default=-2)
         self.parser.add_argument('--dense_scale', type=float, default=20)
+        self.parser.add_argument("--filter_threshold", type=float, default=-1e8,
+                        help="model-based filtering threshold.",)
 
     def add_retrieval_options(self):
         self.parser.add_argument('--run_mode', default='eval')
@@ -158,11 +152,6 @@ class Options():
         self.parser.add_argument('--agg_strat', type=str, default='opt1')
         self.parser.add_argument('--label_strat', default='dummy')
 
-        # KILT
-        self.parser.add_argument('--is_kilt', action='store_true', default=False)
-        self.parser.add_argument('--kilt_gold_path', default='kilt/trex/trex-dev-kilt.jsonl')
-        self.parser.add_argument('--title2wikiid_path', default='wikidump/title2wikiid.json')
-
         # Evaluation
         self.parser.add_argument('--dev_path', default='open-qa/nq-open/dev_preprocessed.json')
         self.parser.add_argument('--test_path', default='open-qa/nq-open/test_preprocessed.json')
@@ -170,6 +159,11 @@ class Options():
         self.parser.add_argument('--regex', action='store_true', default=False)
         self.parser.add_argument('--eval_batch_size', type=int, default=64)
         self.parser.add_argument('--save_pred', action='store_true', default=False)
+
+        # KILT
+        self.parser.add_argument('--is_kilt', action='store_true', default=False)
+        self.parser.add_argument('--kilt_gold_path', default='kilt/trex/trex-dev-kilt.jsonl')
+        self.parser.add_argument('--title2wikiid_path', default='wikidump/title2wikiid.json')
 
     # Query-side fine-tuning options
     def add_qsft_options(self):
@@ -183,7 +177,6 @@ class Options():
         self.parser.add_argument("--adam_epsilon", default=1e-8, type=float, help="Epsilon for Adam optimizer.")
         self.parser.add_argument("--max_grad_norm", default=1.0, type=float, help="Max gradient norm.")
         self.parser.add_argument('--label_strat', default='phrase', type=str, help="label strat={phrase|doc|phrase,doc}")
-        self.parser.add_argument("--fp16", action="store_true", help="For fp16")
 
     def add_demo_options(self):
         self.parser.add_argument('--base_ip', default='http://127.0.0.1')
@@ -198,6 +191,11 @@ class Options():
         self.parser.add_argument("--verbose_logging", action="store_true",
                         help="If true, all of the warnings related to data processing will be printed. "
                         "A number of warnings are expected for a normal SQuAD evaluation.",)
+        self.parser.add_argument("--fp16", action="store_true",
+                        help="Whether to use 16-bit (mixed) precision (through NVIDIA apex) instead of 32-bit",)
+        self.parser.add_argument("--fp16_opt_level", type=str, default="O1",
+                        help="For fp16: Apex AMP optimization level selected in ['O0', 'O1', 'O2', and 'O3']."
+                        "See details at https://nvidia.github.io/apex/amp.html",)
 
     def print_options(self, opt):
         message = '\n'
