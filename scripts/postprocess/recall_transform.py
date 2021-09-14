@@ -7,7 +7,7 @@ from spacy.lang.en import English
 from tqdm import tqdm
 
 nlp = English()
-nlp.add_pipe('sentencizer')
+nlp.add_pipe(nlp.create_pipe('sentencizer'))
 
 
 def main(args):
