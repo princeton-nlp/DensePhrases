@@ -150,7 +150,6 @@ class Options():
         self.parser.add_argument('--nprobe', type=int, default=256)
         self.parser.add_argument('--aggregate', action='store_true', default=False)
         self.parser.add_argument('--agg_strat', type=str, default='opt1')
-        self.parser.add_argument('--label_strat', default='dummy')
 
         # Evaluation
         self.parser.add_argument('--dev_path', default='open-qa/nq-open/dev_preprocessed.json')
