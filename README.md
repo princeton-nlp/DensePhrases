@@ -12,6 +12,34 @@ Learning Dense Representations of Phrases at Scale (Lee et al., 2021)](https://a
 #### Updates
 **\*\*\*\*\* New June 14, 2021: Major code updates \*\*\*\*\***
 
+## Getting Started
+After [installing DensePhrases](#installation), you can easily retrieve phrases, sentences, paragraphs, or documents for your query.
+```python
+from densephrases import DensePhrases
+
+# Load DensePhrases (download the pre-trained model and the phrase index first)
+model = DensePhrases(
+    load_dir='/path/to/densephrases-multi-query-multi',
+    dump_dir='/path/to/densephrases-multi_wiki-20181220/dump'
+)
+
+# Search phrases
+print(model.search('Who won the first Nobel Prize in physics?', retrieval_unit='phrase'))
+# ['Wilhelm Conrad Röntgen,' ...]
+
+# Search sentences
+print(model.search('Who won the first Nobel Prize in physics?', retrieval_unit='sentence'))
+# ['The first Nobel Prize in Physics was awarded in 1901 to Wilhelm Conrad Röntgen, of Germany, who received 150,782 SEK, which is equal to 7,731,004 SEK in December 2007.', ...]
+
+# Search paragraphs
+print(model.search('Who won the first Nobel Prize in physics?', retrieval_unit='paragraph'))
+# ["The first Nobel Prize in Physics was awarded in 1901 to Wilhelm Conrad Röntgen, of Germany, who received 150,782 SEK, which is equal to 7,731,004 SEK in December 2007. John Bardeen is the only laureate to win the prize twice—in 1956 and 1972. Maria Skłodowska-Curie also won two Nobel Prizes, for physics in 1903 and chemistry in 1911. William Lawrence Bragg was, until October 2014, the youngest ever Nobel laureate; he won the prize in 1915 at the age of 25. He remains the youngest recipient of the Physics Prize. Three women have won the prize: Curie, Maria Goeppert-Mayer (1963), and Donna Strickland (2018). As of 2018, the prize has been awarded to 209 individuals. There have been six years in which the Nobel Prize in Physics was not awarded (1916, 1931, 1934, 1940–1942). The Nobel Prize in Physics was also not awarded in 1921, as the Nobel Committee for Physics decided that none of that year's nominations met the necessary criteria, but was awarded to Albert Einstein in 1922 and counted as the 1921 prize.", ...]
+
+# Search documents (Wikipedia titles)
+print(model.search('Who won the first Nobel Prize in physics?', retrieval_unit='document'))
+# ['List of Nobel laureates in Physics', ...]
+```
+
 ## Quick Link
 * [Installation](#installation)
 * [Resources](#resources)
@@ -25,7 +53,7 @@ Learning Dense Representations of Phrases at Scale (Lee et al., 2021)](https://a
 # Install torch with conda (please check your CUDA version)
 conda create -n densephrases python=3.7
 conda activate densephrases
-conda install pytorch=1.7.1 cudatoolkit=11.0 -c pytorch
+conda install pytorch=1.9.0 cudatoolkit=11.0 -c pytorch
 
 # Install apex
 git clone https://www.github.com/nvidia/apex.git
@@ -96,7 +124,7 @@ You can also download each of pre-trained DensePhrases models as listed below.
 - **Multiple**                      : Multiple reading comprehension (or open-domain QA) datasets including NQ, WebQ, TREC, TriviaQA, SQuAD.
 - `spanbert-base-cased-*`             : cross-encoder teacher models trained on \*
 
-All models were trained with the phrase index [densephrases-multi_wiki-20181220](#3-phrase-index) described below. Since these models are trained on 5 RC datasets with an IVFOPQ index, they are mostly better than the ones reported in the paper (except SQuAD).
+All models were trained with the phrase index [densephrases-multi_wiki-20181220](#3-phrase-index) described below.
 
 ### 3. Phrase Index
 Please note that you don't need to download this phrase index unless you want to work on the full Wikipedia scale.
@@ -107,7 +135,7 @@ ls $SAVE_DIR
 ...  densephrases-multi_wiki-20181220
 ```
 #### From 320GB to 74GB
-Since hosting the 320GB phrase index described in our paper is costly, we provide an index with a much smaller size (74GB), which includes our recent efforts to reduce the size of the phrase index using [Optimized Product Quantization](https://ieeexplore.ieee.org/document/6678503) with Inverted File System (IVFOPQ). With IVFOPQ, you do not need any SSDs for the real-time inference (the index is loaded on RAM), and you can also reconstruct the phrase vectors from it for the query-side fine-tuning (hence do not need the additional 500GB).
+Since hosting the 320GB phrase index described in our ACL paper is costly, we provide an index with a much smaller size (74GB), which includes our recent efforts to reduce the size of the phrase index using [Optimized Product Quantization](https://ieeexplore.ieee.org/document/6678503) described in our [recent paper](https://openreview.net/forum?id=7aIsabcVqMH). Now, you do not need any SSDs for the real-time inference (the index will be loaded on RAM), and you can also reconstruct the phrase vectors from it for the query-side fine-tuning.
 
 ## Creating a Custom Phrase Index with DensePhrases
 Basically, DensePhrases uses a text corpus pre-processed in the following format:
