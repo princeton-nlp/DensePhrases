@@ -5,7 +5,6 @@ import json
 import torch
 import numpy as np
 
-from densephrases import DensePhrases
 from densephrases import MIPS
 from densephrases.utils.single_utils import backward_compat
 from densephrases.utils.squad_utils import get_question_dataloader, TrueCaser

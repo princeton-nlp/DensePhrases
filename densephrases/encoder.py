@@ -14,7 +14,7 @@ from transformers import PreTrainedModel
 logger = logging.getLogger(__name__)
 
 
-class DensePhrases(PreTrainedModel):
+class Encoder(PreTrainedModel):
     def __init__(self,
                  config,
                  tokenizer,
@@ -38,7 +38,7 @@ class DensePhrases(PreTrainedModel):
 
         # Load transformer after init
         assert pretrained is not None or transformer_cls is not None
-        logger.info('Pre-trained LM loaded' if pretrained else 'Loading DensePhrases from load_dir')
+        logger.info('Initializing encoders with pre-trained LM' if pretrained else 'Loading encoders from load_dir')
         if lambda_kl > 0:
             logger.info("Teacher initialized for distillation. Weights will be loaded.")
             self.cross_encoder = None

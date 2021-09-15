@@ -11,7 +11,7 @@ from transformers import (
     AutoTokenizer,
     AutoModel,
 )
-from densephrases import DensePhrases
+from densephrases import Encoder
 
 logger = logging.getLogger(__name__)
 
@@ -73,14 +73,13 @@ def load_encoder(device, args, phrase_only=False):
     if not args.load_dir:
         pretrained = AutoModel.from_pretrained(
             args.pretrained_name_or_path,
-            from_tf=bool(".ckpt" in args.pretrained_name_or_path),
             config=config,
             cache_dir=args.cache_dir if args.cache_dir else None,
         )
-        logger.info(f'DensePhrases initialiezd with {args.pretrained_name_or_path} ({pretrained.__class__})')
+        logger.info(f'DensePhrases encoder initialized with {args.pretrained_name_or_path} ({pretrained.__class__})')
 
     # DensePhrases encoder object
-    model = DensePhrases(
+    model = Encoder(
         config=config,
         tokenizer=tokenizer,
         transformer_cls=MODEL_MAPPING[config.__class__],
@@ -99,7 +98,7 @@ def load_encoder(device, args, phrase_only=False):
         except Exception as e:
             print(e)
             model.load_state_dict(torch.load(os.path.join(args.load_dir, 'pytorch_model.bin')), strict=False)
-        logger.info(f'DensePhrases loaded from {args.load_dir} having {MODEL_MAPPING[config.__class__]}')
+        logger.info(f'DensePhrases encoder loaded from {args.load_dir} having {MODEL_MAPPING[config.__class__]}')
 
     # Phrase only (for phrase embedding)
     if phrase_only:
