@@ -36,29 +36,30 @@ from transformers import (
 )
 from densephrases.utils.squad_utils import ContextResult, load_and_cache_examples
 from densephrases.utils.single_utils import set_seed, to_list, to_numpy, backward_compat, load_encoder
-from densephrases.utils.embed_utils import write_phrases
+from densephrases.utils.embed_utils import write_phrases, write_filter
 from densephrases import Options
 
 logger = logging.getLogger(__name__)
 
 
-def dump_phrases(args, model, tokenizer):
-    if not os.path.exists(os.path.join(args.output_dir, 'dump/phrase')):
-        os.makedirs(os.path.join(args.output_dir, 'dump/phrase'))
+def dump_phrases(args, model, tokenizer, filter_only=False):
+    output_path = 'dump/phrase' if not filter_only else 'dump/filter'
+    if not os.path.exists(os.path.join(args.output_dir, output_path)):
+        os.makedirs(os.path.join(args.output_dir, output_path))
 
     start_time = timeit.default_timer()
     if ':' not in args.predict_file:
         predict_files = [args.predict_file]
         offsets = [0]
         output_dump_file = os.path.join(
-            args.output_dir, "dump/phrase/{}.hdf5".format(os.path.splitext(os.path.basename(args.predict_file))[0])
+            args.output_dir, f"{output_path}/{os.path.splitext(os.path.basename(args.predict_file))[0]}.hdf5"
         )
     else:
         dirname = os.path.dirname(args.predict_file)
         basename = os.path.basename(args.predict_file)
         start, end = list(map(int, basename.split(':')))
         output_dump_file = os.path.join(
-            args.output_dir, f"dump/phrase/{start}-{end}.hdf5"
+            args.output_dir, f"{output_path}/{start}-{end}.hdf5"
         )
 
         # skip files if possible
@@ -130,11 +131,17 @@ def dump_phrases(args, model, tokenizer):
                         )
                     yield result
 
-        write_phrases(
-            examples, features, get_phrase_results(), args.max_answer_length, args.do_lower_case, tokenizer,
-            output_dump_file, args.filter_threshold, args.verbose_logging,
-            args.dense_offset, args.dense_scale, has_title=args.append_title,
-        )
+        if not filter_only:
+            write_phrases(
+                examples, features, get_phrase_results(), args.max_answer_length, args.do_lower_case, tokenizer,
+                output_dump_file, args.filter_threshold, args.verbose_logging,
+                args.dense_offset, args.dense_scale, has_title=args.append_title,
+            )
+        else:
+            write_filter(
+                examples, features, get_phrase_results(), tokenizer,
+                output_dump_file, args.filter_threshold, args.verbose_logging, has_title=args.append_title,
+            )
 
         evalTime = timeit.default_timer() - start_time
         logger.info("Evaluation done in total %f secs (%f sec per example)", evalTime, evalTime / len(dataset))
@@ -217,7 +224,7 @@ def main():
         model, tokenizer, config = load_encoder(device, args, phrase_only=True)
 
         args.draft = False
-        dump_phrases(args, model, tokenizer)
+        dump_phrases(args, model, tokenizer, filter_only=args.filter_only)
 
 
 if __name__ == "__main__":

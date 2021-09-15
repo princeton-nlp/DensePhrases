@@ -18,9 +18,9 @@ class Options():
         self.initialize_parser()
 
     def add_model_options(self):
-        self.parser.add_argument("--model_type", type=str, default=None, required=True,
+        self.parser.add_argument("--model_type", type=str, default='bert',
                         help="Model type selected in the list",)
-        self.parser.add_argument("--pretrained_name_or_path", type=str, default=None,  required=True,
+        self.parser.add_argument("--pretrained_name_or_path", type=str, default='SpanBERT/spanbert-base-cased',
                         help="Path to pre-trained model or shortcut name selected in the list",)
         self.parser.add_argument("--config_name", type=str, default="",
                         help="Pretrained config name or path if not the same as model_name")
@@ -138,7 +138,8 @@ class Options():
         self.parser.add_argument("--local_rank", type=int, default=-1, help="local_rank for distributed training on gpus")
 
         # For generating phrase vectors
-        self.parser.add_argument("--do_dump", action="store_true", help="Whether to run dumping on the dev set.")
+        self.parser.add_argument("--do_dump", action="store_true", help="Whether to generate phrase vecs")
+        self.parser.add_argument("--filter_only", action="store_true", help="Whether to generate filter logits only")
         self.parser.add_argument('--dense_offset', type=float, default=-2)
         self.parser.add_argument('--dense_scale', type=float, default=20)
         self.parser.add_argument("--filter_threshold", type=float, default=-1e8,

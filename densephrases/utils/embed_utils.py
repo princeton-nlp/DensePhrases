@@ -43,13 +43,6 @@ def get_metadata(features, results, max_answer_length, do_lower_case, tokenizer,
     # Get rid of titles + save start only (as start and end are shared)
     roberta_add = 1 if "roberta" in str(type(tokenizer)) else 0
     toffs = [(f.input_ids.index(tokenizer.sep_token_id))*int(has_title) + roberta_add for f in features]
-    start = np.concatenate(
-        [result.start_vecs[to+1:len(feature.tokens) - 1] for feature, result, to in zip(features, results, toffs)],
-        axis=0
-    )
-
-    len_per_para = [len(f.input_ids[to+1:len(f.tokens)-1]) for to, f in zip(toffs, features)]
-    curr_size = 0
 
     # Filter reps
     fs = np.concatenate(
@@ -58,6 +51,23 @@ def get_metadata(features, results, max_answer_length, do_lower_case, tokenizer,
     fe = np.concatenate(
         [result.eft_logits[to+1:len(feature.tokens) - 1] for feature, result, to in zip(features, results, toffs)], axis=0
     )
+
+    if max_answer_length is None:
+        example = id2example[features[-1].unique_id]
+        metadata = {
+            'did': example.doc_idx, 'title': example.title,
+            'filter_start': fs, 'filter_end': fe
+        }
+        return metadata
+
+    # start vectors
+    start = np.concatenate(
+        [result.start_vecs[to+1:len(feature.tokens) - 1] for feature, result, to in zip(features, results, toffs)],
+        axis=0
+    )
+
+    len_per_para = [len(f.input_ids[to+1:len(f.tokens)-1]) for to, f in zip(toffs, features)]
+    curr_size = 0
 
     # Start2end map
     start2end = -1 * np.ones([np.shape(start)[0], max_answer_length], dtype=np.int32)
@@ -108,7 +118,9 @@ def filter_metadata(metadata, threshold):
     start_idxs, = np.where(metadata['filter_start'] > threshold)
     end_idxs, = np.where(metadata['filter_end'] > threshold)
     all_idxs = np.array(sorted(list(set(np.concatenate([start_idxs, end_idxs])))))
-    end_long2short = {long: short for short, long in enumerate(all_idxs)}
+    end_long2short = {long: short for short, long in enumerate(all_idxs) if long in end_idxs} # fixed for end_idx
+    # print(all_idxs)
+    # print(end_long2short)
 
     if len(all_idxs) == 0:
         all_idxs = np.where(metadata['filter_start'] > -999999)[0][:1] # just get all
@@ -120,7 +132,7 @@ def filter_metadata(metadata, threshold):
     # print(metadata['start2end'])
     for i, each in enumerate(metadata['start2end']):
         for j, long in enumerate(each.tolist()):
-            metadata['start2end'][i, j] = end_long2short[long] if long in end_long2short else -1 # should've been end_idxs
+            metadata['start2end'][i, j] = end_long2short[long] if long in end_long2short else -1
     # print(metadata['start2end'])
 
     return metadata
@@ -181,7 +193,8 @@ def compress_metadata(metadata, dense_offset, dense_scale):
 
 def pool_func(item):
     metadata_ = get_metadata(*item[:-1])
-    metadata_ = filter_metadata(metadata_, item[-1])
+    if 'start' in metadata_:
+        metadata_ = filter_metadata(metadata_, item[-1])
     return metadata_
 
 
@@ -286,6 +299,87 @@ def write_phrases(all_examples, all_features, all_results, max_answer_length, do
         print(k, v)
     for k, v in stats.items():
         print(k, v)
+
+
+def write_filter(all_examples, all_features, all_results, tokenizer, hdf5_path, filter_threshold, verbose_logging, has_title=False):
+
+    assert len(all_examples) > 0
+    id2feature = {feature.unique_id: feature for feature in all_features}
+    id2example_ = {id_: all_examples[id2feature[id_].example_index] for id_ in id2feature}
+
+    def add(inqueue_, outqueue_):
+        for item in iter(inqueue_.get, None):
+            args = list(item[:2]) + [
+                None, None, tokenizer, verbose_logging, has_title, filter_threshold
+            ]
+            out = pool_func(args)
+            outqueue_.put(out)
+        outqueue_.put(None)
+
+    def write(outqueue_):
+        with h5py.File(hdf5_path, 'a') as f:
+            while True:
+                metadata = outqueue_.get()
+                if metadata:
+                    did = str(metadata['did'])
+                    if did in f:
+                        logger.info('%s exists; replacing' % did)
+                        del f[did]
+                    dg = f.create_group(did)
+
+                    dg.attrs['title'] = metadata['title']
+                    dg.create_dataset('filter_start', data=metadata['filter_start'])
+                    dg.create_dataset('filter_end', data=metadata['filter_end'])
+                else:
+                    break
+
+    features = []
+    results = []
+    inqueue = Queue(maxsize=50)
+    outqueue = Queue(maxsize=50)
+    NUM_THREAD = 10
+    in_p_list = [Process(target=add, args=(inqueue, outqueue)) for _ in range(NUM_THREAD)]
+    out_p_list = [Thread(target=write, args=(outqueue,)) for _ in range(NUM_THREAD)]
+    global id2example
+    id2example = id2example_
+    for in_p in in_p_list:
+        in_p.start()
+    for out_p in out_p_list:
+        out_p.start()
+
+    start_time = time()
+    for count, result in enumerate(tqdm(all_results, total=len(all_features))):
+        example = id2example[result.unique_id]
+        feature = id2feature[result.unique_id]
+        condition = len(features) > 0 and example.par_idx == 0 and feature.span_idx == 0
+
+        if condition:
+            # print('put')
+            # in_ = (id2example_, features, results)
+            in_ = (features, results)
+            inqueue.put(in_)
+            # import pdb; pdb.set_trace()
+            prev_ex = id2example[results[0].unique_id]
+            if prev_ex.doc_idx % 200 == 0:
+                logger.info(f'saving {len(features)} features from doc {prev_ex.title} (doc_idx: {prev_ex.doc_idx})')
+                logger.info(
+                    '[%d/%d at %.1f second] ' % (count + 1, len(all_features), time() - start_time) +
+                    '[inqueue, outqueue size: %d vs %d]' % (inqueue.qsize(), outqueue.qsize())
+                )
+            features = [feature]
+            results = [result]
+        else:
+            features.append(feature)
+            results.append(result)
+    in_ = (features, results)
+    inqueue.put(in_)
+    for _ in range(NUM_THREAD):
+        inqueue.put(None)
+
+    for in_p in in_p_list:
+        in_p.join()
+    for out_p in out_p_list:
+        out_p.join()
 
 
 def get_question_results(question_examples, query_eval_features, question_dataloader, device, model, batch_size):
