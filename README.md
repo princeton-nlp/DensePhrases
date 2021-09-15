@@ -24,20 +24,20 @@ model = DensePhrases(
 )
 
 # Search phrases
-print(model.search('Who won the first Nobel Prize in physics?', retrieval_unit='phrase'))
-# ['Wilhelm Conrad Röntgen,' ...]
+print(model.search('Who won the Nobel Prize in peace?', retrieval_unit='phrase'))
+# ['Denis Mukwege,', 'Theodore Roosevelt', 'Denis Mukwege', 'John Mott', 'Muhammad Yunus', ...]
 
 # Search sentences
-print(model.search('Who won the first Nobel Prize in physics?', retrieval_unit='sentence'))
-# ['The first Nobel Prize in Physics was awarded in 1901 to Wilhelm Conrad Röntgen, of Germany, who received 150,782 SEK, which is equal to 7,731,004 SEK in December 2007.', ...]
+print(model.search('Why is the sky blue', retrieval_unit='sentence'))
+# ['The blue color is sometimes wrongly attributed to Rayleigh scattering, which is responsible for the color of the sky.', ...]
 
 # Search paragraphs
-print(model.search('Who won the first Nobel Prize in physics?', retrieval_unit='paragraph'))
-# ["The first Nobel Prize in Physics was awarded in 1901 to Wilhelm Conrad Röntgen, of Germany, who received 150,782 SEK, which is equal to 7,731,004 SEK in December 2007. John Bardeen is the only laureate to win the prize twice—in 1956 and 1972. Maria Skłodowska-Curie also won two Nobel Prizes, for physics in 1903 and chemistry in 1911. William Lawrence Bragg was, until October 2014, the youngest ever Nobel laureate; he won the prize in 1915 at the age of 25. He remains the youngest recipient of the Physics Prize. Three women have won the prize: Curie, Maria Goeppert-Mayer (1963), and Donna Strickland (2018). As of 2018, the prize has been awarded to 209 individuals. There have been six years in which the Nobel Prize in Physics was not awarded (1916, 1931, 1934, 1940–1942). The Nobel Prize in Physics was also not awarded in 1921, as the Nobel Committee for Physics decided that none of that year's nominations met the necessary criteria, but was awarded to Albert Einstein in 1922 and counted as the 1921 prize.", ...]
+print(model.search('How to become a great researcher', retrieval_unit='paragraph'))
+# ['... Levine said he believes the key to being a great researcher is having passion for research in and working on questions that the researcher is truly curious about. He said: "Have patience, persistence and enthusiasm and you’ll be fine.", ...]
 
 # Search documents (Wikipedia titles)
-print(model.search('Who won the first Nobel Prize in physics?', retrieval_unit='document'))
-# ['List of Nobel laureates in Physics', ...]
+print(model.search('What is the history of internet', retrieval_unit='document'))
+# [['Computer network'], ['History of the World Wide Web'], ['History of the Internet'], ...]
 ```
 
 ## Quick Link
