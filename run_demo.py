@@ -20,7 +20,8 @@ from tornado.ioloop import IOLoop
 from requests_futures.sessions import FuturesSession
 
 from eval_phrase_retrieval import evaluate_results, evaluate_results_kilt
-from densephrases.utils.open_utils import load_query_encoder, load_phrase_index, load_cross_encoder, load_qa_pairs, get_query2vec
+from densephrases.utils.single_utils import load_encoder
+from densephrases.utils.open_utils import load_phrase_index, load_cross_encoder, load_qa_pairs, get_query2vec
 from densephrases.utils.squad_utils import get_cq_dataloader, TrueCaser, get_bertqa_dataloader
 from densephrases.utils.squad_metrics import compute_predictions_logits
 from densephrases.utils.embed_utils import get_cq_results, get_bertqa_results
@@ -32,7 +33,7 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message
 logger = logging.getLogger(__name__)
 
 
-class DensePhrasesInterface(object):
+class DensePhrasesDemo(object):
     def __init__(self, args):
         self.args = args
         self.base_ip = args.base_ip
@@ -43,7 +44,7 @@ class DensePhrasesInterface(object):
     def serve_query_encoder(self, query_port, args, inmemory=False, batch_size=64, query_encoder=None, tokenizer=None):
         device = 'cuda' if args.cuda else 'cpu'
         if query_encoder is None:
-            query_encoder, tokenizer = load_query_encoder(device, args)
+            query_encoder, tokenizer, _ = load_encoder(device, args)
         query2vec = get_query2vec(
             query_encoder=query_encoder, tokenizer=tokenizer, args=args, batch_size=batch_size
         )
@@ -149,7 +150,7 @@ class DensePhrasesInterface(object):
 
     def serve_bert_encoder(self, bert_port, args):
         device = 'cuda' if args.cuda else 'cpu'
-        # bert_encoder, tokenizer = load_query_encoder(device, args) # will be just a bert as query_encoder
+        # bert_encoder, tokenizer, _ = load_encoder(device, args) # will be just a bert as query_encoder
         bert_encoder, tokenizer = load_cross_encoder(device, args)
         import binascii
         def float_to_hex(vals):
@@ -375,7 +376,7 @@ if __name__ == '__main__':
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(args.seed)
 
-    server = DensePhrasesInterface(args)
+    server = DensePhrasesDemo(args)
 
     if args.run_mode == 'q_serve':
         logger.info(f'Query address: {server.get_address(server.query_port)}')

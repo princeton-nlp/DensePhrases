@@ -24,41 +24,6 @@ logger = logging.getLogger(__name__)
 truecase = None
 
 
-def load_query_encoder(device, args):
-    assert args.load_dir
-
-    # Configure paths for DnesePhrases
-    args.model_type = args.model_type.lower()
-    config = AutoConfig.from_pretrained(
-        args.config_name if args.config_name else args.pretrained_name_or_path,
-        cache_dir=args.cache_dir if args.cache_dir else None,
-    )
-    tokenizer = AutoTokenizer.from_pretrained(
-        args.tokenizer_name if args.tokenizer_name else args.pretrained_name_or_path,
-        do_lower_case=args.do_lower_case,
-        cache_dir=args.cache_dir if args.cache_dir else None,
-    )
-
-    # Pre-trained DensePhrases
-    model = DensePhrases(
-        config=config,
-        tokenizer=tokenizer,
-        transformer_cls=MODEL_MAPPING[config.__class__],
-    )
-    try:
-        model.load_state_dict(backward_compat(
-            torch.load(os.path.join(args.load_dir, 'pytorch_model.bin'), map_location=torch.device('cpu'))
-        ))
-    except Exception as e:
-        print(e)
-        model.load_state_dict(torch.load(os.path.join(args.load_dir, 'pytorch_model.bin')), strict=False)
-    model.to(device)
-
-    logger.info(f'DensePhrases loaded from {args.load_dir} having {MODEL_MAPPING[config.__class__]}')
-    logger.info('Number of model parameters: {:,}'.format(sum(p.numel() for p in model.parameters())))
-    return model, tokenizer
-
-
 def load_phrase_index(args):
     # Configure paths for index serving
     phrase_dump_dir = os.path.join(args.dump_dir, args.phrase_dir)

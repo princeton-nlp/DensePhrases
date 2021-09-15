@@ -38,7 +38,7 @@ from transformers import (
     get_linear_schedule_with_warmup,
 )
 from densephrases.utils.squad_utils import SquadResult, load_and_cache_examples
-from densephrases.utils.single_utils import set_seed, to_list, to_numpy, backward_compat
+from densephrases.utils.single_utils import set_seed, to_list, to_numpy, backward_compat, load_encoder
 from densephrases.utils.squad_metrics import compute_predictions_log_probs, compute_predictions_logits, squad_evaluate
 from densephrases import DensePhrases
 from densephrases import Options
@@ -484,39 +484,8 @@ def main():
         # Make sure only the first process in distributed training will download model & vocab
         torch.distributed.barrier()
 
-    args.model_type = args.model_type.lower()
-    config, unused_kwargs = AutoConfig.from_pretrained(
-        args.config_name if args.config_name else args.pretrained_name_or_path,
-        cache_dir=args.cache_dir if args.cache_dir else None,
-        output_hidden_states=False,
-        return_unused_kwargs=True
-    )
-    tokenizer = AutoTokenizer.from_pretrained(
-        args.tokenizer_name if args.tokenizer_name else args.pretrained_name_or_path,
-        do_lower_case=args.do_lower_case,
-        cache_dir=args.cache_dir if args.cache_dir else None,
-    )
-
-    # Load pre-trained LM
-    pretrained = None
-    if not args.load_dir:
-        pretrained = AutoModel.from_pretrained(
-            args.pretrained_name_or_path,
-            from_tf=bool(".ckpt" in args.pretrained_name_or_path),
-            config=config,
-            cache_dir=args.cache_dir if args.cache_dir else None,
-        )
-        logger.info(f'DensePhrases initialized with {pretrained.__class__}')
-    model = DensePhrases(
-        config=config,
-        tokenizer=tokenizer,
-        pretrained=copy.deepcopy(pretrained) if pretrained is not None else None,
-        transformer_cls=MODEL_MAPPING[config.__class__],
-        lambda_kl=args.lambda_kl,
-        lambda_neg=args.lambda_neg,
-        lambda_flt=args.lambda_flt,
-    )
-    logger.info('Number of model params: {:,}'.format(sum(p.numel() for p in model.parameters())))
+    # Initialize or load encoder
+    model, tokenizer, config = load_encoder(device, args)
 
     if args.local_rank == 0:
         # Make sure only the first process in distributed training will download model & vocab
@@ -539,16 +508,6 @@ def main():
     tr_loss = 99999
 
     if args.do_train:
-        # Load pre-trained DensePhrases
-        if args.load_dir:
-            model_dict = torch.load(os.path.join(args.load_dir, "pytorch_model.bin"), map_location=torch.device('cpu'))
-            model_dict = {
-                n: p for n, p in model_dict.items() if not (n.startswith('cross_encoder') or n.startswith('qa_outputs'))
-            }
-            assert not any(param.startswith('cross_encoder') for param in model_dict.keys())
-            model.load_state_dict(model_dict)
-            logger.info(f'DensePhrases loaded from {args.load_dir} having {MODEL_MAPPING[config.__class__]}')
-
         # Load pre-trained cross encoder
         if args.lambda_kl > 0 and args.do_train:
             cross_encoder = torch.load(
@@ -618,21 +577,13 @@ def main():
     # Test filter
     if args.do_filter_test:
         assert args.load_dir
-        model.load_state_dict(backward_compat(
-            torch.load(os.path.join(args.load_dir, "pytorch_model.bin"), map_location=torch.device('cpu'))
-        ))
-        model.to(args.device)
-        logger.info(f'DensePhrases loaded from {args.load_dir} having {MODEL_MAPPING[config.__class__]}')
+        model, tokenizer, _ = load_encoder(device, args)
         filter_test(args, model, tokenizer)
 
     # Evaluation
     if args.do_eval and args.local_rank in [-1, 0]:
         assert args.load_dir
-        model.load_state_dict(backward_compat(
-            torch.load(os.path.join(args.load_dir, "pytorch_model.bin"), map_location=torch.device('cpu'))
-        ))
-        model.to(args.device)
-        logger.info(f'DensePhrases loaded from {args.load_dir} having {MODEL_MAPPING[config.__class__]}')
+        model, tokenizer, _ = load_encoder(device, args)
         result, _ = evaluate(args, model, tokenizer, prefix='final')
         result = dict((k + "_final", v) for k, v in result.items())
         wandb.log(

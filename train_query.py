@@ -14,7 +14,8 @@ import faiss
 from time import time
 from tqdm import tqdm
 from densephrases.utils.squad_utils import get_question_dataloader
-from densephrases.utils.open_utils import load_query_encoder, load_phrase_index, get_query2vec, load_qa_pairs
+from densephrases.utils.single_utils import load_encoder
+from densephrases.utils.open_utils import load_phrase_index, get_query2vec, load_qa_pairs
 from densephrases.utils.eval_utils import drqa_exact_match_score, drqa_regex_match_score, \
                                           drqa_metric_max_over_ground_truths
 from eval_phrase_retrieval import evaluate
@@ -33,7 +34,7 @@ def train_query_encoder(args, mips=None):
     # Freeze one for MIPS
     device = 'cuda' if args.cuda else 'cpu'
     logger.info("Loading pretrained encoder: this one is for MIPS (fixed)")
-    pretrained_encoder, tokenizer = load_query_encoder(device, args)
+    pretrained_encoder, tokenizer, _ = load_encoder(device, args)
 
     # Train a copy of it
     logger.info("Copying target encoder")

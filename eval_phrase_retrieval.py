@@ -17,7 +17,8 @@ from tqdm import tqdm
 
 from densephrases.utils.eval_utils import normalize_answer, f1_score, exact_match_score, drqa_exact_match_score, \
         drqa_regex_match_score, drqa_metric_max_over_ground_truths, drqa_normalize
-from densephrases.utils.open_utils import load_query_encoder, load_phrase_index, get_query2vec, load_qa_pairs
+from densephrases.utils.single_utils import load_encoder
+from densephrases.utils.open_utils import load_phrase_index, get_query2vec, load_qa_pairs
 from densephrases.utils.kilt.eval import evaluate as kilt_evaluate
 from densephrases.utils.kilt.kilt_utils import store_data as kilt_store_data
 from densephrases import Options
@@ -51,7 +52,7 @@ def evaluate(args, mips=None, query_encoder=None, tokenizer=None, q_idx=None):
     if query_encoder is None:
         print(f'Query encoder will be loaded from {args.load_dir}')
         device = 'cuda' if args.cuda else 'cpu'
-        query_encoder, tokenizer = load_query_encoder(device, args)
+        query_encoder, tokenizer, _ = load_encoder(device, args)
     query_vec = embed_all_query(questions, args, query_encoder, tokenizer)
 
     # Load MIPS
@@ -318,7 +319,7 @@ if __name__ == '__main__':
         # Load MIPS & query encoder
         mips = load_phrase_index(args)
         device = 'cuda' if args.cuda else 'cpu'
-        query_encoder, tokenizer = load_query_encoder(device, args)
+        query_encoder, tokenizer, _ = load_encoder(device, args)
 
         # Evaluate all test sets
         test_paths = args.test_path.split(',')

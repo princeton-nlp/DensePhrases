@@ -35,7 +35,7 @@ from transformers import (
     AutoTokenizer,
 )
 from densephrases.utils.squad_utils import ContextResult, load_and_cache_examples
-from densephrases.utils.single_utils import set_seed, to_list, to_numpy, backward_compat
+from densephrases.utils.single_utils import set_seed, to_list, to_numpy, backward_compat, load_encoder
 from densephrases.utils.embed_utils import write_phrases
 from densephrases import DensePhrases
 from densephrases import Options
@@ -196,16 +196,6 @@ def main():
         cache_dir=args.cache_dir if args.cache_dir else None,
     )
 
-    # Load pre-trained LM
-    pretrained = None
-    assert args.load_dir
-    model = DensePhrases(
-        config=config,
-        tokenizer=tokenizer,
-        transformer_cls=MODEL_MAPPING[config.__class__],
-    )
-    logger.info('Number of model params: {:,}'.format(sum(p.numel() for p in model.parameters())))
-
     if args.local_rank == 0:
         # Make sure only the first process in distributed training will download model & vocab
         torch.distributed.barrier()
@@ -225,21 +215,9 @@ def main():
     # Create phrase vectors
     if args.do_dump:
         assert args.load_dir
-        args.draft = False
+        model, tokenizer, config = load_encoder(device, args, phrase_only=True)
 
-        # Load only phrase encoder
-        model.load_state_dict(backward_compat(
-            torch.load(os.path.join(args.load_dir, "pytorch_model.bin"), map_location=torch.device('cpu'))
-        ))
-        if hasattr(model, "module"):
-            del model.module.query_start_encoder
-            del model.module.query_end_encoder
-        else:
-            del model.query_start_encoder
-            del model.query_end_encoder
-        model.to(args.device)
-        logger.info(f'DensePhrases loaded from {args.load_dir} having {MODEL_MAPPING[config.__class__]}')
-        logger.info('Number of model params while dumping: {:,}'.format(sum(p.numel() for p in model.parameters())))
+        args.draft = False
         dump_phrases(args, model, tokenizer)
 
 
