@@ -159,11 +159,12 @@ class MIPS(object):
     def dequant(self, offset, scale, input_):
         return self.int8_to_float(input_, offset, scale)
 
-    def adjust(self, each):
-        last = each['context'].rfind(' [PAR] ', 0, each['start_pos'])
-        last = 0 if last == -1 else last + len(' [PAR] ')
-        next = each['context'].find(' [PAR] ', each['end_pos'])
+    def adjust(self, each, delimiter=' [PAR] '):
+        last = each['context'].rfind(delimiter, 0, each['start_pos'])
+        last = 0 if last == -1 else last + len(delimiter)
+        next = each['context'].find(delimiter, each['end_pos'])
         next = len(each['context']) if next == -1 else next
+        next = next + 1 if delimiter == '. ' else next
         each['context'] = each['context'][last:next]
         each['start_pos'] -= last
         each['end_pos'] -= last
@@ -201,7 +202,7 @@ class MIPS(object):
         return b_start_doc_idxs, b_start_idxs, start_I, b_end_doc_idxs, b_end_idxs, end_I, b_start_scores, b_end_scores
 
     def search_phrase(self, query, start_doc_idxs, start_idxs, orig_start_idxs, end_doc_idxs, end_idxs, orig_end_idxs,
-            start_scores, end_scores, top_k=10, max_answer_length=10, return_idxs=False):
+            start_scores, end_scores, top_k=10, max_answer_length=10, return_idxs=False, delimiter=' [PAR] '):
 
         # Reshape for phrase
         num_queries = query.shape[0]
@@ -390,6 +391,10 @@ class MIPS(object):
             each['answer'] = each['context'][each['start_pos']:each['end_pos']]
         out = [self.adjust(each) for each in out]
 
+        # Adjust more for sentences
+        if delimiter != ' [PAR] ':
+            out = [self.adjust(each, delimiter=delimiter) for each in out]
+
         # Sort output
         new_out = [[] for _ in range(num_queries)]
         for idx, each_out in zip(q_idxs, out):
@@ -404,11 +409,13 @@ class MIPS(object):
         out = []
         doc_ans = {}
         for r_idx, result in enumerate(results):
-            if agg_strat == 'opt1': # standard (for open QA)
+            if agg_strat == 'opt1': # standard deduplication for phrase retrieval
                 da = f'{result["title"]}_{result["start_pos"]}_{result["end_pos"]}'
-            elif agg_strat == 'opt2': # for passage retrieval (for KILT)
+            elif agg_strat == 'opt2': # for sentence/passage retrieval
                 da = f'{result["context"]}'
-            elif agg_strat == 'opt3': # for aggregate with answer and merge titles (for KILT)
+            elif agg_strat == 'opt3': # for document retrieval
+                da = f'{result["title"]}'
+            elif agg_strat == 'opt4': # for aggregate with answer and merge titles (for KILT)
                 da = f'{normalize_answer(result["answer"])}'
             else:
                 raise NotImplementedError("wrong aggregation strategy")
@@ -417,7 +424,7 @@ class MIPS(object):
                 doc_ans[da] = r_idx
             else:
                 result['score'] = -1e8
-                if agg_strat == 'opt3':
+                if agg_strat == 'opt4':
                     if result['title'][0] not in results[doc_ans[da]]['title']: # Merge doc titles
                         results[doc_ans[da]]['title'] += result['title']
         results = sorted(results, key=lambda each_out: -each_out['score'])
@@ -427,7 +434,7 @@ class MIPS(object):
     def search(self, query, q_texts=None,
                nprobe=256, top_k=10,
                aggregate=False, return_idxs=False,
-               max_answer_length=10, agg_strat='opt1'):
+               max_answer_length=10, agg_strat='opt1', delimiter=' [PAR] '):
 
         # MIPS on start/end
         start_time = time()
@@ -443,7 +450,7 @@ class MIPS(object):
         start_time = time()
         outs = self.search_phrase(
             query, start_doc_idxs, start_idxs, start_I, end_doc_idxs, end_idxs, end_I, start_scores, end_scores,
-            top_k=top_k, max_answer_length=max_answer_length, return_idxs=return_idxs,
+            top_k=top_k, max_answer_length=max_answer_length, return_idxs=return_idxs, delimiter=delimiter
         )
         logger.debug(f'Top-{top_k} phrase search: {time()-start_time:.3f}s')
 
