@@ -33,7 +33,7 @@ print(model.search('Why is the sky blue', retrieval_unit='sentence'))
 
 # Search paragraphs
 print(model.search('How to become a great researcher', retrieval_unit='paragraph'))
-# ['... Levine said he believes the key to being a great researcher is having passion for research in and working on questions that the researcher is truly curious about. He said: "Have patience, persistence and enthusiasm and you’ll be fine.", ...]
+# ['... Levine said he believes the key to being a great researcher is having passion for research in and working on questions that the researcher is truly curious about. He said: "Have patience, persistence and enthusiasm and you’ll be fine."', ...]
 
 # Search documents (Wikipedia titles)
 print(model.search('What is the history of internet', retrieval_unit='document'))
