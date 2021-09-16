@@ -37,7 +37,7 @@ print(model.search('How to become a great researcher', retrieval_unit='paragraph
 
 # Search documents (Wikipedia titles)
 print(model.search('What is the history of internet', retrieval_unit='document'))
-# [['Computer network'], ['History of the World Wide Web'], ['History of the Internet'], ...]
+# ['Computer network', 'History of the World Wide Web', 'History of the Internet', ...]
 ```
 
 ## Quick Link

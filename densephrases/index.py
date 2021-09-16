@@ -11,7 +11,7 @@ import numpy as np
 
 from time import time
 from tqdm import tqdm
-
+from spacy.lang.en import English
 from densephrases.utils.eval_utils import normalize_answer
 
 
@@ -60,6 +60,10 @@ class MIPS(object):
             self.device = torch.device("cpu")
             index_ivf = faiss.extract_index_ivf(self.index)
             index_ivf.nprobe = 256
+
+        # For sentence split
+        self.sentencizer = English()
+        self.sentencizer.add_pipe(self.sentencizer.create_pipe('sentencizer'))
 
         # Load metadata on RAM if possible
         doc_group_path = os.path.join(
@@ -170,6 +174,17 @@ class MIPS(object):
         each['end_pos'] -= last
         return each
 
+    def adjust_sent(self, each):
+        sents = [(X.text, X[0].idx) for X in self.sentencizer(each['context']).sents]
+        sent_idxs = sorted(set(
+            [sum(np.array([st[1] for st in sents]) <= each['start_pos']) - 1] +
+            [sum(np.array([st[1] for st in sents]) <= each['end_pos']-1) - 1]
+        ))
+        each['context'] = ' '.join([sents[sidx][0] for sidx in range(sent_idxs[0], sent_idxs[-1]+1)])
+        each['start_pos'] -= sents[sent_idxs[0]][1]
+        each['end_pos'] -= sents[sent_idxs[0]][1]
+        return each
+
     def search_dense(self, query, q_texts, nprobe=256, top_k=10):
         batch_size, d = query.shape
         # self.index.nprobe = nprobe # For OPQ, this is already set as 256
@@ -202,7 +217,7 @@ class MIPS(object):
         return b_start_doc_idxs, b_start_idxs, start_I, b_end_doc_idxs, b_end_idxs, end_I, b_start_scores, b_end_scores
 
     def search_phrase(self, query, start_doc_idxs, start_idxs, orig_start_idxs, end_doc_idxs, end_idxs, orig_end_idxs,
-            start_scores, end_scores, top_k=10, max_answer_length=10, return_idxs=False, delimiter=' [PAR] '):
+            start_scores, end_scores, top_k=10, max_answer_length=10, return_idxs=False, return_sent=False):
 
         # Reshape for phrase
         num_queries = query.shape[0]
@@ -392,8 +407,8 @@ class MIPS(object):
         out = [self.adjust(each) for each in out]
 
         # Adjust more for sentences
-        if delimiter != ' [PAR] ':
-            out = [self.adjust(each, delimiter=delimiter) for each in out]
+        if return_sent:
+            out = [self.adjust_sent(each) for each in out]
 
         # Sort output
         new_out = [[] for _ in range(num_queries)]
@@ -434,7 +449,7 @@ class MIPS(object):
     def search(self, query, q_texts=None,
                nprobe=256, top_k=10,
                aggregate=False, return_idxs=False,
-               max_answer_length=10, agg_strat='opt1', delimiter=' [PAR] '):
+               max_answer_length=10, agg_strat='opt1', return_sent=False):
 
         # MIPS on start/end
         start_time = time()
@@ -450,7 +465,7 @@ class MIPS(object):
         start_time = time()
         outs = self.search_phrase(
             query, start_doc_idxs, start_idxs, start_I, end_doc_idxs, end_idxs, end_I, start_scores, end_scores,
-            top_k=top_k, max_answer_length=max_answer_length, return_idxs=return_idxs, delimiter=delimiter
+            top_k=top_k, max_answer_length=max_answer_length, return_idxs=return_idxs, return_sent=return_sent
         )
         logger.debug(f'Top-{top_k} phrase search: {time()-start_time:.3f}s')
 

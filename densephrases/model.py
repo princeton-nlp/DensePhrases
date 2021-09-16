@@ -33,10 +33,7 @@ class DensePhrases(object):
         self.args.cuda = True if device == 'cuda' else False
 
         # Load encoder
-        self.model, self.tokenizer, self.config = load_encoder(device, self.args)
-        self.query2vec = get_query2vec(
-            query_encoder=self.model, tokenizer=self.tokenizer, args=self.args, batch_size=64
-        )
+        self.set_encoder(load_dir, device)
 
         # Load MIPS
         self.mips = load_phrase_index(self.args)
@@ -68,12 +65,12 @@ class DensePhrases(object):
         # Search
         agg_strats = {'phrase': 'opt1', 'sentence': 'opt2', 'paragraph': 'opt2', 'document': 'opt3'}
         if retrieval_unit not in agg_strats:
-            raise NotImplementedError(f'Retrieval unit "{retrieval_unit}" not supported. Choose one of {agg_strats.keys()}.')
+            raise NotImplementedError(f'"{retrieval_unit}" not supported. Choose one of {agg_strats.keys()}.')
         rets = self.mips.search(
             query_vec, q_texts=batch_query, nprobe=256,
             top_k=10, max_answer_length=10,
             return_idxs=False, aggregate=True, agg_strat=agg_strats[retrieval_unit],
-            delimiter=' [PAR] ' if retrieval_unit != 'sentence' else '. '
+            return_sent=True if retrieval_unit == 'sentence' else False
         )
 
         # Gather results
@@ -84,7 +81,7 @@ class DensePhrases(object):
         elif retrieval_unit == 'paragraph':
             retrieved = [[rr['context'] for rr in ret] for ret in rets]
         elif retrieval_unit == 'document':
-            retrieved = [[rr['title'] for rr in ret] for ret in rets]
+            retrieved = [[rr['title'][0] for rr in ret] for ret in rets]
         else:
             raise NotImplementedError()
 
@@ -96,6 +93,13 @@ class DensePhrases(object):
             return retrieved, rets
         else:
             return retrieved
+
+    def set_encoder(self, load_dir, device='cuda'):
+        self.args.load_dir = load_dir
+        self.model, self.tokenizer, self.config = load_encoder(device, self.args)
+        self.query2vec = get_query2vec(
+            query_encoder=self.model, tokenizer=self.tokenizer, args=self.args, batch_size=64
+        )
 
     def evaluate(self, test_path):
         new_args = copy.deepcopy(self.args)
