@@ -158,13 +158,12 @@ The performance of `densephrases-multi-query-nq` on Natural Questions (test) wit
 
 </div>
 
-Note that the passage retrieval accuracy (Acc@1/5) is generally higher than the reported numbers in the paper since these phrases indexes return natural paragraphs instead of fixed-sized text blocks (i.e., 100 words).
+Note that the passage retrieval accuracy (Acc@1/5) is generally higher than the reported numbers in the paper since these phrase indexes return natural paragraphs instead of fixed-sized text blocks (i.e., 100 words).
 
 ## Examples
-We provide descriptions on how to use DensePhrases for different applications.
+In the [examples](https://github.com/princeton-nlp/DensePhrases/tree/main/examples) folder, we provide descriptions on how to use DensePhrases for different applications.
 For instance, based on the retrieved passages from DensePhrases, you can train a state-of-the-art open-domain question answering model called [Fusion-in-Decoder](https://arxiv.org/abs/2007.01282) by Izacard and Grave, 2021.
 Or, you can build your own phrase index with DensePhrases.
-See [here](https://github.com/princeton-nlp/DensePhrases/tree/main/examples) for a list of examples.
 
 ## Playing with a DensePhrases Demo
 There are two ways of using DensePhrases demo.
