@@ -148,8 +148,8 @@ $SAVE_DIR/densephrases-multi_wiki-20181220
 All phrase indexes are created from the same model (`densephrases-multi`) and you can use all of pre-trained models above with any of these phrase indexes.
 The performance of `densephrases-multi-query-nq` with different phrase indexes is shown below.
 
-|              Phrase Index              | Open-domain QA (EM) | Sentence Retrieveal (Acc@1/5) | Passage Retrieval (Acc@1/5) | Size | Description |
-|:----------------------------------|:---------------:|:--------:|:--------:|:--------:|:--------:|
+|              Phrase Index              | Open-Domain QA (EM) | Sentence Retrieval (Acc@1/5) | Passage Retrieval (Acc@1/5) | Size | Description |
+|:----------------------------------|:---------------:|:--------:|:--------:|:--------:|:-----------------------:|
 | 1048576_flat_OPQ96 | 41.2 | 48.7 / 66.4 | 52.6 / 71.5 | 60GB | Original DensePhrases evaluated with top-k=100 |
 | 1048576_flat_OPQ96_medium | 39.9 | - / - | 52.2 / 70.9 | 39GB | |
 | 1048576_flat_OPQ96_base | 38.0 | 47.2 / 64.0 | 50.7 / 69.1 | 20GB | |
