@@ -1,4 +1,4 @@
-# Examples of Using DensePhrases
+# DensePhrases Examples
 
 We provide descriptions on several examples of using DensePhrases.
 For instance, based on the retrieved passages from DensePhrases, you can train a state-of-the-art open-domain question answering model called [Fusion-in-Decoder](https://arxiv.org/abs/2007.01282) by Izacard and Grave, 2021.
@@ -42,12 +42,12 @@ For batch queries, simply feed a list of queries as ``query``.
 To get more detailed search results, set ``return_meta=True`` as follows:
 ```python
 # Search phrases and get detailed results
-phrases, metadata = model.search('Who won the Nobel Prize in peace?', retrieval_unit='phrase', return_meta=True)
+phrases, metadata = model.search(['Who won the Nobel Prize in peace?', 'Name products of Apple.'], retrieval_unit='phrase', return_meta=True)
 
-print(phrases)
+print(phrases[0])
 # ['Denis Mukwege,', 'Theodore Roosevelt', 'Denis Mukwege', 'John Mott', 'Muhammad Yunus', ...]
 
-print(metadata)
+print(metadata[0])
 # [{'context': '... The most recent as of 2018, Denis Mukwege, was awarded his Peace Prize in 2018. ...', 'title': ['List of black Nobel laureates'], 'doc_idx': 5433697, 'start_pos': 558, 'end_pos': 572, 'start_idx': 15, 'end_idx': 16, 'score': 99.670166015625, ..., 'answer': 'Denis Mukwege,'}, ...] 
 ```
 Note that when the model returns phrases, it also returns passages in its metadata as described in our [EMNLP paper](https://arxiv.org/abs/2109.08133).<br>
