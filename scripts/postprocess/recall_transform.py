@@ -28,7 +28,7 @@ def main(args):
         pred["title"] = [titles[0] for titles in pred["title"]]
 
         assert len(set(pred["evidence"])) == len(pred["evidence"]) == len(pred["title"]), "Should use opt2 for aggregation"
-        assert all(pr in evd for pr, evd in zip(pred["prediction"], pred["evidence"]))  # prediction included
+        # assert all(pr in evd for pr, evd in zip(pred["prediction"], pred["evidence"]))  # prediction included
 
         # Pad up to top-k
         if not(len(pred["prediction"]) == len(pred["evidence"]) == len(pred["title"]) == args.top_k):

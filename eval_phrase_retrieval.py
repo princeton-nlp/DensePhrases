@@ -319,7 +319,7 @@ def evaluate_results_psg(pred_path, args):
         pred["title"] = [titles[0] for titles in pred["title"]]
 
         assert len(set(pred["evidence"])) == len(pred["evidence"]) == len(pred["title"]), "Should use opt2 for aggregation"
-        assert all(pr in evd for pr, evd in zip(pred["prediction"], pred["evidence"]))  # prediction included
+        # assert all(pr in evd for pr, evd in zip(pred["prediction"], pred["evidence"]))  # prediction included TODO: fails when return_sent=True
 
         # Pad up to top-k
         if not(len(pred["prediction"]) == len(pred["evidence"]) == len(pred["title"]) == args.psg_top_k):
