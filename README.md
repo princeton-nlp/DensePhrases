@@ -9,8 +9,9 @@ Learning Dense Representations of Phrases at Scale (Lee et al., 2021)](https://a
 
 **\*\*\*\*\* You can try out our online demo of DensePhrases [here](http://densephrases.korea.ac.kr)! \*\*\*\*\***
 
-#### Updates
-**\*\*\*\*\* New June 14, 2021: Major code updates \*\*\*\*\***
+### Updates
+* \[**Sep 17, 2021**\] Our new [EMNLP paper](https://arxiv.org/abs/2109.08133) on phrase-based passage retrieval is out! Stay tuned for code updates!
+* \[**June 14, 2021**\] Major code updates
 
 ## Quick Link
 * [Installation](#installation)
