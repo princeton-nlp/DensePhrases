@@ -23,6 +23,8 @@ def get_args():
 
     coarse = 'hnsw' if args.hnsw else 'flat'
     args.index_name = f'{args.num_clusters}_{coarse}_{args.fine_quant}{"_first" if args.first_passage else ""}'
+    if args.index_filter != -1e8: # other than default
+        args.index_name = args.index_name + f'_ft{int(args.index_filter)}'
     args.index_dir = os.path.join(args.dump_dir, 'start', args.index_name)
 
     args.quantizer_path = os.path.join(args.index_dir, args.quantizer_path)
@@ -153,11 +155,15 @@ def add_with_offset(start_index, start_data, start_valids, start_total, offset, 
 
 def add_to_index(dump_paths, trained_index_path, target_index_path, idx2id_path,
                  num_docs_per_add=1000, cuda=False, fine_quant='SQ4', offset=0, norm_th=999,
-                 ignore_ids=None, avg_vec=None, std_vec=None, first_passage=False):
+                 ignore_ids=None, avg_vec=None, std_vec=None, first_passage=False, index_filter=-1e8):
 
     sidx2doc_id = []
     sidx2word_id = []
     dumps = [h5py.File(dump_path, 'r') for dump_path in dump_paths]
+    # filter dumps
+    if index_filter != -1e8:
+        f_dumps = [h5py.File(dump_path.replace('/phrase/', '/filter/'), 'r') for dump_path in dump_paths]
+
     print('reading %s' % trained_index_path)
     start_index = faiss.read_index(trained_index_path)
     if 'none' not in fine_quant:
@@ -191,16 +197,28 @@ def add_to_index(dump_paths, trained_index_path, target_index_path, idx2id_path,
             if ignore_ids is not None and doc_idx in ignore_ids:
                 continue
             num_start = doc_group['start'].shape[0]
-            # if len(doc_group['start'].shape) < 2:
-            #     continue
             if num_start == 0: continue
             cnt += 1
 
+            # First passage only
             if first_passage:
                 f2o_start = doc_group['f2o_start'][:]
                 cut = sum(f2o_start < doc_group['len_per_para'][0])
                 start = int8_to_float(
                     doc_group['start'][:cut], doc_group.attrs['offset'], doc_group.attrs['scale']
+                )
+                num_start = start.shape[0]
+            # Apply index filter
+            elif index_filter != -1e8:
+                o2f_start = {orig: ft for ft, orig in enumerate(doc_group['f2o_start'][:])}
+                filter_start = f_dumps[di][doc_idx]['filter_start'][:] 
+                filter_end = f_dumps[di][doc_idx]['filter_end'][:] 
+                start_idxs, = np.where(filter_start > index_filter)
+                end_idxs, = np.where(filter_end > index_filter)
+                save_idx = set(np.concatenate([start_idxs, end_idxs]))
+                save_idx = sorted([o2f_start[si] for si in save_idx if si in o2f_start])
+                start = int8_to_float(
+                    doc_group['start'][save_idx], doc_group.attrs['offset'], doc_group.attrs['scale']
                 )
                 num_start = start.shape[0]
             else:
@@ -212,7 +230,10 @@ def add_to_index(dump_paths, trained_index_path, target_index_path, idx2id_path,
             starts.append(start)
             start_valids.append(start_valid)
             sidx2doc_id.extend([int(doc_idx)] * num_start)
-            sidx2word_id.extend(range(num_start))
+            if index_filter == -1e8:
+                sidx2word_id.extend(range(num_start))
+            else:
+                sidx2word_id.extend(save_idx)
             start_total += num_start
 
             if len(starts) > 0 and ((i % num_docs_per_add == 0) or (i == dump_length - 1)):
@@ -367,7 +388,8 @@ def run_index(args):
             add_to_index(
                 dump_paths, args.trained_index_path, args.index_path, args.idx2id_path,
                 cuda=args.cuda, num_docs_per_add=args.num_docs_per_add, offset=args.offset, norm_th=args.norm_th,
-                fine_quant=args.fine_quant, avg_vec=avg_vec, std_vec=std_vec, first_passage=args.first_passage
+                fine_quant=args.fine_quant, avg_vec=avg_vec, std_vec=std_vec,
+                first_passage=args.first_passage, index_filter=args.index_filter,
             )
 
     if args.stage == 'merge':

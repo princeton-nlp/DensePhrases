@@ -168,12 +168,3 @@ def analyze(prediction_file, gold_file):
 if __name__ == '__main__':
     #eval(sys.argv[1], sys.argv[2])
     analyze(sys.argv[1], sys.argv[2])
-
-
-
-
-
-
-
-
-

@@ -93,7 +93,8 @@ def main(args):
 
     out_file = os.path.join(
         args.model_dir, 'pred',
-        os.path.splitext(args.pred_file)[0] + f'_top{args.top_k}_mcl{args.max_context_len}_{"sent" if args.return_sent else "psg"}{"_mark" if args.mark_phrase else ""}.json'
+        os.path.splitext(args.pred_file)[0] + 
+        f'_top{args.top_k}_plen{args.max_context_len}_{"sent" if args.return_sent else "psg"}{"_mark" if args.mark_phrase else ""}.json'
     )
     print(f"dump to {out_file}")
     json.dump(my_target, open(out_file, 'w'), indent=4)
@@ -105,7 +106,7 @@ if __name__ == '__main__':
     parser.add_argument('--model_dir', type=str, default='')
     parser.add_argument('--pred_file', type=str, default='')
     parser.add_argument('--top_k', type=int, default=100)
-    parser.add_argument('--max_context_len', type=int, default=100)
+    parser.add_argument('--max_context_len', type=int, default=999999999)
     parser.add_argument('--mark_phrase', default=False, action='store_true')
     parser.add_argument('--return_sent', default=False, action='store_true')
     parser.add_argument('--sent_window', type=int, default=0)
