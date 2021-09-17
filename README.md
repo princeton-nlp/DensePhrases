@@ -10,7 +10,7 @@ Learning Dense Representations of Phrases at Scale (Lee et al., 2021)](https://a
 **\*\*\*\*\* You can try out our online demo of DensePhrases [here](http://densephrases.korea.ac.kr)! \*\*\*\*\***
 
 ### Updates
-* \[**Sep 17, 2021**\] Our new [EMNLP paper](https://arxiv.org/abs/2109.08133) on phrase-based passage retrieval is out! Stay tuned for code updates!
+* \[**Sep 17, 2021**\] Our new [EMNLP paper](https://arxiv.org/abs/2109.08133) on phrase-based passage retrieval is out! Check out our updated code!
 * \[**June 14, 2021**\] Major code updates
 
 ## Getting Started
@@ -345,16 +345,24 @@ Note that the test set evaluation of slot filling tasks requires prediction file
 At the bottom of `Makefile`, we list commands that we used for pre-processing the datasets and Wikipedia. For training question generation models (T5-large), we used [https://github.com/patil-suraj/question\_generation](https://github.com/patil-suraj/question_generation) (see also [here](https://github.com/princeton-nlp/DensePhrases/blob/main/scripts/question_generation/generate_squad.py) for QG). Note that all datasets are already pre-processed including the generated questions, so you do not need to run most of these scripts. For creating test sets for custom (open-domain) questions, see `preprocess-openqa` in `Makefile`.
 
 ## Questions?
-Feel free to email Jinhyuk Lee `(jl5167@princeton.edu)` for any questions related to the code or the paper. You can also open a Github issue. Please try to specify the details so we can better understand and help you solve the problem.
+Feel free to email Jinhyuk Lee `(jinhyuklee@princeton.edu)` for any questions related to the code or the paper. You can also open a Github issue. Please try to specify the details so we can better understand and help you solve the problem.
 
 ## Reference
 Please cite our paper if you use DensePhrases in your work:
 ```bibtex
 @inproceedings{lee2021learning,
-   title={Learning Dense Representations of Phrases at Scale},
-   author={Lee, Jinhyuk and Sung, Mujeen and Kang, Jaewoo and Chen, Danqi},
-   booktitle={Association for Computational Linguistics (ACL)},
-   year={2021}
+    title={Learning Dense Representations of Phrases at Scale},
+    author={Lee, Jinhyuk and Sung, Mujeen and Kang, Jaewoo and Chen, Danqi},
+    booktitle={Association for Computational Linguistics (ACL)},
+    year={2021}
+}
+```
+```bibtex
+@inproceedings{lee2021phrase,
+    title={Phrase Retrieval Learns Passage Retrieval, Too},
+    author={Lee, Jinhyuk and Wettig, Alexander and Chen, Danqi},
+    booktitle={Conference on Empirical Methods in Natural Language Processing (EMNLP)},
+    year={2021},
 }
 ```
 
