@@ -4,8 +4,7 @@
   <img alt="DensePhrases Demo" src="https://github.com/princeton-nlp/DensePhrases/blob/main/densephrases/demo/static/files/preview.gif" width="750px">
 </div>
 
-<em>DensePhrases</em> is a text retrieval model that can return phrases, sentences, passages, or documents for your natural language inputs. From 5 million Wikipedia articles, it can search phrase-level answers to your questions in real-time or retrieve related passages for downstream tasks. Please see our ACL paper ([
-Learning Dense Representations of Phrases at Scale](https://arxiv.org/abs/2012.12624)) for details on how to learn dense representations of phrases and the EMNLP paper ([Phrase Retrieval Learns Passage Retrieval, Too](https://arxiv.org/abs/2109.08133)) on how to perform multi-granularity retrieval with phrases.
+<em>DensePhrases</em> is a text retrieval model that can return phrases, sentences, passages, or documents for your natural language inputs. From 5 million Wikipedia articles, it can search phrase-level answers to your questions in real-time or retrieve related passages for downstream tasks. Please see our ACL paper ([Learning Dense Representations of Phrases at Scale](https://arxiv.org/abs/2012.12624)) for details on how to learn dense representations of phrases and the EMNLP paper ([Phrase Retrieval Learns Passage Retrieval, Too](https://arxiv.org/abs/2109.08133)) on how to perform multi-granularity retrieval with phrases.
 
 **\*\*\*\*\* You can try out our online demo of DensePhrases [here](http://densephrases.korea.ac.kr)! \*\*\*\*\***
 
