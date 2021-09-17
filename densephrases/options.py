@@ -63,8 +63,9 @@ class Options():
         self.parser.add_argument('--vec_sample_ratio', type=float, default=0.2)
         self.parser.add_argument('--cuda', action='store_true', default=False)
         self.parser.add_argument('--replace', action='store_true', default=False)
-        self.parser.add_argument('--first_passage', action='store_true', default=False)
         self.parser.add_argument('--num_docs_per_add', type=int, default=2000)
+        self.parser.add_argument('--first_passage', action='store_true', default=False, help="dump only first passages")
+        self.parser.add_argument("--index_filter", type=float, default=-1e8, help="filtering threshold for index",)
 
         # For merging IVFSQ subindexes
         self.parser.add_argument('--dump_paths', default=None,
@@ -142,8 +143,7 @@ class Options():
         self.parser.add_argument("--filter_only", action="store_true", help="Whether to generate filter logits only")
         self.parser.add_argument('--dense_offset', type=float, default=-2)
         self.parser.add_argument('--dense_scale', type=float, default=20)
-        self.parser.add_argument("--filter_threshold", type=float, default=-1e8,
-                        help="model-based filtering threshold.",)
+        self.parser.add_argument("--filter_threshold", type=float, default=-1e8, help="model-based filtering threshold.",)
 
     def add_retrieval_options(self):
         self.parser.add_argument('--run_mode', default='eval')
@@ -159,6 +159,14 @@ class Options():
         self.parser.add_argument('--regex', action='store_true', default=False)
         self.parser.add_argument('--eval_batch_size', type=int, default=64)
         self.parser.add_argument('--save_pred', action='store_true', default=False)
+
+        # Passage retrieval options
+        self.parser.add_argument('--eval_psg', action='store_true', default=False)
+        self.parser.add_argument('--psg_top_k', type=int, default=100)
+        self.parser.add_argument('--max_psg_len', type=int, default=999999999, help='used for fair comparison')
+        self.parser.add_argument('--mark_phrase', action='store_true', default=False)
+        self.parser.add_argument('--return_sent', action='store_true', default=False)
+        self.parser.add_argument('--sent_window', type=int, default=0)
 
         # KILT
         self.parser.add_argument('--is_kilt', action='store_true', default=False)

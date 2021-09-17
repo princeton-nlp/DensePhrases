@@ -166,7 +166,7 @@ compress-meta:
 		--output_dir $(DUMP_DIR)
 
 # 5) Evaluate the phrase index for phrase retrieval
-eval-index: dump-dir model-name large-index cweb-kilt-data
+eval-index: dump-dir model-name large-index nq-open-data
 	python eval_phrase_retrieval.py \
 		--run_mode eval \
 		--model_type bert \
@@ -488,18 +488,19 @@ eval-index-psg: dump-dir model-name large-index nq-open-data
 		--aggregate \
 		--agg_strat opt2 \
 		--top_k 200 \
+		--eval_psg \
+		--psg_top_k 100 \
 		$(OPTIONS)
 
-# transform prediction for the recall evaluation
+# transform prediction for the recall evaluation (when you already have prediction files)
 recall-eval: model-name
 	python scripts/postprocess/recall_transform.py \
 		--model_dir $(SAVE_DIR)/$(MODEL_NAME) \
 		--pred_file $(PRED_NAME).pred \
-		--max_context_len 100 \
 		--top_k 100
 	python scripts/postprocess/recall.py \
 		--k_values 1,5,20,100 \
-		--results_file $(SAVE_DIR)/$(MODEL_NAME)/pred/$(PRED_NAME)_top100_mcl100_psg.json \
+		--results_file $(SAVE_DIR)/$(MODEL_NAME)/pred/$(PRED_NAME)_top100_mcl999999999_psg.json \
 		--ans_fn string
 
 ############################## Data Pre/Post-processing ###################################

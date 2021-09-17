@@ -11,6 +11,7 @@ import copy
 import string
 import faiss
 import csv
+import subprocess
 
 from time import time
 from tqdm import tqdm
@@ -50,7 +51,7 @@ def evaluate(args, mips=None, query_encoder=None, tokenizer=None, q_idx=None):
     qids, questions, answers, _ = load_qa_pairs(args.test_path, args, q_idx)
 
     if query_encoder is None:
-        print(f'Query encoder will be loaded from {args.load_dir}')
+        logger.info(f'Query encoder will be loaded from {args.load_dir}')
         device = 'cuda' if args.cuda else 'cpu'
         query_encoder, tokenizer, _ = load_encoder(device, args)
     query_vec = embed_all_query(questions, args, query_encoder, tokenizer)
@@ -72,7 +73,7 @@ def evaluate(args, mips=None, query_encoder=None, tokenizer=None, q_idx=None):
             query_vec[q_idx:q_idx+step],
             q_texts=questions[q_idx:q_idx+step], nprobe=args.nprobe,
             top_k=args.top_k, max_answer_length=args.max_answer_length,
-            aggregate=args.aggregate, agg_strat=args.agg_strat,
+            aggregate=args.aggregate, agg_strat=args.agg_strat, return_sent=args.return_sent
         )
         prediction = [[ret['answer'] for ret in out][:args.top_k] if len(out) > 0 else [''] for out in result]
         evidence = [[ret['context'] for ret in out][:args.top_k] if len(out) > 0 else [''] for out in result]
@@ -203,6 +204,10 @@ def evaluate_results(predictions, qids, questions, answers, args, evidences, sco
         with open(pred_path, 'w') as f:
             json.dump(pred_out, f)
 
+    # Evaluate passage retrieval
+    if args.eval_psg:
+        evaluate_results_psg(pred_path, args)
+
     return exact_match_top1, f1_score_top1, exact_match_topk, f1_score_topk
 
 
@@ -296,6 +301,76 @@ def evaluate_results_kilt(predictions, qids, questions, answers, args, evidences
     return result['retrieval']['Rprec'], result['retrieval']['recall@5'], result['kilt']['KILT-accuracy'], result['kilt']['KILT-f1']
 
 
+def evaluate_results_psg(pred_path, args):
+    # Read prediction
+    my_pred = json.load(open(pred_path))
+
+    my_target = []
+    avg_len = []
+    for qid, pred in tqdm(enumerate(my_pred.values())):
+        my_dict = {"id": str(qid), "question": None, "answers": [], "ctxs": []}
+
+        # truncate
+        pred = {key: val[:args.psg_top_k] if key in ['evidence', 'title', 'se_pos', 'prediction'] else val for key, val in pred.items()}
+
+        # TODO: need to add id for predictions.pred
+        my_dict["question"] = pred["question"]
+        my_dict["answers"] = pred["answer"]
+        pred["title"] = [titles[0] for titles in pred["title"]]
+
+        assert len(set(pred["evidence"])) == len(pred["evidence"]) == len(pred["title"]), "Should use opt2 for aggregation"
+        assert all(pr in evd for pr, evd in zip(pred["prediction"], pred["evidence"]))  # prediction included
+
+        # Pad up to top-k
+        if not(len(pred["prediction"]) == len(pred["evidence"]) == len(pred["title"]) == args.psg_top_k):
+            assert len(pred["prediction"]) == len(pred["evidence"]) == len(pred["title"]) < args.psg_top_k, \
+                (len(pred["prediction"]), len(pred["evidence"]), len(pred["title"]))
+            # logger.info(len(pred["prediction"]), len(pred["evidence"]), len(pred["title"]))
+
+            pred["evidence"] += [pred["evidence"][-1]] * (args.psg_top_k - len(pred["prediction"]))
+            pred["title"] += [pred["title"][-1]] * (args.psg_top_k - len(pred["prediction"]))
+            pred["se_pos"] += [pred["se_pos"][-1]] * (args.psg_top_k - len(pred["prediction"]))
+            pred["prediction"] += [pred["prediction"][-1]] * (args.psg_top_k - len(pred["prediction"]))
+            assert len(pred["prediction"]) == len(pred["evidence"]) == len(pred["title"]) == args.psg_top_k
+
+        # Used for markers
+        START = '<p_start>'
+        END = '<p_end>'
+        se_idxs = [[se_pos[0], max(se_pos[0], se_pos[1])] for se_pos in pred["se_pos"]]
+
+        # cut based on max psg len
+        my_dict["ctxs"] = [
+            {"title": title, "text": ' '.join(evd.split()[:args.max_psg_len])}
+            for evd, title in zip(pred["evidence"], pred["title"])
+        ]
+
+        # Add markers for predicted phrases
+        if args.mark_phrase:
+            my_dict["ctxs"] = [
+                {"title": ctx["title"], "text": ctx["text"][:se[0]] + f"{START} " + ctx["text"][se[0]:se[1]] + f" {END}" + ctx["text"][se[1]:]}
+                for ctx, se in zip(my_dict["ctxs"], se_idxs)
+            ]
+
+        my_target.append(my_dict)
+        avg_len += [len(ctx['text'].split()) for ctx in my_dict["ctxs"]]
+        assert len(my_dict["ctxs"]) == args.psg_top_k
+        assert all(len(ctx['text'].split()) <= args.max_psg_len for ctx in my_dict["ctxs"])
+
+    logger.info(f"avg psg len={sum(avg_len)/len(avg_len):.2f} for {len(my_pred)} preds")
+
+    out_file = os.path.join(
+        args.load_dir, 'pred',
+        os.path.splitext(os.path.basename(pred_path))[0] + 
+        f'_top{args.psg_top_k}_plen{args.max_psg_len}_{"sent" if args.return_sent else "psg"}{"_mark" if args.mark_phrase else ""}.json'
+    )
+    logger.info(f"dump to {out_file}")
+    json.dump(my_target, open(out_file, 'w'), indent=4)
+
+    # Call subprocess for evaluation
+    command = f'python scripts/postprocess/recall.py --k_values 1,5,20,100 --results_file {out_file} --ans_fn string'
+    subprocess.run(command.split(' '))
+
+
 if __name__ == '__main__':
     # See options in densephrases.options
     options = Options()
@@ -339,7 +414,7 @@ if __name__ == '__main__':
             em, _, _, _ = evaluate(new_args, mips, query_encoder, tokenizer)
             ems.append(f'{em:.1f}')
         logger.info(f"Results of {args.load_dir}")
-        print(f'Top1 EMs: {" ".join(ems)}')
+        logger.info(f'Top1 EMs: {" ".join(ems)}')
     
     else:
         raise NotImplementedError
