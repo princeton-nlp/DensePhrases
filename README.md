@@ -129,7 +129,7 @@ All models were trained with the phrase index [densephrases-multi_wiki-20181220]
 
 ### 3. Phrase Index
 Please note that you don't need to download this phrase index unless you want to work on the full Wikipedia scale.
-* [densephrases-multi_wiki-20181220](https://nlp.cs.princeton.edu/projects/densephrases/densephrases-multi_wiki-20181220.tar.gz) (74GB) - Original phrase index + metadata for the 20181220 version of Wikipedia. Download and unzip it under `$SAVE_DIR` or use `download.sh`.
+* [densephrases-multi_wiki-20181220](https://nlp.cs.princeton.edu/projects/densephrases/densephrases-multi_wiki-20181220.tar.gz) (74GB) - Original phrase index (1048576_flat_OPQ96) + metadata for the entire Wikipedia (2018.12.20). Download and unzip it under `$SAVE_DIR` or use `download.sh`.
 
 We also provide smaller phrase indexes based on a more aggresive filtering threshold (optional).
 * [1048576_flat_OPQ96_medium](https://nlp.cs.princeton.edu/projects/densephrases/indexes/1048576_flat_OPQ96_medium.tar.gz) (39GB) - Medium-sized phrase index
