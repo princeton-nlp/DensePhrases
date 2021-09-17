@@ -138,21 +138,25 @@ We also provide smaller phrase indexes based on a more aggresive filtering thres
 After downloading `densephrases-multi_wiki-20181220` under `SAVE_DIR`, other smaller indexes should be located as follows:
 ```bash
 $SAVE_DIR/densephrases-multi_wiki-20181220
-├── dump
-│   ├── meta_compressed.pkl
-│   └── start
-│       ├── 1048576_flat_OPQ96
-│       ├── 1048576_flat_OPQ96_medium
-│       └── 1048576_flat_OPQ96_small
+└── dump
+    ├── meta_compressed.pkl
+    └── start
+        ├── 1048576_flat_OPQ96
+        ├── 1048576_flat_OPQ96_medium
+        └── 1048576_flat_OPQ96_small
 ```
 All phrase indexes are created from the same model (`densephrases-multi`) and you can use all of pre-trained models above with any of these phrase indexes.
 The performance of `densephrases-multi-query-nq` with different phrase indexes is shown below.
+
+<div class="table-wrapper" markdown="block">
 
 |              Phrase Index              | Open-Domain QA (EM) | Sentence Retrieval (Acc@1/5) | Passage Retrieval (Acc@1/5) | Size | Description |
 |:----------------------------------|:---------------:|:--------:|:--------:|:--------:|:-----------------------:|
 | 1048576_flat_OPQ96 | 41.2 | 48.7 / 66.4 | 52.6 / 71.5 | 60GB | Original DensePhrases evaluated with top-k=100 |
 | 1048576_flat_OPQ96_medium | 39.9 | - / - | 52.2 / 70.9 | 39GB | |
 | 1048576_flat_OPQ96_base | 38.0 | 47.2 / 64.0 | 50.7 / 69.1 | 20GB | |
+
+</div>
 
 Note that the passage retrieval accuracy (Acc@1/5) is generally higher than the reported numbers in the paper since these phrases indexes return natural paragraphs instead of fixed-sized text blocks (i.e., 100 words).
 
