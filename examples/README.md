@@ -7,7 +7,7 @@ We list the examples below.
 
 * [Basics: Multi-Granularity Text Retrieval](#basics-multi-granularity-text-retrieval)
 * [Fusion-in-Decoder](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/fusion-in-decoder)
-* [Create Your Own Phrase Index](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/create-index)
+* [Create Your Own Phrase Index](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/create-custom-index)
 * Entity Linking (coming soon)
 * Slot Filling (coming soon)
 
