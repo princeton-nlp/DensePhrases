@@ -4,8 +4,8 @@
   <img alt="DensePhrases Demo" src="https://github.com/princeton-nlp/DensePhrases/blob/main/densephrases/demo/static/files/preview.gif" width="750px">
 </div>
 
-<em>DensePhrases</em> is an extractive phrase search tool based on your natural language inputs. From 5 million Wikipedia articles, it can search phrase-level answers to your questions or find related entities to (subject, relation) pairs in real-time. Due to the extractive nature of DensePhrases, it always provides an evidence passage for each phrase. Please see our paper [
-Learning Dense Representations of Phrases at Scale (Lee et al., 2021)](https://arxiv.org/abs/2012.12624) for more details.
+<em>DensePhrases</em> is a text retrieval model that can return phrases, sentences, passages, or documents for your natural language inputs. From 5 million Wikipedia articles, it can search phrase-level answers to your questions in real-time or retrieve related passages for downstream tasks. Please see our ACL paper ([
+Learning Dense Representations of Phrases at Scale](https://arxiv.org/abs/2012.12624)) for details on how to learn dense representations of phrases and the EMNLP paper ([Phrase Retrieval Learns Passage Retrieval, Too](https://arxiv.org/abs/2109.08133)) on how to perform multi-granularity retrieval with phrases.
 
 **\*\*\*\*\* You can try out our online demo of DensePhrases [here](http://densephrases.korea.ac.kr)! \*\*\*\*\***
 
@@ -132,7 +132,7 @@ Please note that you don't need to download this phrase index unless you want to
 * [densephrases-multi_wiki-20181220](https://nlp.cs.princeton.edu/projects/densephrases/densephrases-multi_wiki-20181220.tar.gz) (74GB) - Original phrase index (1048576_flat_OPQ96) + metadata for the entire Wikipedia (2018.12.20). Download and unzip it under `$SAVE_DIR` or use `download.sh`.
 
 We also provide smaller phrase indexes based on more aggresive filtering (optional).
-* [1048576_flat_OPQ96_medium](https://nlp.cs.princeton.edu/projects/densephrases/indexes/1048576_flat_OPQ96_medium.tar.gz) (39GB) - Medium-sized phrase index
+* [1048576_flat_OPQ96_medium](https://nlp.cs.princeton.edu/projects/densephrases/indexes/1048576_flat_OPQ96_medium.tar.gz) (37GB) - Medium-sized phrase index
 * [1048576_flat_OPQ96_small](https://nlp.cs.princeton.edu/projects/densephrases/indexes/1048576_flat_OPQ96_small.tar.gz) (21GB) - Small-sized phrase index
 
 After downloading `densephrases-multi_wiki-20181220` under `SAVE_DIR`, other smaller indexes should be located as follows:
