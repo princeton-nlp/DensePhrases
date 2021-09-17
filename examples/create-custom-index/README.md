@@ -1,7 +1,6 @@
 # Creating a Custom Phrase Index with DensePhrases
 
-## Pre-processing
-Basically, DensePhrases uses a text corpus pre-processed in the following format:
+Basically, DensePhrases uses a text corpus pre-processed in the following format (see `articles.json` for an example):
 ```
 {
     "data": [
@@ -22,7 +21,7 @@ Basically, DensePhrases uses a text corpus pre-processed in the following format
 ```
 
 ## Building a Phrase Index
-Each `context` contains a single natural paragraph of a variable length. See `articles.json` for example. The following command creates phrase vectors for the custom corpus (`articles.json`) with the `densephrases-multi` model.
+Each `context` contains a single natural paragraph of a variable length. The following command creates phrase vectors for the custom corpus (`articles.json`) with the `densephrases-multi` model.
 
 ```bash
 python generate_phrase_vecs.py \
@@ -59,7 +58,7 @@ python scripts/preprocess/compress_metadata.py \
 Note that this example uses a very small text corpus and the hyperparameters for `build_phrase_index.py` in a larger scale corpus can be found [here](#densephrases-training-indexing-and-inference).
 The phrase index (with IVFOPQ) will be saved under `$SAVE_DIR/densephrases-multi_sample/dump/start`.
 
-## Testing the Phrase Index
+## Testing a Phrase Index
 You can use this phrase index to run a [demo](#playing-with-a-densephrases-demo) or evaluate your set of queries.
 For instance, you can feed a set of questions (`questions.json`) to the custom phrase index as follows:
 ```bash
