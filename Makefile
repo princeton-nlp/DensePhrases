@@ -497,10 +497,10 @@ recall-eval: model-name
 	python scripts/postprocess/recall_transform.py \
 		--model_dir $(SAVE_DIR)/$(MODEL_NAME) \
 		--pred_file $(PRED_NAME).pred \
-		--top_k 100
+		--psg_top_k 100
 	python scripts/postprocess/recall.py \
 		--k_values 1,5,20,100 \
-		--results_file $(SAVE_DIR)/$(MODEL_NAME)/pred/$(PRED_NAME)_top100_mcl999999999_psg.json \
+		--results_file $(SAVE_DIR)/$(MODEL_NAME)/pred/$(PRED_NAME)_psg-top100.json \
 		--ans_fn string
 
 ############################## Data Pre/Post-processing ###################################

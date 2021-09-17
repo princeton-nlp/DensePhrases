@@ -57,6 +57,7 @@ python scripts/preprocess/compress_metadata.py \
 ```
 Note that this example uses a very small text corpus and the hyperparameters for `build_phrase_index.py` in a larger scale corpus can be found [here](https://github.com/princeton-nlp/DensePhrases/tree/main#densephrases-training-indexing-and-inference).
 The phrase index (with IVFOPQ) will be saved under `$SAVE_DIR/densephrases-multi_sample/dump/start`.
+For creating a large-scale phrase index (e.g., Wikipedia), see [dump_phrases.py](https://github.com/princeton-nlp/DensePhrases/blob/main/scripts/parallel/dump_phrases.py) for an example, which is also explained [here](https://github.com/princeton-nlp/DensePhrases/tree/main#2-creating-a-phrase-index).
 
 ## Testing a Phrase Index
 You can use this phrase index to run a [demo](https://github.com/princeton-nlp/DensePhrases/tree/main#playing-with-a-densephrases-demo) or evaluate your set of queries.
@@ -90,4 +91,3 @@ The prediction file will be saved as `$SAVE_DIR/densephrases-multi/pred/question
     ...
 }
 ```
-For creating a large-scale phrase index (e.g., Wikipedia), see [dump_phrases.py](https://github.com/princeton-nlp/DensePhrases/blob/main/scripts/parallel/dump_phrases.py) for an example, which is also explained [here](https://github.com/princeton-nlp/DensePhrases/tree/main#2-creating-a-phrase-index).
