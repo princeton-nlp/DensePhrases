@@ -20,7 +20,7 @@ def main(args):
         my_dict = {"id": str(qid), "question": None, "answers": [], "ctxs": []}
 
         # truncate
-        pred = {key: val[:args.top_k] if key in ['evidence', 'title', 'se_pos', 'prediction'] else val for key, val in pred.items()}
+        pred = {key: val[:args.psg_top_k] if key in ['evidence', 'title', 'se_pos', 'prediction'] else val for key, val in pred.items()}
 
         # TODO: need to add id for predictions.pred in the future
         my_dict["question"] = pred["question"]
@@ -31,16 +31,16 @@ def main(args):
         # assert all(pr in evd for pr, evd in zip(pred["prediction"], pred["evidence"]))  # prediction included
 
         # Pad up to top-k
-        if not(len(pred["prediction"]) == len(pred["evidence"]) == len(pred["title"]) == args.top_k):
-            assert len(pred["prediction"]) == len(pred["evidence"]) == len(pred["title"]) < args.top_k, \
+        if not(len(pred["prediction"]) == len(pred["evidence"]) == len(pred["title"]) == args.psg_top_k):
+            assert len(pred["prediction"]) == len(pred["evidence"]) == len(pred["title"]) < args.psg_top_k, \
                 (len(pred["prediction"]), len(pred["evidence"]), len(pred["title"]))
             print(len(pred["prediction"]), len(pred["evidence"]), len(pred["title"]))
 
-            pred["evidence"] += [pred["evidence"][-1]] * (args.top_k - len(pred["prediction"]))
-            pred["title"] += [pred["title"][-1]] * (args.top_k - len(pred["prediction"]))
-            pred["se_pos"] += [pred["se_pos"][-1]] * (args.top_k - len(pred["prediction"]))
-            pred["prediction"] += [pred["prediction"][-1]] * (args.top_k - len(pred["prediction"]))
-            assert len(pred["prediction"]) == len(pred["evidence"]) == len(pred["title"]) == args.top_k
+            pred["evidence"] += [pred["evidence"][-1]] * (args.psg_top_k - len(pred["prediction"]))
+            pred["title"] += [pred["title"][-1]] * (args.psg_top_k - len(pred["prediction"]))
+            pred["se_pos"] += [pred["se_pos"][-1]] * (args.psg_top_k - len(pred["prediction"]))
+            pred["prediction"] += [pred["prediction"][-1]] * (args.psg_top_k - len(pred["prediction"]))
+            assert len(pred["prediction"]) == len(pred["evidence"]) == len(pred["title"]) == args.psg_top_k
 
         # Used for markers
         START = '<p_start>'
@@ -86,7 +86,7 @@ def main(args):
 
         my_target.append(my_dict)
         avg_len += [len(ctx['text'].split()) for ctx in my_dict["ctxs"]]
-        assert len(my_dict["ctxs"]) == args.top_k
+        assert len(my_dict["ctxs"]) == args.psg_top_k
         assert all(len(ctx['text'].split()) <= args.max_context_len for ctx in my_dict["ctxs"])
 
     print(f"avg ctx len={sum(avg_len)/len(avg_len):.2f} for {len(my_pred)} preds")
@@ -94,7 +94,7 @@ def main(args):
     out_file = os.path.join(
         args.model_dir, 'pred',
         os.path.splitext(args.pred_file)[0] + 
-        f'_top{args.top_k}_plen{args.max_context_len}_{"sent" if args.return_sent else "psg"}{"_mark" if args.mark_phrase else ""}.json'
+        f'_{"sent" if args.return_sent else "psg"}-top{args.psg_top_k}_{"_mark" if args.mark_phrase else ""}.json'
     )
     print(f"dump to {out_file}")
     json.dump(my_target, open(out_file, 'w'), indent=4)
@@ -105,7 +105,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--model_dir', type=str, default='')
     parser.add_argument('--pred_file', type=str, default='')
-    parser.add_argument('--top_k', type=int, default=100)
+    parser.add_argument('--psg_top_k', type=int, default=100)
     parser.add_argument('--max_context_len', type=int, default=999999999)
     parser.add_argument('--mark_phrase', default=False, action='store_true')
     parser.add_argument('--return_sent', default=False, action='store_true')

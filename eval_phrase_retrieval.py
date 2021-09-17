@@ -361,7 +361,7 @@ def evaluate_results_psg(pred_path, args):
     out_file = os.path.join(
         args.load_dir, 'pred',
         os.path.splitext(os.path.basename(pred_path))[0] + 
-        f'_top{args.psg_top_k}_plen{args.max_psg_len}_{"sent" if args.return_sent else "psg"}{"_mark" if args.mark_phrase else ""}.json'
+        f'_{"sent" if args.return_sent else "psg"}-top{args.psg_top_k}_{"_mark" if args.mark_phrase else ""}.json'
     )
     logger.info(f"dump to {out_file}")
     json.dump(my_target, open(out_file, 'w'), indent=4)

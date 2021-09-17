@@ -200,8 +200,8 @@ python eval_phrase_retrieval.py \
     --run_mode eval \
     --cuda \
     --dump_dir $SAVE_DIR/densephrases-multi_sample/dump \
-    --index_dir start/32_flat_OPQ96 \
-    --query_encoder_path $SAVE_DIR/densephrases-multi \
+    --index_name start/32_flat_OPQ96 \
+    --load_dir $SAVE_DIR/densephrases-multi \
     --test_path sample/questions.json \
     --save_pred \
     --truecase
@@ -241,7 +241,7 @@ Note that you no longer need any SSDs to run the demo unlike previous phrase ret
 nohup python run_demo.py \
     --run_mode q_serve \
     --cache_dir $CACHE_DIR \
-    --query_encoder_path $SAVE_DIR/densephrases-multi-query-multi \
+    --load_dir $SAVE_DIR/densephrases-multi-query-multi \
     --cuda \
     --max_query_length 32 \
     --query_port 1111 > $SAVE_DIR/logs/q-serve_1111.log &
@@ -249,7 +249,7 @@ nohup python run_demo.py \
 # Serve a phrase index on port 51997 (takes several minutes)
 nohup python run_demo.py \
     --run_mode p_serve \
-    --index_dir start/1048576_flat_OPQ96 \
+    --index_name start/1048576_flat_OPQ96 \
     --cuda \
     --truecase \
     --dump_dir $SAVE_DIR/densephrases-multi_wiki-20181220/dump/ \
@@ -260,7 +260,7 @@ nohup python run_demo.py \
 make q-serve MODEL_NAME=densephrases-multi-query-multi Q_PORT=1111
 make p-serve DUMP_DIR=$SAVE_DIR/densephrases-multi_wiki-20181220/dump/ Q_PORT=1111 I_PORT=51997
 ```
-Please change `--query_encoder_path` or `--dump_dir` if necessary and remove `--cuda` for CPU-only version. Once you set up the demo, the log files in `$SAVE_DIR/logs/` will be automatically updated whenever a new question comes in. You can also send queries to your server using mini-batches of questions for faster inference.
+Please change `--load_dir` or `--dump_dir` if necessary and remove `--cuda` for CPU-only version. Once you set up the demo, the log files in `$SAVE_DIR/logs/` will be automatically updated whenever a new question comes in. You can also send queries to your server using mini-batches of questions for faster inference.
 
 ```bash
 # Test on NQ test set
@@ -383,7 +383,7 @@ The following command query-side fine-tunes `densephrases-multi` on T-REx.
 # Query-side fine-tune on T-REx (model will be saved as MODEL_NAME)
 make train-query MODEL_NAME=densephrases-multi-query-trex DUMP_DIR=$SAVE_DIR/densephrases-multi_wiki-20181220/dump/
 ```
-Note that the pre-trained query encoder is specified in `train-query` as `--query_encoder_path $(SAVE_DIR)/densephrases-multi` and a new model will be saved as `densephrases-multi-query-trex` as specified in `MODEL_NAME`. You can also train on different datasets by changing the dependency `trex-open-data` to `*-open-data` (e.g., `wq-open-data` for WebQuestions).
+Note that the pre-trained query encoder is specified in `train-query` as `--load_dir $(SAVE_DIR)/densephrases-multi` and a new model will be saved as `densephrases-multi-query-trex` as specified in `MODEL_NAME`. You can also train on different datasets by changing the dependency `trex-open-data` to `*-open-data` (e.g., `wq-open-data` for WebQuestions).
 
 #### IVFOPQ vs IVFSQ
 Currently, `train-query` uses the IVFOPQ index for query-side fine-tuning, and you should apply minor changes in the code to train with an IVFSQ index.
