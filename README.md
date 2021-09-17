@@ -146,7 +146,7 @@ $SAVE_DIR/densephrases-multi_wiki-20181220
         └── 1048576_flat_OPQ96_small
 ```
 All phrase indexes are created from the same model (`densephrases-multi`) and you can use all of pre-trained models above with any of these phrase indexes.
-The performance of `densephrases-multi-query-nq` with different phrase indexes is shown below.
+The performance of `densephrases-multi-query-nq` on Natural Questions (test) with different phrase indexes is shown below.
 
 <div class="table-wrapper" markdown="block">
 
