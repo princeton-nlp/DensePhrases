@@ -1,5 +1,6 @@
 # Fusion-in-Decoder with DensePhrases
 You can use retrieved passages from DensePhrases to build a state-of-the-art open-domain QA system called [Fusion-in-Decoder](https://arxiv.org/abs/2007.01282) (FiD).
+Note that DensePhrases (w/o reader) already provides phrase-level answers for end-to-end open-domain QA whose performance is comparable to DPR (w/ BERT reader). This section provides how you can further improve the performance using a generative reader model (T5).
 
 ## Getting Top Passages from DensePhrases
 First, you need to get passages from DensePhrases.
