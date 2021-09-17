@@ -129,14 +129,31 @@ All models were trained with the phrase index [densephrases-multi_wiki-20181220]
 
 ### 3. Phrase Index
 Please note that you don't need to download this phrase index unless you want to work on the full Wikipedia scale.
-* [densephrases-multi_wiki-20181220](https://nlp.cs.princeton.edu/projects/densephrases/densephrases-multi_wiki-20181220.tar.gz) (74GB) - Phrase index for the 20181220 version of Wikipedia. Download and unzip it under `$SAVE_DIR` or use `download.sh`.
+* [densephrases-multi_wiki-20181220](https://nlp.cs.princeton.edu/projects/densephrases/densephrases-multi_wiki-20181220.tar.gz) (74GB) - Original phrase index + metadata for the 20181220 version of Wikipedia. Download and unzip it under `$SAVE_DIR` or use `download.sh`.
+
+We also provide smaller phrase indexes based on a more aggresive filtering threshold (optional).
+* [1048576_flat_OPQ96_medium](https://nlp.cs.princeton.edu/projects/densephrases/indexes/1048576_flat_OPQ96_medium.tar.gz) (39GB) - Medium-sized phrase index
+* [1048576_flat_OPQ96_small](https://nlp.cs.princeton.edu/projects/densephrases/indexes/1048576_flat_OPQ96_small.tar.gz) (20GB) - Small-sized phrase index
+
+After downloading `densephrases-multi_wiki-20181220` under `SAVE_DIR`, other smaller indexes should be located as follows:
 ```bash
-# Check if the download is complete
-ls $SAVE_DIR
-...  densephrases-multi_wiki-20181220
+$SAVE_DIR/densephrases-multi_wiki-20181220
+├── dump
+│   ├── meta_compressed.pkl
+│   └── start
+│       ├── 1048576_flat_OPQ96
+│       ├── 1048576_flat_OPQ96_medium
+│       └── 1048576_flat_OPQ96_small
 ```
-#### From 320GB to 74GB
-Since hosting the 320GB phrase index described in our ACL paper is costly, we provide an index with a much smaller size (74GB), which includes our recent efforts to reduce the size of the phrase index using [Optimized Product Quantization](https://ieeexplore.ieee.org/document/6678503) described in our [recent paper](https://openreview.net/forum?id=7aIsabcVqMH). Now, you do not need any SSDs for the real-time inference (the index will be loaded on RAM), and you can also reconstruct the phrase vectors from it for the query-side fine-tuning.
+All phrase indexes are created from the same model (`densephrases-multi`) and you can use all of pre-trained models above with any of these phrase indexes.
+The performance of `densephrases-multi-query-nq` with different phrase indexes is shown below.
+
+|              Phrase Index              | Open-domain QA (EM) | Sentence Retrieveal (Acc@1/5) | Passage Retrieval (Acc@1/5) | Size | Description |
+|:----------------------------------|:---------------:|:--------:|:--------:|:--------:|:--------:|
+| 1048576_flat_OPQ96 | 41.2 | 48.7 / 66.4 | 52.6 / 71.5 | 60GB | Original DensePhrases evaluated with top-k=100 |
+| 1048576_flat_OPQ96_medium | 39.9 | 52.2 / 70.9 | 39GB | |
+| 1048576_flat_OPQ96_base | 38.0 | 47.2 / 64.0 | 50.7 / 69.1 | 20GB | |
+Note that the passage retrieval accuracy (Acc@1/5) is generally higher than the reported numbers in the paper since these phrases indexes return natural paragraphs instead of fixed-sized text blocks (i.e., 100 words).
 
 ## Examples
 We provide descriptions on how to use DensePhrases for different applications.

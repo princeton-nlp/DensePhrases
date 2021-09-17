@@ -94,7 +94,7 @@ def main(args):
     out_file = os.path.join(
         args.model_dir, 'pred',
         os.path.splitext(args.pred_file)[0] + 
-        f'_{"sent" if args.return_sent else "psg"}-top{args.psg_top_k}_{"_mark" if args.mark_phrase else ""}.json'
+        f'_{"sent" if args.return_sent else "psg"}-top{args.psg_top_k}{"_mark" if args.mark_phrase else ""}.json'
     )
     print(f"dump to {out_file}")
     json.dump(my_target, open(out_file, 'w'), indent=4)
