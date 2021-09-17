@@ -44,7 +44,7 @@ print(model.search('What is the history of internet', retrieval_unit='document')
 ## Quick Link
 * [Installation](#installation)
 * [Resources](#resources)
-* [Creating a Custom Phrase Index with DensePhrases](#creating-a-custom-phrase-index-with-densephrases)
+* [Examples](#examples)
 * [Playing with a DensePhrases Demo](#playing-with-a-densephrases-demo)
 * [Traning, Indexing and Inference](#densephrases-training-indexing-and-inference)
 * [Pre-processing](#pre-processing)
@@ -138,11 +138,16 @@ ls $SAVE_DIR
 #### From 320GB to 74GB
 Since hosting the 320GB phrase index described in our ACL paper is costly, we provide an index with a much smaller size (74GB), which includes our recent efforts to reduce the size of the phrase index using [Optimized Product Quantization](https://ieeexplore.ieee.org/document/6678503) described in our [recent paper](https://openreview.net/forum?id=7aIsabcVqMH). Now, you do not need any SSDs for the real-time inference (the index will be loaded on RAM), and you can also reconstruct the phrase vectors from it for the query-side fine-tuning.
 
+## Examples
+We provide descriptions on how to use DensePhrases for different applications.
+For instance, based on the retrieved passages from DensePhrases, you can train a state-of-the-art open-domain question answering model called [Fusion-in-Decoder](https://arxiv.org/abs/2007.01282) by Izacard and Grave, 2021.
+Or, you can build your own phrase index with DensePhrases.
+See [here](https://github.com/princeton-nlp/DensePhrases/tree/main/examples) for a list of examples.
 
 ## Playing with a DensePhrases Demo
 There are two ways of using DensePhrases demo.
 1. You can simply use the [demo] that we are serving on our server (Wikipedia scale). The running demo is using `densephrases-multi-query-multi` (NQ=40.8 EM) as a query encoder and `densephrases-multi_wiki-20181220` as a phrase index.
-2. You can run the demo on your own server where you can change the phrase index (obtained from [here](#creating-a-custom-phrase-index-with-densephrases)) or the query encoder (e.g., to `densephrases-multi-query-nq`).
+2. You can run the demo on your own server where you can change the phrase index (obtained from [here](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/create-custom-index)) or the query encoder (e.g., to `densephrases-multi-query-nq`).
 
 The minimum resource requirement for running the full Wikipedia scale demo is:
 * 100GB RAM

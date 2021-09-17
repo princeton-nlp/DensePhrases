@@ -1,8 +1,8 @@
 # DensePhrases Examples
 
-We provide descriptions on several examples of using DensePhrases.
+We provide descriptions on how to use DensePhrases for different applications.
 For instance, based on the retrieved passages from DensePhrases, you can train a state-of-the-art open-domain question answering model called [Fusion-in-Decoder](https://arxiv.org/abs/2007.01282) by Izacard and Grave, 2021.
-Or, you can build an entity linking tool with DensePhrases.
+Or, you can build your own phrase index with DensePhrases.
 We list the examples below.
 
 * [Basics: Multi-Granularity Text Retrieval](#basics-multi-granularity-text-retrieval)
