@@ -32,7 +32,7 @@ Since FiD requires training passages, you need to change `--test_path` to `$TRAI
 Equivalently, you can use `eval-index-psg` in our [Makefile](https://github.com/princeton-nlp/DensePhrases/blob/main/Makefile).
 For TriviaQA, simply change the dataset to `tqa-open-data` specified in Makefile.
 
-After the inference, you will be able to get following three files used for training and evaluating FiD models:
+After the inference, you will be able to get the following three files used for training and evaluating FiD models:
 * train_preprocessed_79168_top200_psg-top100.json
 * dev_preprocessed_8757_top200_psg-top100.json
 * test_preprocessed_3610_top200_psg-top100.json
@@ -83,7 +83,7 @@ nohup python /path/to/miniconda3/envs/fid/lib/python3.6/site-packages/torch/dist
 # Test T5-base with top 5 passages (DDP using 4 GPUs)
 python /n/fs/nlp-jl5167/miniconda3/envs/fid/lib/python3.6/site-packages/torch/distributed/launch.py \
     --nnode=1 --node_rank=0 --nproc_per_node=4 test_reader.py \
-    --model_path $SAVE_DIR/fid-data/pretrained_models/$(MODEL_NAME)/checkpoint/best_dev \
+    --model_path $SAVE_DIR/fid-data/pretrained_models/nq_reader_base-dph-c5-d4/checkpoint/best_dev \
     --eval_data $SAVE_DIR/$TEST_DATA \
     --per_gpu_batch_size 1 \
     --n_context 100 \
@@ -92,4 +92,4 @@ python /n/fs/nlp-jl5167/miniconda3/envs/fid/lib/python3.6/site-packages/torch/di
     --checkpoint_dir $SAVE_DIR/fid-data/pretrained_models \
     --text_maxlength 250
 ```
-Note that the most hyperparameters follow the original work and the only difference is the use of `--accumulation_steps 16` and proper adjustment to its training, save, evaluation steps.
+Note that most hyperparameters follow the original work and the only difference is the use of `--accumulation_steps 16` and proper adjustment to its training, save, evaluation steps.
