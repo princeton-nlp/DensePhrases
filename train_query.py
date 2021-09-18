@@ -19,6 +19,7 @@ from densephrases.utils.open_utils import load_phrase_index, get_query2vec, load
 from densephrases.utils.eval_utils import drqa_exact_match_score, drqa_regex_match_score, \
                                           drqa_metric_max_over_ground_truths
 from eval_phrase_retrieval import evaluate
+from densephrases import Options
 
 from transformers import (
     AdamW,
