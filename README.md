@@ -269,7 +269,7 @@ The default text corpus for creating phrase vectors is `wiki-dev` located in `$D
 - `wiki-dev-noise`: 1/10 Wikipedia scale (sampled), 500 files
 - `wiki-20181220`: full Wikipedia (20181220) scale, 5621 files
 
-The `wiki-dev*` corpora also contain passages from the NQ development set, so that you can track the performance of your model witn an increasing size of the text corpus (usually decreases as it gets larger). The phrase vectors will be saved as hdf5 files in `$SAVE_DIR/$(MODEL_NAME)_(data_name)/dump` (e.g., `$SAVE_DIR/densephrases-multi_wiki-dev/dump`), which will be referred to `$DUMP_DIR` below.
+The `wiki-dev*` corpora also contain passages from the NQ development set, so that you can track the performance of your model with an increasing size of the text corpus (usually decreases as it gets larger). The phrase vectors will be saved as hdf5 files in `$SAVE_DIR/$(MODEL_NAME)_(data_name)/dump` (e.g., `$SAVE_DIR/densephrases-multi_wiki-dev/dump`), which will be referred to `$DUMP_DIR` below.
 
 #### Parallelization
 `START` and `END` specify the file index in the corpus (e.g., `START=0 END=8` for `wiki-dev` and `START=0 END=5621` for `wiki-20181220`).  Each run of `gen-vecs-parallel` only consumes 2GB in a single GPU, and you can distribute the processes with different `START` and `END` using slurm or shell script (e.g., `START=0 END=200`, `START=200 END=400`, ..., `START=5400 END=5621`). Distributing 28 processes on 4 24GB GPUs (each processing about 200 files) can create phrase vectors for `wiki-20181220` in 8 hours. Processing the entire Wikiepdia requires up to 500GB and we recommend using an SSD to store them if possible (a smaller corpus can be stored in a HDD).
