@@ -153,7 +153,7 @@ The performance of `densephrases-multi-query-nq` on Natural Questions (test) wit
 |:----------------------------------|:---------------:|:--------:|:--------:|:--------:|:-----------------------:|
 | 1048576_flat_OPQ96 | 41.2 | 48.7 / 66.4 | 52.6 / 71.5 | 60GB | evaluated with [`eval-index-psg`](https://github.com/princeton-nlp/DensePhrases/blob/main/Makefile#L477) |
 | 1048576_flat_OPQ96_medium | 39.9 | 48.3 / 65.8 | 52.2 / 70.9 | 39GB | |
-| 1048576_flat_OPQ96_base | 38.0 | 47.2 / 64.0 | 50.7 / 69.1 | 20GB | |
+| 1048576_flat_OPQ96_small | 38.0 | 47.2 / 64.0 | 50.7 / 69.1 | 20GB | |
 
 </div>
 
