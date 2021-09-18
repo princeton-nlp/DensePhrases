@@ -9,7 +9,8 @@
 **\*\*\*\*\* You can try out our online demo of DensePhrases [here](http://densephrases.korea.ac.kr)! \*\*\*\*\***
 
 ### Updates
-* \[**Sep 17, 2021**\] Our new [EMNLP paper](https://arxiv.org/abs/2109.08133) on phrase-based passage retrieval is out! Check out our code updates!
+* \[**Sep 17, 2021**\] Check out our code updates on [multi-granularity retrieval](#getting-started), [smaller phrase indexes](#3-phrase-index), and more [examples](https://github.com/princeton-nlp/DensePhrases/tree/main/examples)!
+* \[**Sep 17, 2021**\] Our new [EMNLP paper](https://arxiv.org/abs/2109.08133) on phrase-based passage retrieval is out!
 * \[**June 14, 2021**\] Major code updates
 
 ## Getting Started
