@@ -251,7 +251,7 @@ def annotate_phrase_vecs(mips, q_ids, questions, answers, titles, phrase_groups,
     targets = [[None for phrase in phrase_group] for phrase_group in phrase_groups]
     p_targets = [[None for phrase in phrase_group] for phrase_group in phrase_groups]
 
-    # TODO: implement dynamic label_startegy based on the task name (label_start = dynamic)
+    # TODO: implement dynamic label_strategy based on the task name (label_strat = dynamic)
 
     # Annotate for L_phrase
     if 'phrase' in args.label_strat.split(','):
