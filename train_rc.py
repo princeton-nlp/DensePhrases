@@ -34,6 +34,7 @@ from transformers import (
     AdamW,
     AutoConfig,
     AutoModel,
+    AutoModelForQuestionAnswering,
     AutoTokenizer,
     get_linear_schedule_with_warmup,
 )
@@ -46,9 +47,7 @@ logger = logging.getLogger(__name__)
 
 MODEL_CONFIG_CLASSES = list(MODEL_MAPPING.keys())
 MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
-ALL_MODELS = sum((tuple(conf.pretrained_config_archive_map.keys()) for conf in MODEL_CONFIG_CLASSES), (),)
 logger.info(f"Possible model types: {MODEL_TYPES}")
-logger.info(f"Possible models: {set([k.split('-')[0] for k in ALL_MODELS])}")
 
 
 def train(args, train_dataset, model, tokenizer):
@@ -521,7 +520,6 @@ def main():
             )
             qd_pretrained = AutoModel.from_pretrained(
                 args.pretrained_name_or_path,
-                from_tf=bool(".ckpt" in args.pretrained_name_or_path),
                 config=qd_config,
                 cache_dir=args.cache_dir if args.cache_dir else None,
             )

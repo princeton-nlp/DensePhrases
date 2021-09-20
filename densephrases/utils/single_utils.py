@@ -5,6 +5,7 @@ import copy
 import os
 import numpy as np
 
+from functools import partial
 from transformers import (
     MODEL_MAPPING,
     AutoConfig,
@@ -76,10 +77,23 @@ def load_encoder(device, args, phrase_only=False):
             config=config,
             cache_dir=args.cache_dir if args.cache_dir else None,
         )
+        load_class = Encoder
         logger.info(f'DensePhrases encoder initialized with {args.pretrained_name_or_path} ({pretrained.__class__})')
+    else:
+        # TODO: need to update transformers so that from_pretrained maps to model hub directly
+        if args.load_dir.startswith('princeton-nlp'):
+            hf_model_path = f"https://huggingface.co/{args.load_dir}/resolve/main/pytorch_model.bin"
+        else:
+            hf_model_path = args.load_dir
+        load_class = partial(
+            Encoder.from_pretrained,
+            pretrained_model_name_or_path=hf_model_path,
+            cache_dir=args.cache_dir if args.cache_dir else None,
+        )
+        logger.info(f'DensePhrases encoder loaded from {args.load_dir}')
 
     # DensePhrases encoder object
-    model = Encoder(
+    model = load_class(
         config=config,
         tokenizer=tokenizer,
         transformer_cls=MODEL_MAPPING[config.__class__],
@@ -88,17 +102,6 @@ def load_encoder(device, args, phrase_only=False):
         lambda_neg=getattr(args, 'lambda_neg', 0.0),
         lambda_flt=getattr(args, 'lambda_flt', 0.0),
     )
-
-    # Use load_dir if exists
-    if args.load_dir:
-        try:
-            model.load_state_dict(backward_compat(
-                torch.load(os.path.join(args.load_dir, "pytorch_model.bin"), map_location=torch.device('cpu'))
-            ))
-        except Exception as e:
-            print(e)
-            model.load_state_dict(torch.load(os.path.join(args.load_dir, 'pytorch_model.bin')), strict=False)
-        logger.info(f'DensePhrases encoder loaded from {args.load_dir} having {MODEL_MAPPING[config.__class__]}')
 
     # Phrase only (for phrase embedding)
     if phrase_only:

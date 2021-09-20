@@ -359,7 +359,7 @@ def evaluate_results_psg(pred_path, args):
     logger.info(f"avg psg len={sum(avg_len)/len(avg_len):.2f} for {len(my_pred)} preds")
 
     out_file = os.path.join(
-        args.load_dir, 'pred',
+        os.environ['SAVE_DIR'], os.path.basename(args.load_dir), 'pred',
         os.path.splitext(os.path.basename(pred_path))[0] + 
         f'_{"sent" if args.return_sent else "psg"}-top{args.psg_top_k}{"_mark" if args.mark_phrase else ""}.json'
     )

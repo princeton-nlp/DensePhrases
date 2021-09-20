@@ -15,6 +15,8 @@ logger = logging.getLogger(__name__)
 
 
 class Encoder(PreTrainedModel):
+    base_model_prefix='densephrases'
+
     def __init__(self,
                  config,
                  tokenizer,
