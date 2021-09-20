@@ -138,7 +138,7 @@ model = DensePhrases(
 * `densephrases-multi-query-*`: `densephrases-multi` query-side fine-tuned on each open-domain QA dataset.
 All models were trained with the phrase index [densephrases-multi_wiki-20181220](#3-phrase-index).
 
-#### Download locally
+#### Download manually
 * [Pre-trained models](https://nlp.cs.princeton.edu/projects/densephrases/outputs.tar.gz) (8GB) - All pre-trained DensePhrases models (including cross-encoder teacher models `spanbert-base-cased-*`). Download and unzip it under `$SAVE_DIR` or use `download.sh`.
 ```bash
 # Check if the download is complete
