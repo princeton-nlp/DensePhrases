@@ -6,8 +6,8 @@ Or, you can build your own phrase index with DensePhrases.
 We list the examples below.
 
 * [Basics: Multi-Granularity Text Retrieval](#basics-multi-granularity-text-retrieval)
-* [Fusion-in-Decoder](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/fusion-in-decoder)
-* [Create Your Own Phrase Index](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/create-custom-index)
+* [Open-Domain QA with Fusion-in-Decoder](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/fusion-in-decoder)
+* [Create a Custom Phrase Index](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/create-custom-index)
 * Entity Linking (coming soon)
 * Slot Filling (coming soon)
 
