@@ -44,7 +44,7 @@ print(model.search('What is the history of internet', retrieval_unit='document',
 
 ## Quick Link
 * [Installation](#installation)
-* [Resources](#resources)
+* [Resources: datasets, pre-trained models, phrase indexes](#resources)
 * [Examples](#examples)
 * [Playing with a DensePhrases Demo](#playing-with-a-densephrases-demo)
 * [Traning, Indexing and Inference](#densephrases-training-indexing-and-inference)
