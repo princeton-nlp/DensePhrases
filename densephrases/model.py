@@ -29,6 +29,7 @@ class DensePhrases(object):
         # Set options
         self.args.load_dir = load_dir
         self.args.dump_dir = dump_dir
+        self.args.cache_dir = os.environ['CACHE_DIR']
         self.args.index_name = index_name
         self.args.cuda = True if device == 'cuda' else False
 
@@ -42,7 +43,7 @@ class DensePhrases(object):
         self.truecase = TrueCaser(os.path.join(os.environ['DATA_DIR'], self.args.truecase_path))
         logger.info("Loading DensePhrases Completed!")
 
-    def search(self, query='', retrieval_unit='phrase', truecase=True, return_meta=False):
+    def search(self, query='', retrieval_unit='phrase', top_k=10, truecase=True, return_meta=False):
         # If query is str, single query
         single_query = False
         if type(query) == str:
@@ -66,22 +67,25 @@ class DensePhrases(object):
         agg_strats = {'phrase': 'opt1', 'sentence': 'opt2', 'paragraph': 'opt2', 'document': 'opt3'}
         if retrieval_unit not in agg_strats:
             raise NotImplementedError(f'"{retrieval_unit}" not supported. Choose one of {agg_strats.keys()}.')
+        search_top_k = top_k
+        if retrieval_unit in ['sentece', 'paragraph', 'document']:
+            search_top_k *= 2
         rets = self.mips.search(
             query_vec, q_texts=batch_query, nprobe=256,
-            top_k=10, max_answer_length=10,
+            top_k=search_top_k, max_answer_length=10,
             return_idxs=False, aggregate=True, agg_strat=agg_strats[retrieval_unit],
             return_sent=True if retrieval_unit == 'sentence' else False
         )
 
         # Gather results
         if retrieval_unit == 'phrase':
-            retrieved = [[rr['answer'] for rr in ret] for ret in rets]
+            retrieved = [[rr['answer'] for rr in ret][:top_k] for ret in rets]
         elif retrieval_unit == 'sentence':
-            retrieved = [[rr['context'] for rr in ret] for ret in rets]
+            retrieved = [[rr['context'] for rr in ret][:top_k] for ret in rets]
         elif retrieval_unit == 'paragraph':
-            retrieved = [[rr['context'] for rr in ret] for ret in rets]
+            retrieved = [[rr['context'] for rr in ret][:top_k] for ret in rets]
         elif retrieval_unit == 'document':
-            retrieved = [[rr['title'][0] for rr in ret] for ret in rets]
+            retrieved = [[rr['title'][0] for rr in ret][:top_k] for ret in rets]
         else:
             raise NotImplementedError()
 

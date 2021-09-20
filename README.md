@@ -14,31 +14,31 @@
 * \[**June 14, 2021**\] Major code updates
 
 ## Getting Started
-After [installing DensePhrases](#installation), you can easily retrieve phrases, sentences, paragraphs, or documents for your query.
+After [installing DensePhrases](#installation) and [dowloading a phrase index](#3-phrase-index) you can easily retrieve phrases, sentences, paragraphs, or documents for your query.
 ```python
 from densephrases import DensePhrases
 
-# Load DensePhrases (download the pre-trained model and the phrase index first)
+# Load DensePhrases
 model = DensePhrases(
-    load_dir='/path/to/densephrases-multi-query-multi',
+    load_dir='princeton-nlp/densephrases-multi-query-multi',
     dump_dir='/path/to/densephrases-multi_wiki-20181220/dump'
 )
 
 # Search phrases
-print(model.search('Who won the Nobel Prize in peace?', retrieval_unit='phrase'))
-# ['Denis Mukwege,', 'Theodore Roosevelt', 'Denis Mukwege', 'John Mott', 'Muhammad Yunus', ...]
+print(model.search('Who won the Nobel Prize in peace?', retrieval_unit='phrase', top_k=5))
+# ['Denis Mukwege,', 'Theodore Roosevelt', 'Denis Mukwege', 'John Mott', 'Mother Teresa']
 
 # Search sentences
-print(model.search('Why is the sky blue', retrieval_unit='sentence'))
-# ['The blue color is sometimes wrongly attributed to Rayleigh scattering, which is responsible for the color of the sky.', ...]
+print(model.search('Why is the sky blue', retrieval_unit='sentence', top_k=1))
+# ['The blue color is sometimes wrongly attributed to Rayleigh scattering, which is responsible for the color of the sky.']
 
 # Search paragraphs
-print(model.search('How to become a great researcher', retrieval_unit='paragraph'))
-# ['... Levine said he believes the key to being a great researcher is having passion for research in and working on questions that the researcher is truly curious about. He said: "Have patience, persistence and enthusiasm and you’ll be fine."', ...]
+print(model.search('How to become a great researcher', retrieval_unit='paragraph', top_k=1))
+# ['... Levine said he believes the key to being a great researcher is having passion for research in and working on questions that the researcher is truly curious about. He said: "Have patience, persistence and enthusiasm and you’ll be fine."']
 
 # Search documents (Wikipedia titles)
-print(model.search('What is the history of internet', retrieval_unit='document'))
-# ['Computer network', 'History of the World Wide Web', 'History of the Internet', ...]
+print(model.search('What is the history of internet', retrieval_unit='document', top_k=3))
+# ['Computer network', 'History of the World Wide Web', 'History of the Internet']
 ```
 
 ## Quick Link
@@ -146,6 +146,17 @@ $SAVE_DIR/densephrases-multi_wiki-20181220
         └── 1048576_flat_OPQ96_small
 ```
 All phrase indexes are created from the same model (`densephrases-multi`) and you can use all of pre-trained models above with any of these phrase indexes.
+To change the index, simply set `index_name` (or `--index_name` in `densephrases/options.py`) as follows:
+```python
+from densephrases import DensePhrases
+
+# Load DensePhrases with a smaller index
+model = DensePhrases(
+    load_dir='princeton-nlp/densephrases-multi-query-multi',
+    dump_dir='/path/to/densephrases-multi_wiki-20181220/dump',
+    index_name='start/1048576_flat_OPQ96_small'
+)
+```
 The performance of `densephrases-multi-query-nq` on Natural Questions (test) with different phrase indexes is shown below.
 
 <div class="table-wrapper" markdown="block">
