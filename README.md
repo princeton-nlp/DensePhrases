@@ -9,6 +9,7 @@
 **\*\*\*\*\* You can try out our online demo of DensePhrases [here](http://densephrases.korea.ac.kr)! \*\*\*\*\***
 
 ### Updates
+* \[**Sep 20, 2021**\] Pre-trained models are also available on [the Huggingface model hub](#2-pre-trained-models).
 * \[**Sep 17, 2021**\] Check out updates on [multi-granularity retrieval](#getting-started), [smaller phrase indexes](#3-phrase-index), and more [examples](https://github.com/princeton-nlp/DensePhrases/tree/main/examples)!
 * \[**Sep 17, 2021**\] Our new [EMNLP paper](https://arxiv.org/abs/2109.08133) on phrase-based passage retrieval is out!
 * \[**June 14, 2021**\] Major code updates
@@ -75,7 +76,7 @@ Before downloading the required files below, please set the default directories 
 # Running config.sh will set the following three environment variables:
 # DATA_DIR: for datasets (including 'kilt', 'open-qa', 'single-qa', 'truecase', 'wikidump')
 # SAVE_DIR: for pre-trained models or index; new models and index will also be saved here
-# CACHE_DIR: for cache files from huggingface transformers
+# CACHE_DIR: for cache files from Huggingface Transformers
 source config.sh
 ```
 To download the resources described below, you can use `download.sh` as follows:
@@ -99,12 +100,12 @@ kilt  open-qa  single-qa  truecase  wikidump
 
 ### 2. Pre-trained Models
 #### Huggingface Transformers
-You can use pre-trained models from the huggingface model hub.
-Any model name that starts with `princeton-nlp` (specified in `load_dir`) will be automatically translated as a model in [our huggingface model hub](https://huggingface.co/princeton-nlp).
+You can use pre-trained models from the Huggingface model hub.
+Any model name that starts with `princeton-nlp` (specified in `load_dir`) will be automatically translated as a model in [our Huggingface model hub](https://huggingface.co/princeton-nlp).
 ```python
 from densephrases import DensePhrases
 
-# Load densephraes-multi-query-nq from huggingface model hub
+# Load densephraes-multi-query-nq from the Huggingface model hub
 model = DensePhrases(
     load_dir='princeton-nlp/densephrases-multi-query-nq',
     dump_dir='/path/to/densephrases-multi_wiki-20181220/dump',
@@ -115,7 +116,7 @@ model = DensePhrases(
 
 |              Model                | Query-FT. | NQ | WebQ | TREC | TriviaQA | SQuAD | Description |
 |:----------------------------------|:--------:|:--------:|:--------:|:--------:|:--------:|:--------:|:--------:|
-| [densephrases-multi](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi.tar.gz) | None | 31.9 | 25.5 | 35.7 | 44.4	| 29.3 | Before any Query-FT. |
+| [densephrases-multi](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi.tar.gz) | None | 31.9 | 25.5 | 35.7 | 44.4	| 29.3 | EM before any Query-FT. |
 | [densephrases-multi-query-multi](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-multi.tar.gz) | Multiple | 40.8 | 35.0 | 48.8 | 53.3 | 34.2 | Used for [demo] |
 
 |              Model                | Query-FT. & Eval | EM | Description |
