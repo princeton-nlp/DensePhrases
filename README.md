@@ -98,7 +98,25 @@ kilt  open-qa  single-qa  truecase  wikidump
 ```
 
 ### 2. Pre-trained Models
-* [Pre-trained models](https://nlp.cs.princeton.edu/projects/densephrases/outputs.tar.gz) (8GB) - Pre-trained DensePhrases models (including cross-encoder teacher models). Download and unzip it under `$SAVE_DIR` or use `download.sh`.
+You can manually download the pre-trained models or use them from the huggingface model hub.
+Any model name that starts with `princeton-nlp` (specified in `load_dir`) will be automatically translated as a model in [our huggingface model hub](https://huggingface.co/princeton-nlp).
+```python
+from densephrases import DensePhrases
+
+# Load densephraes-multi-query-nq from huggingface model hub
+model = DensePhrases(
+    load_dir='princeton-nlp/densephrases-multi-query-multi',
+    dump_dir='/path/to/densephrases-multi_wiki-20181220/dump',
+)
+
+# Load densephraes-multi-query-nq locally
+model = DensePhrases(
+    load_dir='/path/to/densephrases-multi-query-multi',
+    dump_dir='/path/to/densephrases-multi_wiki-20181220/dump',
+)
+```
+
+* [Pre-trained models](https://nlp.cs.princeton.edu/projects/densephrases/outputs.tar.gz) (8GB) - Pre-trained DensePhrases models (including cross-encoder teacher models `spanbert-base-cased-*`). Download and unzip it under `$SAVE_DIR` or use `download.sh`.
 ```bash
 # Check if the download is complete
 ls $SAVE_DIR
@@ -123,7 +141,6 @@ You can also download each of pre-trained DensePhrases models as listed below.
 - **Train (RC)**          : A reading comprehension (RC) dataset on which each model is trained.
 - **Train (Query)**          : An open-domain QA dataset on which each model is query-side fine-tuned. 
 - **Multiple**                      : Multiple reading comprehension (or open-domain QA) datasets including NQ, WebQ, TREC, TriviaQA, SQuAD.
-- `spanbert-base-cased-*`             : cross-encoder teacher models trained on \*
 
 All models were trained with the phrase index [densephrases-multi_wiki-20181220](#3-phrase-index) described below.
 
