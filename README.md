@@ -113,12 +113,12 @@ model = DensePhrases(
 
 #### Model list
 
-|              Model                | Train-Query | NQ (EM) | WebQ (EM) | TREC (EM) | TriviaQA (EM) | SQuAD (EM) | Description |
+|              Model                | Query-FT. | NQ | WebQ | TREC | TriviaQA | SQuAD | Description |
 |:----------------------------------|:--------:|:--------:|:--------:|:--------:|:--------:|:--------:|:--------:|
-| [densephrases-multi](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi.tar.gz) | None | 31.9 | 25.5 | 35.7 | 44.4	| 29.3 | Before any query-side fine-tuning |
+| [densephrases-multi](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi.tar.gz) | None | 31.9 | 25.5 | 35.7 | 44.4	| 29.3 | Before any Query-FT. |
 | [densephrases-multi-query-multi](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-multi.tar.gz) | Multiple | 40.8 | 35.0 | 48.8 | 53.3 | 34.2 | Used for [demo] |
 
-|              Model                | Train-Query & Eval | EM | Description |
+|              Model                | Query-FT. & Eval | EM | Description |
 |:----------------------------------|:--------:|:--------:|:--------:|
 | [densephrases-multi-query-nq](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-nq.tar.gz) | NQ | 41.3 | - |
 | [densephrases-multi-query-wq](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-wq.tar.gz) | WebQ | 41.5 | - |
@@ -126,14 +126,16 @@ model = DensePhrases(
 | [densephrases-multi-query-tqa](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-tqa.tar.gz) | TriviaQA | 53.5 | - |
 | [densephrases-multi-query-sqd](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-sqd.tar.gz) | SQuAD | 34.5 | - |
 
-|              Model              | Train-Query & Eval | KILT-Accuracy | Description |
+|              Model              | Query-FT. & Eval | KILT-Accuracy | Description |
 |:-------------------------------|:--------:|:--------:|:--------:|
 | [densephrases-multi-query-trex](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-trex.tar.gz) | T-REx | 22.3 | Result from [eval.ai](https://eval.ai/web/challenges/challenge-page/689/overview) |
 | [densephrases-multi-query-zsre](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-zsre.tar.gz) | Zero-shot RE | 40.0 | Result from [eval.ai](https://eval.ai/web/challenges/challenge-page/689/overview) |
 
-Important: all models except `densephrases-multi` are query-side fine-tuned on the specified datasets (Train-Query).
-`densephrases-multi` is trained on mutiple reading comprehension dataset (NQ, WebQ, TREC, TriviaQA, SQuAD) and `densephrases-multi-query-multi` is further query-side fine-tuned on multiple open-domain QA datasets (NQ, WebQ, TREC, TriviaQA, SQuAD).
-All models were trained with the phrase index [densephrases-multi_wiki-20181220](#3-phrase-index) described below.
+**Important**: all models except `densephrases-multi` are query-side fine-tuned on the specified dataset (Query-FT.).
+* `densephrases-multi`: trained on mutiple reading comprehension datasets (NQ, WebQ, TREC, TriviaQA, SQuAD).
+* `densephrases-multi-query-multi`: `densephrases-multi` query-side fine-tuned on multiple open-domain QA datasets (NQ, WebQ, TREC, TriviaQA, SQuAD).
+* `densephrases-multi-query-*`: `densephrases-multi` query-side fine-tuned on each open-domain QA dataset.
+All models were trained with the phrase index [densephrases-multi_wiki-20181220](#3-phrase-index).
 
 #### Download locally
 * [Pre-trained models](https://nlp.cs.princeton.edu/projects/densephrases/outputs.tar.gz) (8GB) - All pre-trained DensePhrases models (including cross-encoder teacher models `spanbert-base-cased-*`). Download and unzip it under `$SAVE_DIR` or use `download.sh`.
