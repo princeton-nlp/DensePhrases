@@ -132,11 +132,11 @@ model = DensePhrases(
 | [densephrases-multi-query-trex](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-trex.tar.gz) | T-REx | 22.3 | Result from [eval.ai](https://eval.ai/web/challenges/challenge-page/689/overview) |
 | [densephrases-multi-query-zsre](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-zsre.tar.gz) | Zero-shot RE | 40.0 | Result from [eval.ai](https://eval.ai/web/challenges/challenge-page/689/overview) |
 
-**Important**: all models except `densephrases-multi` are query-side fine-tuned on the specified dataset (Query-FT.).
+**Important**: all models except `densephrases-multi` are query-side fine-tuned on the specified dataset (Query-FT.) using the phrase index [densephrases-multi_wiki-20181220](#3-phrase-index).
 * `densephrases-multi`: trained on mutiple reading comprehension datasets (NQ, WebQ, TREC, TriviaQA, SQuAD).
 * `densephrases-multi-query-multi`: `densephrases-multi` query-side fine-tuned on multiple open-domain QA datasets (NQ, WebQ, TREC, TriviaQA, SQuAD).
 * `densephrases-multi-query-*`: `densephrases-multi` query-side fine-tuned on each open-domain QA dataset.
-All models were trained with the phrase index [densephrases-multi_wiki-20181220](#3-phrase-index).
+
 
 #### Download manually
 * [Pre-trained models](https://nlp.cs.princeton.edu/projects/densephrases/outputs.tar.gz) (8GB) - All pre-trained DensePhrases models (including cross-encoder teacher models `spanbert-base-cased-*`). Download and unzip it under `$SAVE_DIR` or use `download.sh`.
