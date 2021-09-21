@@ -116,16 +116,16 @@ model = DensePhrases(
 
 |              Model                | Query-FT. | NQ | WebQ | TREC | TriviaQA | SQuAD | Description |
 |:----------------------------------|:--------:|:--------:|:--------:|:--------:|:--------:|:--------:|:--------:|
-| [densephrases-multi](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi.tar.gz) | None | 31.9 | 25.5 | 35.7 | 44.4	| 29.3 | EM before any Query-FT. |
-| [densephrases-multi-query-multi](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-multi.tar.gz) | Multiple | 40.8 | 35.0 | 48.8 | 53.3 | 34.2 | Used for [demo] |
+| [densephrases-multi](https://huggingface.co/princeton-nlp/densephrases-multi) | None | 31.9 | 25.5 | 35.7 | 44.4	| 29.3 | EM before any Query-FT. |
+| [densephrases-multi-query-multi](https://huggingface.co/princeton-nlp/densephrases-multi-query-multi) | Multiple | 40.8 | 35.0 | 48.8 | 53.3 | 34.2 | Used for [demo] |
 
 |              Model                | Query-FT. & Eval | EM | Description |
 |:----------------------------------|:--------:|:--------:|:--------:|
-| [densephrases-multi-query-nq](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-nq.tar.gz) | NQ | 41.3 | - |
-| [densephrases-multi-query-wq](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-wq.tar.gz) | WebQ | 41.5 | - |
-| [densephrases-multi-query-trec](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-trec.tar.gz) | TREC | 52.9 | `--regex` required |
-| [densephrases-multi-query-tqa](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-tqa.tar.gz) | TriviaQA | 53.5 | - |
-| [densephrases-multi-query-sqd](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-sqd.tar.gz) | SQuAD | 34.5 | - |
+| [densephrases-multi-query-nq](https://huggingface.co/princeton-nlp/densephrases-multi-query-nq) | NQ | 41.3 | - |
+| [densephrases-multi-query-wq](https://huggingface.co/princeton-nlp/densephrases-multi-query-wq) | WebQ | 41.5 | - |
+| [densephrases-multi-query-trec](https://huggingface.co/princeton-nlp/densephrases-multi-query-trec) | TREC | 52.9 | `--regex` required |
+| [densephrases-multi-query-tqa](https://huggingface.co/princeton-nlp/densephrases-multi-query-tqa) | TriviaQA | 53.5 | - |
+| [densephrases-multi-query-sqd](https://huggingface.co/princeton-nlp/densephrases-multi-query-sqd) | SQuAD | 34.5 | - |
 
 |              Model              | Query-FT. & Eval | KILT-Accuracy | Description |
 |:-------------------------------|:--------:|:--------:|:--------:|
