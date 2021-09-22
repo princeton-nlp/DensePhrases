@@ -6,7 +6,6 @@ from densephrases import Options
 from densephrases.utils.single_utils import load_encoder
 from densephrases.utils.open_utils import load_phrase_index, get_query2vec, load_qa_pairs
 from densephrases.utils.squad_utils import TrueCaser
-from eval_phrase_retrieval import evaluate as evaluate_fn
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +107,7 @@ class DensePhrases(object):
         )
 
     def evaluate(self, test_path):
+        from eval_phrase_retrieval import evaluate as evaluate_fn
         new_args = copy.deepcopy(self.args)
         new_args.test_path = test_path
         new_args.truecase = True

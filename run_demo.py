@@ -72,7 +72,7 @@ class DensePhrasesDemo(object):
 
         # Load mips
         mips = load_phrase_index(args)
-        app = Flask(__name__, static_url_path='/static')
+        app = Flask(__name__, static_folder='./densephrases/demo/static/')
         app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
         CORS(app)
 
@@ -87,7 +87,7 @@ class DensePhrasesDemo(object):
             rets = mips.search(
                 query_vec, q_texts=batch_query, nprobe=nprobe,
                 top_k=top_k, max_answer_length=max_answer_length,
-                return_idxs=return_idxs,
+                return_idxs=return_idxs, aggregate=True,
             )
             for ret_idx, ret in enumerate(rets):
                 for rr in ret:

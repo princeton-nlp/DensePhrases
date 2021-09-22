@@ -220,7 +220,7 @@ Note that you no longer need an SSD to run the demo unlike previous phrase retri
 nohup python run_demo.py \
     --run_mode q_serve \
     --cache_dir $CACHE_DIR \
-    --load_dir $SAVE_DIR/densephrases-multi-query-multi \
+    --load_dir princeton-nlp/densephrases-multi-query-multi \
     --cuda \
     --max_query_length 32 \
     --query_port 1111 > $SAVE_DIR/logs/q-serve_1111.log &

@@ -11,6 +11,26 @@
 <script src="files/jquery-3.3.1.min.js"></script>
 <script src="files/popper.min.js"></script>
 <script src="files/bootstrap.min.js"></script>
+<!-- Global site tag (gtag.js) - Google Analytics 
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-0Y11JZZBFP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-0Y11JZZBFP');
+</script>
+-->
+
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LTTRHHW2M6"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LTTRHHW2M6');
+</script>
 
 <body>
 
@@ -30,21 +50,21 @@
     </div>
     <div class="list-group-item">
         <div class="paper_title">
-        <strong><h2>Learning Dense Representations of Phrases at Scale</h2></strong>
-        <a target="_blank" href="https://jhyuklee.github.io/">Jinhyuk Lee</a>&nbsp;&nbsp;<a target="_blank" href="https://mjeensung.github.io/resume/">Mujeen Sung</a>&nbsp;&nbsp;<a target="_blank" href="https://dmis.korea.ac.kr/jaewoo-kang-p-i">Jaewoo Kang</a>&nbsp;&nbsp;<a target="_blank" href="https://www.cs.princeton.edu/~danqic/">Danqi Chen</a><br/>
+        <strong><h2>DensePhrase Demo</h2></strong>
+	Project by <a target="_blank" href="https://jhyuklee.github.io/">Jinhyuk Lee</a>&nbsp;&nbsp;<a target="_blank" href="https://mjeensung.github.io/resume/">Mujeen Sung</a>&nbsp;&nbsp;<a target="_blank" href="https://uk.linkedin.com/in/alexander-wettig">Alexandar Wettig</a>&nbsp;&nbsp;<a target="_blank" href="https://dmis.korea.ac.kr/jaewoo-kang-p-i">Jaewoo Kang</a>&nbsp;&nbsp;<a target="_blank" href="https://www.cs.princeton.edu/~danqic/">Danqi Chen</a><br/>
         Korea University&nbsp;&nbsp;Princeton University<br/>
         </div>
         <div class="detail">
         <hr/>
-        DensePhrases is an open-domain QA model that answers your questions by retrieving phrases from Wikipedia. The phrases are encoded using only dense vectors. You can type in any natural language question below and get the results in real-time. Please see our <a target="_blank" href="https://arxiv.org/abs/2012.12624">paper</a> and <a target="_blank" href="https://github.com/jhyuklee/DensePhrases">code</a> for more details. Our current demo has the following specs: <br/>
-        </div>
-        <div class="detail2">
+	From 5 million Wikipedia articles, <em>DensePhrases</em> searches phrase-level answers to your questions or retrieve relevant passages in real-time. More details are in our <a href='https://arxiv.org/abs/2012.12624'>ACL'21 paper</a> and <a href='https://arxiv.org/abs/2109.08133'>EMNLP'21 paper</a>.
+	<div style="line-height:50%;"><br></div>
+        You can type in any natural language question below and get the results in real-time. Retrieved phrases are denoted in <b>boldface</b> for each passage. Current model is case-sensitive and the best results are obtained when queries have proper letter cases (e.g., "Name Apple's products" not "name apple's products"). Our current demo has the following specs:
+	<div style="line-height:50%;"><br></div>
         <ul>
           <li>Accuracy: 40.8% on Natural Questions (open), Latency: ≈100ms/Q (with at least top 10 results) </li>
           <li>Resources: 11GB GPU, 100GB RAM </li>
-          <li>Contact: <a target="_blank" href="https://jhyuklee.github.io/">Jinhyuk Lee</a> (lee.jnhk@gmail.com) </li>
+	  <li><a target="_blank" href="https://github.com/jhyuklee/DensePhrases">Code link</a> | Contact: <a target="_blank" href="https://jhyuklee.github.io/">Jinhyuk Lee</a> (lee.jnhk@gmail.com) </li>
         </ul>
-        </div>
     </div>
 
 <div class="container" id="container">
@@ -94,7 +114,7 @@
 <footer class="footer">
     <div class="container">
 			<span class="text-muted">
-				<strong>Learning Dense Representations of Phrases at Scale</strong><br/>
+				<strong>DensePhrases Demo</strong><br/>
                                 Jinhyuk Lee, Mujeen Sung, Jaewoo Kang, Danqi Chen<br/>
 			</span>
     </div>
