@@ -26,7 +26,7 @@ class MIPS(object):
 
         # Read index
         self.index = {}
-        logger.info(f'Reading {index_path}')
+        logger.info(f'Reading {index_path} - could take up to 15 minutes depending on the read speed of HDD/SSD')
         self.index = faiss.read_index(index_path, faiss.IO_FLAG_ONDISK_SAME_DIR)
         self.reconst_fn = faiss.downcast_index(self.index.index).reconstruct
         self.R = torch.FloatTensor(faiss.vector_to_array(faiss.downcast_VectorTransform(self.index.chain.at(0)).A).reshape(self.index.d, self.index.d))

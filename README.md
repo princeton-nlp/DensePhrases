@@ -15,7 +15,7 @@
 * \[**June 14, 2021**\] Major code updates
 
 ## Getting Started
-After [installing DensePhrases](#installation) and [dowloading a phrase index](#3-phrase-index) you can easily retrieve phrases, sentences, paragraphs, or documents for your query.
+After [installing DensePhrases](#installation) and [dowloading a phrase index](#3-phrase-index) you can easily retrieve phrases, sentences, paragraphs, or documents for your query. See [here](https://github.com/princeton-nlp/DensePhrases/tree/main/examples) for more examples such as using CPU-only mode, creating a custom index, and more.
 ```python
 from densephrases import DensePhrases
 
@@ -132,7 +132,7 @@ model = DensePhrases(
 | [densephrases-multi-query-trex](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-trex.tar.gz) | T-REx | 22.3 | Result from [eval.ai](https://eval.ai/web/challenges/challenge-page/689/overview) |
 | [densephrases-multi-query-zsre](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-zsre.tar.gz) | Zero-shot RE | 40.0 | Result from [eval.ai](https://eval.ai/web/challenges/challenge-page/689/overview) |
 
-**Important**: all models except `densephrases-multi` are query-side fine-tuned on the specified dataset (Query-FT.) using the phrase index [densephrases-multi_wiki-20181220](#3-phrase-index).
+**Important**: all models except `densephrases-multi` are query-side fine-tuned on the specified dataset (Query-FT.) using the phrase index [densephrases-multi_wiki-20181220](#3-phrase-index). Also note that our pre-trained models are case-sensitive models and the best results are obtained when `--truecase` is on for any lowercased queries (e.g., NQ).
 * `densephrases-multi`: trained on mutiple reading comprehension datasets (NQ, WebQ, TREC, TriviaQA, SQuAD).
 * `densephrases-multi-query-multi`: `densephrases-multi` query-side fine-tuned on multiple open-domain QA datasets (NQ, WebQ, TREC, TriviaQA, SQuAD).
 * `densephrases-multi-query-*`: `densephrases-multi` query-side fine-tuned on each open-domain QA dataset.
@@ -192,7 +192,7 @@ The performance of `densephrases-multi-query-nq` on Natural Questions (test) wit
 
 |              Phrase Index              | Open-Domain QA (EM) | Sentence Retrieval (Acc@1/5) | Passage Retrieval (Acc@1/5) | Size | Description |
 |:----------------------------------|:---------------:|:--------:|:--------:|:--------:|:-----------------------:|
-| 1048576_flat_OPQ96 | 41.2 | 48.7 / 66.4 | 52.6 / 71.5 | 60GB | evaluated with [`eval-index-psg`](https://github.com/princeton-nlp/DensePhrases/blob/main/Makefile#L477) |
+| 1048576_flat_OPQ96 | 41.3 | 48.7 / 66.4 | 52.6 / 71.5 | 60GB | evaluated with [`eval-index-psg`](https://github.com/princeton-nlp/DensePhrases/blob/main/Makefile#L477) |
 | 1048576_flat_OPQ96_medium | 39.9 | 48.3 / 65.8 | 52.2 / 70.9 | 39GB | |
 | 1048576_flat_OPQ96_small | 38.0 | 47.2 / 64.0 | 50.7 / 69.1 | 20GB | |
 
@@ -206,15 +206,14 @@ For instance, based on the retrieved passages from DensePhrases, you can train a
 Or, you can build your own phrase index with DensePhrases.
 
 ## Playing with a DensePhrases Demo
-There are two ways of using DensePhrases demo.
-1. You can simply use the [demo] that we are serving on our server (Wikipedia scale). The running demo is using `densephrases-multi-query-multi` (NQ=40.8 EM) as a query encoder and `densephrases-multi_wiki-20181220` as a phrase index.
-2. You can run the demo on your own server where you can change the phrase index (obtained from [here](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/create-custom-index)) or the query encoder (e.g., to `densephrases-multi-query-nq`).
+You can run [the Wikipedia-scale demo](http://densephrases.korea.ac.kr) on your own server.
+For your own demo, you can change the phrase index (obtained from [here](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/create-custom-index)) or the query encoder (e.g., to `densephrases-multi-query-nq`).
 
-The minimum resource requirement for running the full Wikipedia scale demo is:
-* 100GB RAM
+The resource requirement for running the full Wikipedia scale demo is:
+* 50 ~ 100GB RAM (depending on the size of a phrase index)
 * Single 11GB GPU (optional)
 
-Note that you no longer need any SSDs to run the demo unlike previous phrase retrieval models ([DenSPI](https://github.com/uwnlp/denspi), [DenSPI+Sparc](https://github.com/jhyuklee/sparc)), but setting `$SAVE_DIR` to an SSD can reduce the loading time of the required resources. The following commands serve exactly the same demo as [here](http://densephrases.korea.ac.kr) on your `http://localhost:51997`.
+Note that you no longer need an SSD to run the demo unlike previous phrase retrieval models ([DenSPI](https://github.com/uwnlp/denspi), [DenSPI+Sparc](https://github.com/jhyuklee/sparc)). The following commands serve exactly the same demo as [here](http://densephrases.korea.ac.kr) on your `http://localhost:51997`.
 ```bash
 # Serve a query encoder on port 1111
 nohup python run_demo.py \

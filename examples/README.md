@@ -38,6 +38,7 @@ print(model.search('How to become a great researcher', retrieval_unit='paragraph
 print(model.search('What is the history of internet', retrieval_unit='document', top_k=3))
 # ['Computer network', 'History of the World Wide Web', 'History of the Internet']
 ```
+
 For batch queries, simply feed a list of queries as ``query``.
 To get more detailed search results, set ``return_meta=True`` as follows:
 ```python
@@ -51,9 +52,34 @@ print(metadata[0])
 # [{'context': '... The most recent as of 2018, Denis Mukwege, was awarded his Peace Prize in 2018. ...', 'title': ['List of black Nobel laureates'], 'doc_idx': 5433697, 'start_pos': 558, 'end_pos': 572, 'start_idx': 15, 'end_idx': 16, 'score': 99.670166015625, ..., 'answer': 'Denis Mukwege,'}, ...] 
 ```
 Note that when the model returns phrases, it also returns passages in its metadata as described in our [EMNLP paper](https://arxiv.org/abs/2109.08133).<br>
-You can also evaluate the model as follows:
 
+### CPU-only Mode
 ```python
-# Evaluate loaded DensePhrases
-model.evaluate(test_path='/path/to/test_file.json')
+# Load DensePhrases in CPU-only mode
+model = DensePhrases(
+    load_dir='princeton-nlp/densephrases-multi-query-multi',
+    dump_dir='/path/to/densephrases-multi_wiki-20181220/dump',
+    device='cpu'
+)
+```
+
+### Changing the index or the encoder
+```python
+# Load DensePhrases with a smaller phrase index
+model = DensePhrases(
+    load_dir='princeton-nlp/densephrases-multi-query-multi',
+    dump_dir='/path/to/densephrases-multi_wiki-20181220/dump',
+    index_name='start/1048576_flat_OPQ96_small'
+)
+
+# Change the DensePhrases encoder to 'princeton-nlp/densephrases-multi-query-tqa' (trained on TriviaQA)
+model.set_encoder('princeton-nlp/densephrases-multi-query-tqa')
+```
+
+### Evaluation
+```python
+import os
+
+# Evaluate loaded DensePhrases on Natural Questions
+model.evaluate(test_path=os.path.join(os.environ['DATA_DIR'], 'open-qa/nq-open/test_preprocessed.json'))
 ```
