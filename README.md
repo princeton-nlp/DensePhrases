@@ -15,7 +15,7 @@
 * \[**June 14, 2021**\] Major code updates
 
 ## Getting Started
-After [installing DensePhrases](#installation) and [dowloading a phrase index](#3-phrase-index) you can easily retrieve phrases, sentences, paragraphs, or documents for your query. See [here](https://github.com/princeton-nlp/DensePhrases/tree/main/examples) for more examples such as using CPU-only mode, creating a custom index, and more.
+After [installing DensePhrases](#installation) and [dowloading a phrase index](#3-phrase-index) you can easily retrieve phrases, sentences, paragraphs, or documents for your query.
 ```python
 from densephrases import DensePhrases
 
@@ -41,6 +41,7 @@ print(model.search('How to become a great researcher', retrieval_unit='paragraph
 print(model.search('What is the history of internet', retrieval_unit='document', top_k=3))
 # ['Computer network', 'History of the World Wide Web', 'History of the Internet']
 ```
+See [here](https://github.com/princeton-nlp/DensePhrases/tree/main/examples) for more examples such as using CPU-only mode, creating a custom index, and more.
 
 ## Quick Link
 * [Installation](#installation)

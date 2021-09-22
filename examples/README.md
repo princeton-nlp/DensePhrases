@@ -63,7 +63,7 @@ model = DensePhrases(
 )
 ```
 
-### Changing the index or the encoder
+### Changing the Index or the Encoder
 ```python
 # Load DensePhrases with a smaller phrase index
 model = DensePhrases(
