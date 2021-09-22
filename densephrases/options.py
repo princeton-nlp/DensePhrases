@@ -26,7 +26,7 @@ class Options():
                         help="Pretrained config name or path if not the same as model_name")
         self.parser.add_argument("--tokenizer_name", type=str, default="",
                         help="Pretrained tokenizer name or path if not the same as model_name",)
-        self.parser.add_argument("--load_dir", type=str, default=None,
+        self.parser.add_argument("--load_dir", type=str, default="",
                         help="load dir where the model checkpoints are saved. Set to output_dir if not specified.",)
         self.parser.add_argument("--output_dir", type=str, default=None,
                         help="The output directory where the model checkpoints and predictions will be written.",)

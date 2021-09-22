@@ -297,17 +297,14 @@ class DensePhrasesDemo(object):
             logger.info(res.text)
         return outs
 
-    def batch_query(self, batch_query, batch_context, max_answer_length=20, top_k=10, nprobe=64):
-        assert len(batch_query) == len(batch_context)
-        print(len(batch_query), 'queries and contexts are given.')
+    def batch_query(self, batch_query, batch_context=None, max_answer_length=20, top_k=10, nprobe=64):
         post_data = {
             'query': json.dumps(batch_query),
-            'context': json.dumps(batch_context),
+            'context': json.dumps(batch_context) if batch_context is not None else json.dumps(batch_query),
             'max_answer_length': max_answer_length,
             'top_k': top_k,
             'nprobe': nprobe,
         }
-        print(self.get_address(self.index_port) + '/batch_api')
         res = requests.post(self.get_address(self.index_port) + '/batch_api', data=post_data)
         if res.status_code != 200:
             logger.info('Wrong behavior %d' % res.status_code)
