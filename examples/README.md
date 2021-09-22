@@ -59,7 +59,8 @@ Note that when the model returns phrases, it also returns passages in its metada
 model = DensePhrases(
     load_dir='princeton-nlp/densephrases-multi-query-multi',
     dump_dir='/path/to/densephrases-multi_wiki-20181220/dump',
-    device='cpu'
+    device='cpu',
+    max_query_length=24, # reduce the maximum query length for a faster query encoding (optional)
 )
 ```
 

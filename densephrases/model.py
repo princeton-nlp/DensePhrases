@@ -16,7 +16,8 @@ class DensePhrases(object):
                  load_dir,
                  dump_dir,
                  index_name='start/1048576_flat_OPQ96',
-                 device='cuda'):
+                 device='cuda',
+                 **kwargs):
 
         # Get default options
         options = Options()
@@ -32,6 +33,7 @@ class DensePhrases(object):
         self.args.cache_dir = os.environ['CACHE_DIR']
         self.args.index_name = index_name
         self.args.cuda = True if device == 'cuda' else False
+        self.args.__dict__.update(kwargs)
 
         # Load encoder
         self.set_encoder(load_dir, device)
