@@ -43,10 +43,24 @@ print(model.search('What is the history of internet', retrieval_unit='document',
 ```
 See [here](https://github.com/princeton-nlp/DensePhrases/tree/main/examples) for more examples such as using CPU-only mode, creating a custom index, and more.
 
+You can also use DensePhrases to retrieve relevant documents for a dialogue or run entity linking over given texts.
+```python
+# Retrieve relevant documents for a dialogue
+model.set_encoder('princeton-nlp/densephrases-multi-query-wow')
+print(model.search('I love rap music.', retrieval_unit='document', top_k=10))
+# ['Rapping', 'Hip hop', 'Rap metal', 'Hip hop music', 'Rapso', 'Battle rap', 'Rape', 'Eurodance', 'Chopper (rap)', 'Rape culture']
+
+# Run entity linking for the target phrase denoted as [START_ENT] and [END_ENT]
+model.set_encoder('princeton-nlp/densephrases-multi-query-ay2')
+print(model.search('[START_ENT] Security Council [END_ENT] members expressed concern on Thursday', retrieval_unit='document', top_k=1))
+# ['United Nations Security Council']
+```
+We provide more [examples](https://github.com/princeton-nlp/DensePhrases/tree/main/examples), which includes training a state-of-the-art open-domain question answering model called [Fusion-in-Decoder](https://arxiv.org/abs/2007.01282) by Izacard and Grave, 2021.
+
 ## Quick Link
 * [Installation](#installation)
 * [Resources: datasets, pre-trained models, phrase indexes](#resources)
-* [Examples](#examples)
+* [Examples](https://github.com/princeton-nlp/DensePhrases/tree/main/examples)
 * [Playing with a DensePhrases Demo](#playing-with-a-densephrases-demo)
 * [Traning, Indexing and Inference](#densephrases-training-indexing-and-inference)
 * [Pre-processing](#pre-processing)
@@ -197,10 +211,6 @@ The performance of `densephrases-multi-query-nq` on Natural Questions (test) wit
 </div>
 
 Note that the passage retrieval accuracy (Acc@1/5) is generally higher than the reported numbers in the paper since these phrase indexes return natural paragraphs instead of fixed-sized text blocks (i.e., 100 words).
-
-## Examples
-In the [examples](https://github.com/princeton-nlp/DensePhrases/tree/main/examples) folder, we provide descriptions on how to use DensePhrases for different applications.
-For instance, based on the retrieved passages from DensePhrases, you can train a state-of-the-art open-domain question answering model called [Fusion-in-Decoder](https://arxiv.org/abs/2007.01282) by Izacard and Grave, 2021, or you can run entity linking with DensePhrases.
 
 ## Playing with a DensePhrases Demo
 You can run [the Wikipedia-scale demo](http://densephrases.korea.ac.kr) on your own server.
