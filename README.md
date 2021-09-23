@@ -1,12 +1,17 @@
 # DensePhrases
 
+[**Getting Started**](#getting-started) | [**(Lee et al., ACL 2021)**](https://arxiv.org/abs/2012.12624) | [**(Lee et al., EMNLP 2021)**](https://arxiv.org/abs/2109.08133) | [**Demo**](http://densephrases.korea.ac.kr) | [**References**](#references) | [**License**](https://github.com/princeton-nlp/DensePhrases/blob/main/LICENSE)
+
+<em>DensePhrases</em> is a text retrieval model that can return phrases, sentences, passages, or documents for your natural language inputs. Using billions of dense phrase vectors from the entire Wikipedia, DensePhrases searches phrase-level answers to your questions in real-time or retrieves passages for downstream tasks.
+
 <div align="center">
   <img alt="DensePhrases Demo" src="https://github.com/princeton-nlp/DensePhrases/blob/main/densephrases/demo/static/files/preview-new.gif" width="750px">
 </div>
 
-<em>DensePhrases</em> is a text retrieval model that can return phrases, sentences, passages, or documents for your natural language inputs. From 5 million Wikipedia articles, it can search phrase-level answers to your questions in real-time or retrieve related passages for downstream tasks. Please see our ACL paper ([Learning Dense Representations of Phrases at Scale](https://arxiv.org/abs/2012.12624)) for details on how to learn dense representations of phrases and the EMNLP paper ([Phrase Retrieval Learns Passage Retrieval, Too](https://arxiv.org/abs/2109.08133)) on how to perform multi-granularity retrieval with phrases.
 
-**\*\*\*\*\* You can try out our online demo of DensePhrases [here](http://densephrases.korea.ac.kr)! \*\*\*\*\***
+Please see our ACL paper ([Learning Dense Representations of Phrases at Scale](https://arxiv.org/abs/2012.12624)) for details on how to learn dense representations of phrases and the EMNLP paper ([Phrase Retrieval Learns Passage Retrieval, Too](https://arxiv.org/abs/2109.08133)) on how to perform multi-granularity retrieval.
+
+**\*\*\*\*\* Try out our online demo of DensePhrases [here](http://densephrases.korea.ac.kr)! \*\*\*\*\***
 
 ### Updates
 * \[**Sep 23, 2021**\] More examples on [entity linking](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/entity-linking), [knowledge-grounded dialouge](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/knowledge-dialogue), and [slot filling](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/slot-filling).
@@ -367,7 +372,7 @@ At the bottom of `Makefile`, we list commands that we used for pre-processing th
 ## Questions?
 Feel free to email Jinhyuk Lee `(jinhyuklee@princeton.edu)` for any questions related to the code or the paper. You can also open a Github issue. Please try to specify the details so we can better understand and help you solve the problem.
 
-## Reference
+## References
 Please cite our paper if you use DensePhrases in your work:
 ```bibtex
 @inproceedings{lee2021learning,
