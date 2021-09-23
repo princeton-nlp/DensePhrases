@@ -7,8 +7,8 @@ For instance, based on the retrieved passages from DensePhrases, you can train a
 * [Create a Custom Phrase Index](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/create-custom-index)
 * [Open-Domain QA with Fusion-in-Decoder](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/fusion-in-decoder)
 * [Entity Linking](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/entity-linking)
+* [Knowledge-grounded Dialogue](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/knowledge-dialogue)
 * [Slot Filling](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/slot-filling)
-* Knowledge-grounded Dialogue (coming soon)
 
 ## Basics: Multi-Granularity Text Retrieval
 The most basic use of DensePhrases is to retrieve phrases, sentences, paragraphs, or documents for your query.

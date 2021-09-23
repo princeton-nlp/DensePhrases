@@ -36,6 +36,6 @@ model.evaluate(
 )
 ```
 
-For test accuracy, use `aidayago2-test-kilt_open.json` instead and submit the prediction file (saved as `$SAVE_DIR/densephrases-multi-query-trex/pred-kilt/*.jsonl`) to [eval.ai](https://eval.ai/web/challenges/challenge-page/689/overview).
+For test accuracy, use `aidayago2-test-kilt_open.json` instead and submit the prediction file (saved as `$SAVE_DIR/densephrases-multi-query-ay2/pred-kilt/*.jsonl`) to [eval.ai](https://eval.ai/web/challenges/challenge-page/689/overview).
 For WNED-WIKI and WNED-CWEB, follow the same process with files specified in the `wned-kilt-data` and `cweb-kilt-data` targets in [Makefile](https://github.com/princeton-nlp/DensePhrases/blob/main/Makefile).
 You can also evaluate the model with Makefile `eval-index` target by simply chaning the dependency.
