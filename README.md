@@ -2,7 +2,7 @@
 
 [**Getting Started**](#getting-started) | [**Paper1**](https://arxiv.org/abs/2012.12624), [**Paper2**](https://arxiv.org/abs/2109.08133) | [**Demo**](http://densephrases.korea.ac.kr) | [**Reference**](#reference) | [**License**](https://github.com/princeton-nlp/DensePhrases/blob/main/LICENSE)
 
-<em>DensePhrases</em> is a text retrieval model that can return phrases, sentences, passages, or documents for your natural language inputs. From 5 million Wikipedia articles, it searches phrase-level answers to your questions in real-time or retrieve passages for downstream tasks.
+<em>DensePhrases</em> is a text retrieval model that can return phrases, sentences, passages, or documents for your natural language inputs. Using billions of dense phrase vectors from the entire Wikipedia, DensePhrases searches phrase-level answers to your questions in real-time or retrieves passages for downstream tasks.
 
 <div align="center">
   <img alt="DensePhrases Demo" src="https://github.com/princeton-nlp/DensePhrases/blob/main/densephrases/demo/static/files/preview-new.gif" width="750px">
