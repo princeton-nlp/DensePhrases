@@ -1,13 +1,11 @@
 # DensePhrases Examples
 
 We provide descriptions on how to use DensePhrases for different applications.
-For instance, based on the retrieved passages from DensePhrases, you can train a state-of-the-art open-domain question answering model called [Fusion-in-Decoder](https://arxiv.org/abs/2007.01282) by Izacard and Grave, 2021.
-Or, you can build your own phrase index with DensePhrases.
-We list the examples below.
+For instance, based on the retrieved passages from DensePhrases, you can train a state-of-the-art open-domain question answering model called [Fusion-in-Decoder](https://arxiv.org/abs/2007.01282) by Izacard and Grave, 2021, or you can run entity linking with DensePhrases.
 
 * [Basics: Multi-Granularity Text Retrieval](#basics-multi-granularity-text-retrieval)
-* [Open-Domain QA with Fusion-in-Decoder](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/fusion-in-decoder)
 * [Create a Custom Phrase Index](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/create-custom-index)
+* [Open-Domain QA with Fusion-in-Decoder](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/fusion-in-decoder)
 * [Entity Linking](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/entity-linking)
 * [Slot Filling](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/slot-filling)
 * Knowledge-grounded Dialogue (coming soon)
