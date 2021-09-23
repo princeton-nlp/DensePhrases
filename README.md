@@ -147,7 +147,7 @@ model = DensePhrases(
 * `densephrases-multi-query-multi`: `densephrases-multi` query-side fine-tuned on multiple open-domain QA datasets (NQ, WebQ, TREC, TriviaQA, SQuAD).
 * `densephrases-multi-query-*`: `densephrases-multi` query-side fine-tuned on each open-domain QA dataset.
 
-For pre-trained models in other tasks (e.g., slot filling), see [examples](https://github.com/princeton-nlp/DensePhrases/tree/main/examples). Note that most pre-trained models  are the results of query-side fine-tuning `densephrases-multi`.
+For pre-trained models in other tasks (e.g., slot filling), see [examples](https://github.com/princeton-nlp/DensePhrases/tree/main/examples). Note that most pre-trained models  are the results of [query-side fine-tuning](#3-query-side-fine-tuning) `densephrases-multi`.
 
 
 #### Download manually
@@ -289,7 +289,7 @@ To train DensePhrases from scratch, use `run-rc-nq` in `Makefile`, which trains 
 You can simply change the training set by modifying the dependencies of `run-rc-nq` (e.g., `nq-rc-data` => `sqd-rc-data` and `nq-param` => `sqd-param` for training on SQuAD).
 You'll need a single 24GB GPU for training DensePhrases on reading comprehension tasks, but you can use smaller GPUs by setting `--gradient_accumulation_steps` properly.
 ```bash
-# Train DensePhrases on NQ with Eq. 9
+# Train DensePhrases on NQ with Eq. 9 in Lee et al., ACL'21
 make run-rc-nq MODEL_NAME=densephrases-nq
 ```
 
@@ -342,10 +342,10 @@ make eval-index MODEL_NAME=densephrases-multi DUMP_DIR=$SAVE_DIR/densephrases-mu
 ```
 
 ### 3. Query-side fine-tuning
-Query-side fine-tuning makes DensePhrases a versatile tool for retrieving phrase-level knowledge given different types of input queries and answers. Although DensePhrases was trained on QA datasets, it can be adapted to non-QA style inputs such as "subject [SEP] relation" where we expect related object entities to be retrieved. It also significantly improves the performance on QA datasets by reducing the discrepancy of training and inference.
+Query-side fine-tuning makes DensePhrases a versatile tool for retrieving multi-granularity text for different types of input queries. While query-side fine-tuning can also improve the performance on QA datasets, it can be used to adapt DensePhrases to **non-QA style input queries** such as "subject [SEP] relation" to retrieve object entities or "I love rap music." to retrieve relevant documents on rapping.
 
-First, you need a phrase index for the full Wikipedia (`wiki-20181220`), which can be simply downloaded [here](#3-phrase-index), or a custom phrase index as described above.
-Given your query-answer pairs pre-processed as json files in `$DATA_DIR/open-qa` or `$DATA_DIR/kilt`, you can easily query-side fine-tune your model. For instance, the training set of T-REx (`$DATA_DIR/kilt/trex/trex-train-kilt_open_10000.json`) looks as follows:
+First, you need a phrase index for the full Wikipedia (`wiki-20181220`), which can be simply downloaded [here](#3-phrase-index), or a custom phrase index as described [here](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/create-custom-index).
+Given your query-answer or query-document pairs pre-processed as json files in `$DATA_DIR/open-qa` or `$DATA_DIR/kilt`, you can easily query-side fine-tune your model. For instance, the training set of T-REx (`$DATA_DIR/kilt/trex/trex-train-kilt_open_10000.json`) looks as follows:
 ```
 {
     "data": [
@@ -354,9 +354,7 @@ Given your query-answer pairs pre-processed as json files in `$DATA_DIR/open-qa`
             "question": "Effie Germon [SEP] occupation",
             "answers": [
                 "actors",
-                "actor",
-                "actress",
-                "actresses"
+                ...
             ]
         },
         ...
@@ -368,11 +366,7 @@ The following command query-side fine-tunes `densephrases-multi` on T-REx.
 # Query-side fine-tune on T-REx (model will be saved as MODEL_NAME)
 make train-query MODEL_NAME=densephrases-multi-query-trex DUMP_DIR=$SAVE_DIR/densephrases-multi_wiki-20181220/dump/
 ```
-Note that the pre-trained query encoder is specified in `train-query` as `--load_dir $(SAVE_DIR)/densephrases-multi` and a new model will be saved as `densephrases-multi-query-trex` as specified in `MODEL_NAME`. You can also train on different datasets by changing the dependency `trex-open-data` to `*-open-data` (e.g., `wq-open-data` for WebQuestions).
-
-#### IVFOPQ vs IVFSQ
-Currently, `train-query` uses the IVFOPQ index for query-side fine-tuning, and you should apply minor changes in the code to train with an IVFSQ index.
-For IVFOPQ, training takes 2 to 3 hours per epoch for large datasets (NQ, TriviaQA, SQuAD), and 3 to 8 minutes for small datasets (WQ, TREC). We recommend using IVFOPQ since it has similar or better performance than IVFSQ while being much faster than IVFSQ. With IVFSQ, the training time will be highly dependent on the File I/O speed, so using SSDs is recommended for IVFSQ.
+Note that the pre-trained query encoder is specified in `train-query` as `--load_dir $(SAVE_DIR)/densephrases-multi` and a new model will be saved as `densephrases-multi-query-trex` as specified in `MODEL_NAME`. You can also train on different datasets by changing the dependency `trex-open-data` to `*-open-data` (e.g., `ay2-kilt-data` for entity linking).
 
 ### 4. Inference
 With any DensePhrases query encoders (e.g., `densephrases-multi-query-nq`) and a phrase index (e.g., `densephrases-multi_wiki-20181220`), you can test your queries as follows and the retrieval results will be saved as a json file with the `--save_pred` option:

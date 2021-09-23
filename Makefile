@@ -204,7 +204,7 @@ draft: model-name nq-rc-data nq-param pbn-param small-index
 # Single-passage training + additional negatives for NQ
 # Available datasets: NQ (nq-rc-data), SQuAD (sqd-rc-data), NQ+SQuAD (nqsqd-rc-data)
 # Should change hyperparams (e.g., nq-param) accordingly
-run-rc-nq: model-name multi-rc-data nqsqd-param pbn-param small-index
+run-rc-nq: model-name nq-rc-data nq-param pbn-param small-index
 	make train-rc \
 		TRAIN_DATA=$(TRAIN_QG_DATA) DEV_DATA=$(DEV_DATA) \
 		TEACHER_NAME=$(TEACHER_NAME) MODEL_NAME=$(MODEL_NAME)_tmp \
