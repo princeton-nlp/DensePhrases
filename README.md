@@ -132,6 +132,7 @@ model = DensePhrases(
 * `densephrases-multi`: trained on mutiple reading comprehension datasets (NQ, WebQ, TREC, TriviaQA, SQuAD).
 * `densephrases-multi-query-multi`: `densephrases-multi` query-side fine-tuned on multiple open-domain QA datasets (NQ, WebQ, TREC, TriviaQA, SQuAD).
 * `densephrases-multi-query-*`: `densephrases-multi` query-side fine-tuned on each open-domain QA dataset.
+
 For pre-trained models in other tasks (e.g., slot filling), see [examples](https://github.com/princeton-nlp/DensePhrases/tree/main/examples). Note that most pre-trained models  are the results of query-side fine-tuning `densephrases-multi`.
 
 
