@@ -8,8 +8,8 @@ We list the examples below.
 * [Basics: Multi-Granularity Text Retrieval](#basics-multi-granularity-text-retrieval)
 * [Open-Domain QA with Fusion-in-Decoder](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/fusion-in-decoder)
 * [Create a Custom Phrase Index](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/create-custom-index)
+* [Slot Filling](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/slot-filling))
 * Entity Linking (coming soon)
-* Slot Filling (coming soon)
 
 ## Basics: Multi-Granularity Text Retrieval
 The most basic use of DensePhrases is to retrieve phrases, sentences, paragraphs, or documents for your query.

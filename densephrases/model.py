@@ -106,9 +106,14 @@ class DensePhrases(object):
             query_encoder=self.model, tokenizer=self.tokenizer, args=self.args, batch_size=64
         )
 
-    def evaluate(self, test_path):
+    def evaluate(self, test_path, **kwargs):
         from eval_phrase_retrieval import evaluate as evaluate_fn
+
+        # Set new arguments
         new_args = copy.deepcopy(self.args)
         new_args.test_path = test_path
         new_args.truecase = True
+        new_args.__dict__.update(kwargs)
+
+        # Run with new_arg
         evaluate_fn(new_args, self.mips, self.model, self.tokenizer)

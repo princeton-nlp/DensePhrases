@@ -128,15 +128,11 @@ model = DensePhrases(
 | [densephrases-multi-query-tqa](https://huggingface.co/princeton-nlp/densephrases-multi-query-tqa) | TriviaQA | 53.5 | - |
 | [densephrases-multi-query-sqd](https://huggingface.co/princeton-nlp/densephrases-multi-query-sqd) | SQuAD | 34.5 | - |
 
-|              Model              | Query-FT. & Eval | KILT-Accuracy | Description |
-|:-------------------------------|:--------:|:--------:|:--------:|
-| [densephrases-multi-query-trex](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-trex.tar.gz) | T-REx | 22.3 | Result from [eval.ai](https://eval.ai/web/challenges/challenge-page/689/overview) |
-| [densephrases-multi-query-zsre](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-zsre.tar.gz) | Zero-shot RE | 40.0 | Result from [eval.ai](https://eval.ai/web/challenges/challenge-page/689/overview) |
-
 **Important**: all models except `densephrases-multi` are query-side fine-tuned on the specified dataset (Query-FT.) using the phrase index [densephrases-multi_wiki-20181220](#3-phrase-index). Also note that our pre-trained models are case-sensitive models and the best results are obtained when `--truecase` is on for any lowercased queries (e.g., NQ).
 * `densephrases-multi`: trained on mutiple reading comprehension datasets (NQ, WebQ, TREC, TriviaQA, SQuAD).
 * `densephrases-multi-query-multi`: `densephrases-multi` query-side fine-tuned on multiple open-domain QA datasets (NQ, WebQ, TREC, TriviaQA, SQuAD).
 * `densephrases-multi-query-*`: `densephrases-multi` query-side fine-tuned on each open-domain QA dataset.
+For pre-trained models in other tasks (e.g., slot filling), see [examples](https://github.com/princeton-nlp/DensePhrases/tree/main/examples). Note that most pre-trained models  are the results of query-side fine-tuning `densephrases-multi`.
 
 
 #### Download manually
@@ -379,7 +375,6 @@ make eval-index MODEL_NAME=densephrases-multi-query-nq DUMP_DIR=$SAVE_DIR/densep
 make eval-demo I_PORT=51997
 ```
 For the evaluation on different datasets, simply change the dependency of `eval-index` (or `eval-demo`) accordingly (e.g., `nq-open-data` to `trec-open-data` for the evaluation on CuratedTREC).
-Note that the test set evaluation of slot filling tasks requires prediction files to be uploaded on [eval.ai](https://eval.ai/web/challenges/challenge-page/689/overview) (use `strip-kilt` target in `Makefile` for better accuracy).
 
 ## Pre-processing
 At the bottom of `Makefile`, we list commands that we used for pre-processing the datasets and Wikipedia. For training question generation models (T5-large), we used [https://github.com/patil-suraj/question\_generation](https://github.com/patil-suraj/question_generation) (see also [here](https://github.com/princeton-nlp/DensePhrases/blob/main/scripts/question_generation/generate_squad.py) for QG). Note that all datasets are already pre-processed including the generated questions, so you do not need to run most of these scripts. For creating test sets for custom (open-domain) questions, see `preprocess-openqa` in `Makefile`.
