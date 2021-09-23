@@ -46,13 +46,14 @@ See [here](https://github.com/princeton-nlp/DensePhrases/tree/main/examples) for
 
 You can also use DensePhrases to retrieve relevant documents for a dialogue or run entity linking over given texts.
 ```python
+# Change the encoder trained on entity linking and dialogue (KILT)
+model.set_encoder('princeton-nlp/densephrases-multi-query-kilt-multi')
+
 # Retrieve relevant documents for a dialogue
-model.set_encoder('princeton-nlp/densephrases-multi-query-wow')
-print(model.search('I love rap music.', retrieval_unit='document', top_k=10))
-# ['Rapping', 'Hip hop', 'Rap metal', 'Hip hop music', 'Rapso', 'Battle rap', 'Rape', 'Eurodance', 'Chopper (rap)', 'Rape culture']
+print(model.search('I love rap music.', retrieval_unit='document', top_k=5))
+# ['Rapping', 'Rap metal', 'Hip hop', 'Hip hop music', 'Hip hop production']
 
 # Run entity linking for the target phrase denoted as [START_ENT] and [END_ENT]
-model.set_encoder('princeton-nlp/densephrases-multi-query-ay2')
 print(model.search('[START_ENT] Security Council [END_ENT] members expressed concern on Thursday', retrieval_unit='document', top_k=1))
 # ['United Nations Security Council']
 ```
