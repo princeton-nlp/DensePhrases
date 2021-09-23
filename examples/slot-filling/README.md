@@ -4,7 +4,7 @@
 |              Model              | Query-FT. & Eval | KILT-Accuracy | Description |
 |:-------------------------------|:--------:|:--------:|:--------:|
 | [densephrases-multi-query-trex](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-trex.tar.gz) | T-REx | 22.3 | Result from [eval.ai](https://eval.ai/web/challenges/challenge-page/689/overview) |
-| [densephrases-multi-query-zsre](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-zsre.tar.gz) | Zero-shot RE | 40.0 | Result from [eval.ai](https://eval.ai/web/challenges/challenge-page/689/overview) |
+| [densephrases-multi-query-zsre](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-zsre.tar.gz) | Zero-shot RE | 40.0 | |
 
 ## How to Use
 ```python
