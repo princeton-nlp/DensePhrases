@@ -23,7 +23,7 @@ Please see our ACL paper ([Learning Dense Representations of Phrases at Scale](h
 ## Getting Started
 After [installing DensePhrases](#installation) and [dowloading a phrase index](#3-phrase-index) you can easily retrieve phrases, sentences, paragraphs, or documents for your query.
 <div align="center">
-  <img alt="DensePhrases Interactive" src="https://nlp.cs.princeton.edu/projects/densephrases/densephrases-demo-hq.gif" width="750px">
+  <img alt="DensePhrases Interactive" src="https://github.com/princeton-nlp/DensePhrases/blob/main/densephrases/demo/static/files/densephrases-demo.gif" width="750px">
 </div>
 
 See [here](https://github.com/princeton-nlp/DensePhrases/tree/main/examples) for more examples such as using CPU-only mode, creating a custom index, and more.
