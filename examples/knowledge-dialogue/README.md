@@ -22,6 +22,11 @@ print(model.search('I love rap music.', retrieval_unit='document', top_k=10))
 
 print(model.search('Have you heard of Yamaha? They started as a piano manufacturer in 1887!', retrieval_unit='document', top_k=5))
 # ['Yamaha Corporation', 'Yamaha Drums', 'Tōkai Gakki', 'Suzuki Musical Instrument Corporation', 'Supermoto']
+
+# You can get more metadata on the document by setting return_meta=True
+doc, meta = model.search('I love rap music.', retrieval_unit='document', top_k=1, return_meta=True)
+print(meta)
+# [{'context': 'Rap is usually delivered over a beat, typically provided by a DJ, turntablist, ...', 'title': ['Rapping'], 'doc_idx': 4096192, 'start_pos': 647, 'end_pos': 660, 'start_idx': 91, 'end_idx': 93, 'score': 53.58412170410156, ... 'answer': 'hip-hop music'}]
 ```
 
 ### Evaluation
