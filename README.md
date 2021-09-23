@@ -1,6 +1,6 @@
 # DensePhrases
 
-[**Getting Started**](#getting-started) | [**Paper1**](https://arxiv.org/abs/2012.12624), [**Paper2**](https://arxiv.org/abs/2109.08133) | [**Demo**](http://densephrases.korea.ac.kr) | [**Reference**](#reference) | [**License**](#license)
+[**Getting Started**](#getting-started) | [**Paper1**](https://arxiv.org/abs/2012.12624), [**Paper2**](https://arxiv.org/abs/2109.08133) | [**Demo**](http://densephrases.korea.ac.kr) | [**Reference**](#reference) | [**License**](https://github.com/princeton-nlp/DensePhrases/blob/main/LICENSE)
 
 <em>DensePhrases</em> is a text retrieval model that can return phrases, sentences, passages, or documents for your natural language inputs. From entire Wikipedia, it searches phrase-level answers to your questions in real-time or retrieve passages for downstream tasks.
 
