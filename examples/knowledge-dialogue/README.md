@@ -3,16 +3,16 @@
 ## Pre-trained Models
 |              Model              | Query-FT. & Eval | R-Precision| Description |
 |:-------------------------------|:--------:|:--------:|:--------:|
-| [densephrases-multi-query-wow](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-wow.tar.gz) | Wizard of Wikipedia (WoW) | 47.0 | Result from [eval.ai](https://eval.ai/web/challenges/challenge-page/689/overview) |
-| [densephrases-multi-query-kilt-multi](https://nlp.cs.princeton.edu/projects/densephrases/models/densephrases-multi-query-kilt-multi.tar.gz) | Multiple / WoW | 55.7 | Trained on multiple KILT tasks |
+| [densephrases-multi-query-wow](https://huggingface.co/princeton-nlp/densephrases-multi-query-wow) | Wizard of Wikipedia (WoW) | 47.0 | Result from [eval.ai](https://eval.ai/web/challenges/challenge-page/689/overview) |
+| [densephrases-multi-query-kilt-multi](https://huggingface.co/princeton-nlp/densephrases-multi-query-kilt-multi) | Multiple / WoW | 55.7 | Trained on multiple KILT tasks |
 
 ## How to Use
 ```python
 from densephrases import DensePhrases
 
-# Load densephraes-multi-query-nq locally
+# Load densephraes-multi-query-wow
 model = DensePhrases(
-    load_dir='/path/to/densephrases-multi-query-wow',
+    load_dir='princeton-nlp/densephrases-multi-query-wow',
     dump_dir='/path/to/densephrases-multi_wiki-20181220/dump',
 )
 

@@ -10,7 +10,7 @@
 ```python
 from densephrases import DensePhrases
 
-# Load densephraes-multi-query-nq locally
+# Load densephraes-multi-query-trex locally
 model = DensePhrases(
     load_dir='/path/to/densephrases-multi-query-trex',
     dump_dir='/path/to/densephrases-multi_wiki-20181220/dump',
