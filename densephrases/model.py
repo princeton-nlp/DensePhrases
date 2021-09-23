@@ -2,6 +2,7 @@ import copy
 import logging
 import numpy as np
 import os
+
 from densephrases import Options
 from densephrases.utils.single_utils import load_encoder
 from densephrases.utils.open_utils import load_phrase_index, get_query2vec, load_qa_pairs
@@ -16,7 +17,14 @@ class DensePhrases(object):
                  dump_dir,
                  index_name='start/1048576_flat_OPQ96',
                  device='cuda',
+                 verbose=False,
                  **kwargs):
+        print("This could take up to 15 mins depending on the file reading speed of HDD/SSD")
+
+        # Turn off loggers
+        if not verbose:
+            logging.getLogger("densephrases").setLevel(logging.WARNING)
+            logging.getLogger("transformers").setLevel(logging.WARNING)
 
         # Get default options
         options = Options()
@@ -38,11 +46,11 @@ class DensePhrases(object):
         self.set_encoder(load_dir, device)
 
         # Load MIPS
-        self.mips = load_phrase_index(self.args)
+        self.mips = load_phrase_index(self.args, ignore_logging=not verbose)
 
         # Others
         self.truecase = TrueCaser(os.path.join(os.environ['DATA_DIR'], self.args.truecase_path))
-        logger.info("Loading DensePhrases Completed!")
+        print("Loading DensePhrases Completed!")
 
     def search(self, query='', retrieval_unit='phrase', top_k=10, truecase=True, return_meta=False):
         # If query is str, single query
@@ -79,6 +87,7 @@ class DensePhrases(object):
         )
 
         # Gather results
+        rets = [ret[:top_k] for ret in rets]
         if retrieval_unit == 'phrase':
             retrieved = [[rr['answer'] for rr in ret][:top_k] for ret in rets]
         elif retrieval_unit == 'sentence':

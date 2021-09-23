@@ -38,7 +38,7 @@ try:
         import torch
 
         _torch_available = True  # pylint: disable=invalid-name
-        logger.info("PyTorch version {} available.".format(torch.__version__))
+        # logger.info("PyTorch version {} available.".format(torch.__version__))
     else:
         logger.info("Disabling PyTorch because USE_TF is set")
         _torch_available = False

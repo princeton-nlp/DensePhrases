@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 truecase = None
 
 
-def load_phrase_index(args):
+def load_phrase_index(args, ignore_logging=False):
     # Configure paths for index serving
     phrase_dump_dir = os.path.join(args.dump_dir, args.phrase_dir)
     index_dir = os.path.join(args.dump_dir, args.index_name)
@@ -38,7 +38,7 @@ def load_phrase_index(args):
         index_path=index_path,
         idx2id_path=idx2id_path,
         cuda=args.cuda,
-        logging_level=logging.DEBUG if args.verbose_logging else logging.INFO,
+        logging_level=logging.WARNING if ignore_logging else (logging.DEBUG if args.verbose_logging else logging.INFO),
     )
     return mips
 

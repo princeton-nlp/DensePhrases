@@ -17,31 +17,10 @@
 
 ## Getting Started
 After [installing DensePhrases](#installation) and [dowloading a phrase index](#3-phrase-index) you can easily retrieve phrases, sentences, paragraphs, or documents for your query.
-```python
-from densephrases import DensePhrases
+<div align="center">
+  <img alt="DensePhrases Interactive" src="https://github.com/princeton-nlp/DensePhrases/blob/main/densephrases/demo/static/files/densephrases-demo.gif" width="750px">
+</div>
 
-# Load DensePhrases
-model = DensePhrases(
-    load_dir='princeton-nlp/densephrases-multi-query-multi',
-    dump_dir='/path/to/densephrases-multi_wiki-20181220/dump'
-)
-
-# Search phrases
-print(model.search('Who won the Nobel Prize in peace?', retrieval_unit='phrase', top_k=5))
-# ['Denis Mukwege,', 'Theodore Roosevelt', 'Denis Mukwege', 'John Mott', 'Mother Teresa']
-
-# Search sentences
-print(model.search('Why is the sky blue', retrieval_unit='sentence', top_k=1))
-# ['The blue color is sometimes wrongly attributed to Rayleigh scattering, which is responsible for the color of the sky.']
-
-# Search paragraphs
-print(model.search('How to become a great researcher', retrieval_unit='paragraph', top_k=1))
-# ['... Levine said he believes the key to being a great researcher is having passion for research in and working on questions that the researcher is truly curious about. He said: "Have patience, persistence and enthusiasm and you’ll be fine."']
-
-# Search documents (Wikipedia titles)
-print(model.search('What is the history of internet', retrieval_unit='document', top_k=3))
-# ['Computer network', 'History of the World Wide Web', 'History of the Internet']
-```
 See [here](https://github.com/princeton-nlp/DensePhrases/tree/main/examples) for more examples such as using CPU-only mode, creating a custom index, and more.
 
 You can also use DensePhrases to retrieve relevant documents for a dialogue or run entity linking over given texts.
