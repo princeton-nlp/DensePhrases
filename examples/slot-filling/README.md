@@ -8,32 +8,32 @@
 
 ## How to Use
 ```python
-from densephrases import DensePhrases
+>>> from densephrases import DensePhrases
 
 # Load densephraes-multi-query-trex locally
-model = DensePhrases(
-    load_dir='/path/to/densephrases-multi-query-trex',
-    dump_dir='/path/to/densephrases-multi_wiki-20181220/dump',
-)
+>>> model = DensePhrases(
+...     load_dir='/path/to/densephrases-multi-query-trex',
+...     dump_dir='/path/to/densephrases-multi_wiki-20181220/dump',
+... )
 
 # Slot filling queries are in the format of 'Subject [SEP] Relation'
-print(model.search('Superman [SEP] father', retrieval_unit='phrase', top_k=5))
-# ['Jor-El', 'Clark Kent', 'Jor-El', 'Jor-El', 'Jor-El']
+>>> model.search('Superman [SEP] father', retrieval_unit='phrase', top_k=5)
+['Jor-El', 'Clark Kent', 'Jor-El', 'Jor-El', 'Jor-El']
 
-print(model.search('Cirith Ungol [SEP] genre', retrieval_unit='phrase', top_k=5))
-# ['heavy metal', 'doom metal', 'metal', 'Elvish', 'madrigal comedy']
+>>> model.search('Cirith Ungol [SEP] genre', retrieval_unit='phrase', top_k=5)
+['heavy metal', 'doom metal', 'metal', 'Elvish', 'madrigal comedy']
 ```
 
 ### Evaluation
 ```python
-import os
+>>> import os
 
 # Evaluate loaded DensePhrases on T-REx (KILT)
-model.evaluate(
-    test_path=os.path.join(os.environ['DATA_DIR'], 'kilt/trex/trex-dev-kilt_open.json'),
-    is_kilt=True, title2wikiid_path=os.path.join(os.environ['DATA_DIR'], 'wikidump/title2wikiid.json'),
-    kilt_gold_path=os.path.join(os.environ['DATA_DIR'], 'kilt/trex/trex-dev-kilt.jsonl'), agg_strat='opt2',
-)
+>>> model.evaluate(
+...     test_path=os.path.join(os.environ['DATA_DIR'], 'kilt/trex/trex-dev-kilt_open.json'),
+...     is_kilt=True, title2wikiid_path=os.path.join(os.environ['DATA_DIR'], 'wikidump/title2wikiid.json'),
+...     kilt_gold_path=os.path.join(os.environ['DATA_DIR'], 'kilt/trex/trex-dev-kilt.jsonl'), agg_strat='opt2',
+... )
 ```
 
 For test accuracy, use `trex-test-kilt_open.json` instead and submit the prediction file (saved as `$SAVE_DIR/densephrases-multi-query-trex/pred-kilt/densephrases-multi-query-trex_trex-test-kilt_open_5000.jsonl`) to [eval.ai](https://eval.ai/web/challenges/challenge-page/689/overview).
