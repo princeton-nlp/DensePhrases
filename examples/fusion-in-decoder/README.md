@@ -76,7 +76,7 @@ nohup python /path/to/miniconda3/envs/fid/lib/python3.6/site-packages/torch/dist
     --save_freq 8000 \
     --n_context 5 \
     --lr 0.00005 \
-    --text_maxlength 200 \
+    --text_maxlength 300 \
     --name nq_reader_base-dph-c5-d4 \
     --checkpoint_dir $SAVE_DIR/fid-data/pretrained_models > nq_reader_base-dph-c5-d4_out.log &
 
@@ -90,6 +90,6 @@ python /n/fs/nlp-jl5167/miniconda3/envs/fid/lib/python3.6/site-packages/torch/di
     --write_results \
     --name nq_reader_base-dph-c5-d4 \
     --checkpoint_dir $SAVE_DIR/fid-data/pretrained_models \
-    --text_maxlength 250
+    --text_maxlength 300
 ```
-Note that most hyperparameters follow the original work and the only difference is the use of `--accumulation_steps 16` and proper adjustment to its training, save, evaluation steps.
+Note that most hyperparameters follow the original work and the only difference is the use of `--accumulation_steps 16` and proper adjustment to its training, save, evaluation steps. Larger `--text_maxlength` is used to cover natural paragraphs that are often longer than 100 words.
