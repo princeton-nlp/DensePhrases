@@ -8,7 +8,6 @@
   <img alt="DensePhrases Demo" src="https://github.com/princeton-nlp/DensePhrases/blob/main/densephrases/demo/static/files/preview-new.gif" width="750px">
 </div>
 
-
 Please see our ACL paper ([Learning Dense Representations of Phrases at Scale](https://arxiv.org/abs/2012.12624)) for details on how to learn dense representations of phrases and the EMNLP paper ([Phrase Retrieval Learns Passage Retrieval, Too](https://arxiv.org/abs/2109.08133)) on how to perform multi-granularity retrieval.
 
 **\*\*\*\*\* Try out our online demo of DensePhrases [here](http://densephrases.korea.ac.kr)! \*\*\*\*\***
@@ -22,9 +21,8 @@ Please see our ACL paper ([Learning Dense Representations of Phrases at Scale](h
 
 ## Getting Started
 After [installing DensePhrases](#installation) and [dowloading a phrase index](#3-phrase-index) you can easily retrieve phrases, sentences, paragraphs, or documents for your query.
-<div align="center">
-  <img alt="DensePhrases Interactive" src="https://github.com/princeton-nlp/DensePhrases/blob/main/densephrases/demo/static/files/densephrases-demo.gif" width="750px">
-</div>
+
+https://user-images.githubusercontent.com/7017152/134598784-b5fbfe6b-b350-494e-a0d3-af485e37c016.mp4
 
 See [here](https://github.com/princeton-nlp/DensePhrases/tree/main/examples) for more examples such as using CPU-only mode, creating a custom index, and more.
 
