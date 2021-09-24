@@ -8,7 +8,6 @@
   <img alt="DensePhrases Demo" src="https://github.com/princeton-nlp/DensePhrases/blob/main/densephrases/demo/static/files/preview-new.gif" width="750px">
 </div>
 
-
 Please see our ACL paper ([Learning Dense Representations of Phrases at Scale](https://arxiv.org/abs/2012.12624)) for details on how to learn dense representations of phrases and the EMNLP paper ([Phrase Retrieval Learns Passage Retrieval, Too](https://arxiv.org/abs/2109.08133)) on how to perform multi-granularity retrieval.
 
 **\*\*\*\*\* Try out our online demo of DensePhrases [here](http://densephrases.korea.ac.kr)! \*\*\*\*\***
@@ -22,24 +21,28 @@ Please see our ACL paper ([Learning Dense Representations of Phrases at Scale](h
 
 ## Getting Started
 After [installing DensePhrases](#installation) and [dowloading a phrase index](#3-phrase-index) you can easily retrieve phrases, sentences, paragraphs, or documents for your query.
-<div align="center">
-  <img alt="DensePhrases Interactive" src="https://github.com/princeton-nlp/DensePhrases/blob/main/densephrases/demo/static/files/densephrases-demo.gif" width="750px">
-</div>
+
+https://user-images.githubusercontent.com/7017152/134598784-b5fbfe6b-b350-494e-a0d3-af485e37c016.mp4
 
 See [here](https://github.com/princeton-nlp/DensePhrases/tree/main/examples) for more examples such as using CPU-only mode, creating a custom index, and more.
 
 You can also use DensePhrases to retrieve relevant documents for a dialogue or run entity linking over given texts.
 ```python
-# Change the encoder trained on entity linking and dialogue (KILT)
-model.set_encoder('princeton-nlp/densephrases-multi-query-kilt-multi')
+>>> from densephrases import DensePhrases
+
+# Load DensePhrases for dialogue and entity linking
+>>> model = DensePhrases(
+...     load_dir='princeton-nlp/densephrases-multi-query-kilt-multi',
+...     dump_dir='/path/to/densephrases-multi_wiki-20181220/dump',
+... )
 
 # Retrieve relevant documents for a dialogue
-print(model.search('I love rap music.', retrieval_unit='document', top_k=5))
-# ['Rapping', 'Rap metal', 'Hip hop', 'Hip hop music', 'Hip hop production']
+>>> model.search('I love rap music.', retrieval_unit='document', top_k=5)
+['Rapping', 'Rap metal', 'Hip hop', 'Hip hop music', 'Hip hop production']
 
 # Run entity linking for the target phrase denoted as [START_ENT] and [END_ENT]
-print(model.search('[START_ENT] Security Council [END_ENT] members expressed concern on Thursday', retrieval_unit='document', top_k=1))
-# ['United Nations Security Council']
+>>> model.search('[START_ENT] Security Council [END_ENT] members expressed concern on Thursday', retrieval_unit='document', top_k=1)
+['United Nations Security Council']
 ```
 We provide more [examples](https://github.com/princeton-nlp/DensePhrases/tree/main/examples), which includes training a state-of-the-art open-domain question answering model called [Fusion-in-Decoder](https://arxiv.org/abs/2007.01282) by Izacard and Grave, 2021.
 
@@ -104,13 +107,13 @@ kilt  open-qa  single-qa  truecase  wikidump
 You can use pre-trained models from the Huggingface model hub.
 Any model name that starts with `princeton-nlp` (specified in `load_dir`) will be automatically translated as a model in [our Huggingface model hub](https://huggingface.co/princeton-nlp).
 ```python
-from densephrases import DensePhrases
+>>> from densephrases import DensePhrases
 
 # Load densephraes-multi-query-nq from the Huggingface model hub
-model = DensePhrases(
-    load_dir='princeton-nlp/densephrases-multi-query-nq',
-    dump_dir='/path/to/densephrases-multi_wiki-20181220/dump',
-)
+>>> model = DensePhrases(
+...     load_dir='princeton-nlp/densephrases-multi-query-nq',
+...     dump_dir='/path/to/densephrases-multi_wiki-20181220/dump',
+... )
 ```
 
 #### Model list
@@ -145,13 +148,13 @@ densephrases-multi  densephrases-multi-query-nq  ...  spanbert-base-cased-squad
 ```
 
 ```python
-from densephrases import DensePhrases
+>>> from densephrases import DensePhrases
 
 # Load densephraes-multi-query-nq locally
-model = DensePhrases(
-    load_dir='/path/to/densephrases-multi-query-nq',
-    dump_dir='/path/to/densephrases-multi_wiki-20181220/dump',
-)
+>>> model = DensePhrases(
+...     load_dir='/path/to/densephrases-multi-query-nq',
+...     dump_dir='/path/to/densephrases-multi_wiki-20181220/dump',
+... )
 ```
 
 ### 3. Phrase Index
@@ -175,14 +178,14 @@ $SAVE_DIR/densephrases-multi_wiki-20181220
 All phrase indexes are created from the same model (`densephrases-multi`) and you can use all of pre-trained models above with any of these phrase indexes.
 To change the index, simply set `index_name` (or `--index_name` in `densephrases/options.py`) as follows:
 ```python
-from densephrases import DensePhrases
+>>> from densephrases import DensePhrases
 
 # Load DensePhrases with a smaller index
-model = DensePhrases(
-    load_dir='princeton-nlp/densephrases-multi-query-multi',
-    dump_dir='/path/to/densephrases-multi_wiki-20181220/dump',
-    index_name='start/1048576_flat_OPQ96_small'
-)
+>>> model = DensePhrases(
+...     load_dir='princeton-nlp/densephrases-multi-query-multi',
+...     dump_dir='/path/to/densephrases-multi_wiki-20181220/dump',
+...     index_name='start/1048576_flat_OPQ96_small'
+... )
 ```
 The performance of `densephrases-multi-query-nq` on Natural Questions (test) with different phrase indexes is shown below.
 
