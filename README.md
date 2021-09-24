@@ -28,8 +28,11 @@ See [here](https://github.com/princeton-nlp/DensePhrases/tree/main/examples) for
 
 You can also use DensePhrases to retrieve relevant documents for a dialogue or run entity linking over given texts.
 ```python
-# Change the encoder trained on entity linking and dialogue (KILT)
->>> model.set_encoder('princeton-nlp/densephrases-multi-query-kilt-multi')
+# Load DensePhrases for dialogue and entity linking
+>>> model = DensePhrases(
+...     load_dir='princeton-nlp/densephrases-multi-query-kilt-multi',
+...     dump_dir='/path/to/densephrases-multi_wiki-20181220/dump',
+... )
 
 # Retrieve relevant documents for a dialogue
 >>> model.search('I love rap music.', retrieval_unit='document', top_k=5)
