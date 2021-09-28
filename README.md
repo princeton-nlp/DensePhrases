@@ -165,7 +165,9 @@ We also provide smaller phrase indexes based on more aggresive filtering (option
 * [1048576_flat_OPQ96_medium](https://nlp.cs.princeton.edu/projects/densephrases/indexes/1048576_flat_OPQ96_medium.tar.gz) (37GB) - Medium-sized phrase index
 * [1048576_flat_OPQ96_small](https://nlp.cs.princeton.edu/projects/densephrases/indexes/1048576_flat_OPQ96_small.tar.gz) (21GB) - Small-sized phrase index
 
-After downloading `densephrases-multi_wiki-20181220` under `SAVE_DIR`, other smaller indexes should be located as follows:
+These smaller indexes should be placed under `$SAVE_DIR/densephrases-multi_wiki-20181220/dump/start` along with any other indexes you downloaded.
+If you only use a smaller phrase index and don't want to download the large index (74GB), you need to download [metadata](https://nlp.cs.princeton.edu/projects/densephrases/indexes/meta_compressed.pkl) (20GB) and place it under `$SAVE_DIR/densephrases-multi_wiki-20181220/dump` folder as shown below.
+The structure of the files should look like:
 ```bash
 $SAVE_DIR/densephrases-multi_wiki-20181220
 └── dump
