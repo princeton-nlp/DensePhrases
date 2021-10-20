@@ -42,7 +42,8 @@ python generate_phrase_vecs.py \
 The phrase vectors (and their metadata) will be saved under `$SAVE_DIR/densephrases-multi_sample/dump/phrase`. Now you need to create a faiss index as follows:
 ```bash
 python build_phrase_index.py \
-    $SAVE_DIR/densephrases-multi_sample/dump all \
+    --dump_dir $SAVE_DIR/densephrases-multi_sample/dump \
+    --stage all \
     --replace \
     --num_clusters 32 \
     --fine_quant OPQ96 \
@@ -56,6 +57,11 @@ python scripts/preprocess/compress_metadata.py \
     --output_dir $SAVE_DIR/densephrases-multi_sample/dump
 ```
 Note that this example uses a very small text corpus and the hyperparameters for `build_phrase_index.py` in a larger scale corpus can be found [here](https://github.com/princeton-nlp/DensePhrases/tree/main#densephrases-training-indexing-and-inference).
+Depending on the size of the corpus, the hyperparameters should change as follows:
+* `num_clusters`: Set to make the number of vectors per cluster < 2000 (e.g., `--num_culsters 256` works for `dev_wiki.json` with 388,583 vectors).
+* `doc/vec_sample_ratio`: Use the default value (0.2) except for the small scale experiments (shown above).
+* `fine_quant`: Currently only OPQ96 is supported.
+
 The phrase index (with IVFOPQ) will be saved under `$SAVE_DIR/densephrases-multi_sample/dump/start`.
 For creating a large-scale phrase index (e.g., Wikipedia), see [dump_phrases.py](https://github.com/princeton-nlp/DensePhrases/blob/main/scripts/parallel/dump_phrases.py) for an example, which is also explained [here](https://github.com/princeton-nlp/DensePhrases/tree/main#2-creating-a-phrase-index).
 
