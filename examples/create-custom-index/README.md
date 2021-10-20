@@ -1,6 +1,6 @@
 # Creating a Custom Phrase Index with DensePhrases
 
-Basically, DensePhrases uses a text corpus pre-processed in the following format (see `articles.json` for an example):
+Basically, DensePhrases uses a text corpus pre-processed in the following format (a snippet from [articles.json](https://github.com/princeton-nlp/DensePhrases/blob/main/examples/create-custom-index/articles.json)):
 ```
 {
     "data": [
