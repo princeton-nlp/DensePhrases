@@ -58,7 +58,7 @@ python scripts/preprocess/compress_metadata.py \
 ```
 Note that this example uses a very small text corpus and the hyperparameters for `build_phrase_index.py` in a larger scale corpus can be found [here](https://github.com/princeton-nlp/DensePhrases/tree/main#densephrases-training-indexing-and-inference).
 Depending on the size of the corpus, the hyperparameters should change as follows:
-* `num_clusters`: Set to make the number of vectors per cluster < 2000 (e.g., `--num_culsters 256` works for `dev_wiki.json` with 388,583 vectors).
+* `num_clusters`: Set to make the number of vectors per cluster < 2000 (e.g., `--num_culsters 256` works well for `dev_wiki.json`).
 * `doc/vec_sample_ratio`: Use the default value (0.2) except for the small scale experiments (shown above).
 * `fine_quant`: Currently only OPQ96 is supported.
 
