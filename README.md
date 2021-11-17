@@ -16,7 +16,7 @@ Please see our ACL paper ([Learning Dense Representations of Phrases at Scale](h
 * \[**Oct 10, 2021**\] See our [blog post on phrase retrieval](https://princeton-nlp.github.io/phrase-retrieval-and-beyond/) to learn more about phrase retrieval!
 * \[**Sep 23, 2021**\] More examples on [entity linking](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/entity-linking), [knowledge-grounded dialouge](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/knowledge-dialogue), and [slot filling](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/slot-filling).
 * \[**Sep 20, 2021**\] Pre-trained models are also available on [the Huggingface model hub](#2-pre-trained-models).
-* \[**Sep 17, 2021**\] Check out updates on [multi-granularity retrieval](#getting-started), [smaller phrase indexes](#3-phrase-index), and more [examples](https://github.com/princeton-nlp/DensePhrases/tree/main/examples)!
+* \[**Sep 17, 2021**\] Check out updates on [multi-granularity retrieval](#getting-started), [smaller phrase indexes](#3-phrase-index) (20~60GB), and more [examples](https://github.com/princeton-nlp/DensePhrases/tree/main/examples)!
 * \[**Sep 17, 2021**\] Our new [EMNLP paper](https://arxiv.org/abs/2109.08133) on phrase-based passage retrieval is out!
 * \[**June 14, 2021**\] Major code updates
 
