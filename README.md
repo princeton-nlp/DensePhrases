@@ -13,6 +13,7 @@ Please see our ACL paper ([Learning Dense Representations of Phrases at Scale](h
 **\*\*\*\*\* Try out our online demo of DensePhrases [here](http://densephrases.korea.ac.kr)! \*\*\*\*\***
 
 ### Updates
+* \[**Nov 22, 2021**\] [Test prediction files](#model-list) of `densephrases-multi-query-*` added.
 * \[**Oct 10, 2021**\] See our [blog post on phrase retrieval](https://princeton-nlp.github.io/phrase-retrieval-and-beyond/) to learn more about phrase retrieval!
 * \[**Sep 23, 2021**\] More examples on [entity linking](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/entity-linking), [knowledge-grounded dialouge](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/knowledge-dialogue), and [slot filling](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/slot-filling).
 * \[**Sep 20, 2021**\] Pre-trained models are also available on [the Huggingface model hub](#2-pre-trained-models).
@@ -124,13 +125,13 @@ Any model name that starts with `princeton-nlp` (specified in `load_dir`) will b
 | [densephrases-multi](https://huggingface.co/princeton-nlp/densephrases-multi) | None | 31.9 | 25.5 | 35.7 | 44.4	| 29.3 | EM before any Query-FT. |
 | [densephrases-multi-query-multi](https://huggingface.co/princeton-nlp/densephrases-multi-query-multi) | Multiple | 40.8 | 35.0 | 48.8 | 53.3 | 34.2 | Used for [demo] |
 
-|              Model                | Query-FT. & Eval | EM | Description |
-|:----------------------------------|:--------:|:--------:|:--------:|
-| [densephrases-multi-query-nq](https://huggingface.co/princeton-nlp/densephrases-multi-query-nq) | NQ | 41.3 | - |
-| [densephrases-multi-query-wq](https://huggingface.co/princeton-nlp/densephrases-multi-query-wq) | WebQ | 41.5 | - |
-| [densephrases-multi-query-trec](https://huggingface.co/princeton-nlp/densephrases-multi-query-trec) | TREC | 52.9 | `--regex` required |
-| [densephrases-multi-query-tqa](https://huggingface.co/princeton-nlp/densephrases-multi-query-tqa) | TriviaQA | 53.5 | - |
-| [densephrases-multi-query-sqd](https://huggingface.co/princeton-nlp/densephrases-multi-query-sqd) | SQuAD | 34.5 | - |
+|              Model                | Query-FT. & Eval | EM | Prediction (Test) | Description |
+|:----------------------------------|:--------:|:--------:|:--------:|:--------:|
+| [densephrases-multi-query-nq](https://huggingface.co/princeton-nlp/densephrases-multi-query-nq) | NQ | 41.3 | [link](https://nlp.cs.princeton.edu/projects/densephrases/preds/test_preprocessed_3610_top10.pred) | - |
+| [densephrases-multi-query-wq](https://huggingface.co/princeton-nlp/densephrases-multi-query-wq) | WebQ | 41.5 | [link](https://nlp.cs.princeton.edu/projects/densephrases/preds/WebQuestions-test_preprocessed_2032_top10.pred) | - |
+| [densephrases-multi-query-trec](https://huggingface.co/princeton-nlp/densephrases-multi-query-trec) | TREC | 52.9 | [link](https://nlp.cs.princeton.edu/projects/densephrases/preds/CuratedTrec-test_preprocessed_694_top10.pred) | `--regex` required |
+| [densephrases-multi-query-tqa](https://huggingface.co/princeton-nlp/densephrases-multi-query-tqa) | TriviaQA | 53.5 | [link](https://nlp.cs.princeton.edu/projects/densephrases/preds/test_preprocessed_11313_top10.pred) | - |
+| [densephrases-multi-query-sqd](https://huggingface.co/princeton-nlp/densephrases-multi-query-sqd) | SQuAD | 34.5 | [link](https://nlp.cs.princeton.edu/projects/densephrases/preds/test_preprocessed_10570_top10.pred) | - |
 
 **Important**: all models except `densephrases-multi` are query-side fine-tuned on the specified dataset (Query-FT.) using the phrase index [densephrases-multi_wiki-20181220](#3-phrase-index). Also note that our pre-trained models are case-sensitive models and the best results are obtained when `--truecase` is on for any lowercased queries (e.g., NQ).
 * `densephrases-multi`: trained on mutiple reading comprehension datasets (NQ, WebQ, TREC, TriviaQA, SQuAD).
