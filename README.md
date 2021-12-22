@@ -70,7 +70,7 @@ python setup.py install
 cd ..
 
 # Install DensePhrases
-git clone https://github.com/princeton-nlp/DensePhrases.git
+git clone -b v1.0.0 https://github.com/princeton-nlp/DensePhrases.git
 cd DensePhrases
 pip install -r requirements.txt
 python setup.py develop
