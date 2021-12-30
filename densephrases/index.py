@@ -476,7 +476,7 @@ class MIPS(object):
                 self.aggregate_results(results, top_k, q_text, agg_strat) for results, q_text in zip(outs, q_texts)
             ]
         if start_doc_idxs.shape[1] != top_k:
-            logger.info(f"Warning.. {doc_idxs.shape[1]} only retrieved")
+            logger.info(f"Warning.. {start_doc_idxs.shape[1]} only retrieved")
             top_k = start_doc_idxs.shape[1]
 
         return outs
