@@ -136,12 +136,11 @@ gen-vecs:
 	python generate_phrase_vecs.py \
 		--model_type bert \
 		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
-		--data_dir $(DATA_DIR)/single-qa \
 		--cache_dir $(CACHE_DIR) \
-		--predict_file $(DEV_DATA) \
+		--test_file $(DATA_DIR)/single-qa/$(DEV_DATA) \
 		--do_dump \
 		--max_seq_length 512 \
-		--doc_stride 500 \
+		--doc_stride 462 \
 		--fp16 \
 		--filter_threshold -2.0 \
 		--append_title \
@@ -172,6 +171,7 @@ eval-index: dump-dir model-name large-index nq-open-data
 		--model_type bert \
 		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
 		--cuda \
+		--cache_dir $(CACHE_DIR) \
 		--dump_dir $(DUMP_DIR) \
 		--index_name start/$(NUM_CLUSTERS)_flat_$(INDEX_TYPE) \
 		--load_dir $(SAVE_DIR)/$(MODEL_NAME) \
@@ -259,6 +259,49 @@ train-cross: model-name nq-rc-data
 		--max_seq_length 384 \
 		--doc_stride 128 \
 		--output_dir $(SAVE_DIR)/$(MODEL_NAME)
+
+# --dataset_name squad
+
+train-cross-hf: model-name nq-rc-data
+	python train_cross_hf.py \
+		--model_name_or_path SpanBERT/spanbert-base-cased \
+		--train_file $(DATA_DIR)/single-qa/$(TRAIN_DATA) \
+		--validation_file $(DATA_DIR)/single-qa/$(DEV_DATA) \
+		--do_train \
+		--do_eval \
+		--per_device_train_batch_size 12 \
+		--learning_rate 3e-5 \
+		--num_train_epochs 2 \
+		--max_seq_length 384 \
+		--doc_stride 128 \
+		--save_steps 5000 \
+		--output_dir $(SAVE_DIR)/$(MODEL_NAME)
+
+# Holy shit!
+train-rc-hf: model-name nq-rc-data nq-param
+	python train_rc_hf.py \
+		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
+		--cache_dir $(CACHE_DIR) \
+		--train_file $(DATA_DIR)/single-qa/$(TRAIN_DATA) \
+		--validation_file $(DATA_DIR)/single-qa/$(DEV_DATA) \
+		--do_train \
+		--do_eval \
+		--per_device_train_batch_size $(BS) \
+		--learning_rate $(LR) \
+		--fp16 \
+		--num_train_epochs 2 \
+		--max_seq_length $(MAX_SEQ_LEN) \
+		--doc_stride 128 \
+		--lambda_kl $(LAMBDA_KL) \
+		--lambda_neg $(LAMBDA_NEG) \
+		--lambda_flt 1.0 \
+		--output_dir $(SAVE_DIR)/$(MODEL_NAME) \
+		--teacher_dir $(SAVE_DIR)/$(TEACHER_NAME) \
+		--overwrite_output_dir \
+		--overwrite_cache \
+		$(OPTIONS)
+# --load_dir princeton-nlp/densephrases-multi \
+# --draft \
 
 ############################## Large-scale Dump & Indexing ###############################
 
@@ -510,6 +553,11 @@ preprocess-openqa:
 		$(FS)/fid-data/download/NQ-open.train.jsonl \
 		$(DATA_DIR)/open-qa/nq-new \
 		--input_type jsonl
+
+# Convert SQuAD format into HF-style json format
+preprocess-rc: multi-rc-data
+	python scripts/preprocess/convert_squad_to_hf.py \
+		$(DATA_DIR)/single-qa/$(TRAIN_DATA)
 
 # Warning: many scripts below are not documented well.
 # Each script may rely on external resources (e.g., original NQ datasets).
