@@ -23,7 +23,6 @@ from multiprocessing import Queue, Process
 from threading import Thread
 from time import time
 from tqdm import tqdm
-from transformers.tokenization_bert import BasicTokenizer
 
 from .squad_utils import QuestionResult, SquadResult
 from .squad_metrics import get_final_text_
@@ -35,46 +34,49 @@ quant_stat = {}
 b_quant_stat = {}
 
 id2example = None
+features_per_example = None
 
 
 def get_metadata(features, results, max_answer_length, do_lower_case, tokenizer, verbose_logging, has_title):
-    global id2example
+    global id2example, features_per_example
+
+    assert len(features) == len(results)
 
     # Get rid of titles + save start only (as start and end are shared)
     roberta_add = 1 if "roberta" in str(type(tokenizer)) else 0
-    toffs = [(f.input_ids.index(tokenizer.sep_token_id))*int(has_title) + roberta_add for f in features]
+    toffs = [(f['input_ids'].index(tokenizer.sep_token_id))*int(has_title) + roberta_add for f in features]
 
     # Filter reps
     fs = np.concatenate(
-        [result.sft_logits[to+1:len(feature.tokens) - 1] for feature, result, to in zip(features, results, toffs)], axis=0
+        [result['filter_start'][to+1:sum(feature['attention_mask']) - 1] for feature, result, to in zip(features, results, toffs)], axis=0
     )
     fe = np.concatenate(
-        [result.eft_logits[to+1:len(feature.tokens) - 1] for feature, result, to in zip(features, results, toffs)], axis=0
+        [result['filter_end'][to+1:sum(feature['attention_mask']) - 1] for feature, result, to in zip(features, results, toffs)], axis=0
     )
 
     if max_answer_length is None:
-        example = id2example[features[-1].unique_id]
+        example = id2example[results[-1]['feature_id']]
         metadata = {
-            'did': example.doc_idx, 'title': example.title,
+            'did': example['doc_idx'], 'title': example['title'],
             'filter_start': fs, 'filter_end': fe
         }
         return metadata
 
     # start vectors
     start = np.concatenate(
-        [result.start_vecs[to+1:len(feature.tokens) - 1] for feature, result, to in zip(features, results, toffs)],
+        [result['start'][to+1:sum(feature['attention_mask']) - 1] for feature, result, to in zip(features, results, toffs)],
         axis=0
     )
 
-    len_per_para = [len(f.input_ids[to+1:len(f.tokens)-1]) for to, f in zip(toffs, features)]
+    len_per_para = [len(f['input_ids'][to+1:sum(f['attention_mask'])-1]) for to, f in zip(toffs, features)]
     curr_size = 0
 
     # Start2end map
     start2end = -1 * np.ones([np.shape(start)[0], max_answer_length], dtype=np.int32)
     idx = 0
     for feature, result, to in zip(features, results, toffs):
-        for i in range(to+1, len(feature.tokens) - 1):
-            for j in range(i, min(i + max_answer_length, len(feature.tokens) - 1)):
+        for i in range(to+1, sum(feature['attention_mask']) - 1):
+            for j in range(i, min(i + max_answer_length, sum(feature['attention_mask']) - 1)):
                 start2end[idx, j - i] = idx + j - i
             idx += 1
 
@@ -86,26 +88,27 @@ def get_metadata(features, results, max_answer_length, do_lower_case, tokenizer,
     full_text = ""
     prev_example = None
     word_pos = 0
-    for feature, to in zip(features, toffs):
-        example = id2example[feature.unique_id]
-        if prev_example is not None and feature.span_idx == 0:
-            full_text = full_text + ' '.join(prev_example.doc_tokens) + sep
+    for f_idx, (feature, to) in enumerate(zip(features, toffs)):
+        result = results[f_idx]
+        example = id2example[result['feature_id']]
+        if prev_example is not None and features_per_example[result['example_id']][0] == result['feature_id']:
+            full_text = full_text + prev_example['context'] + sep
 
-        for i in range(to+1, len(feature.tokens) - 1):
-            _, start_pos, _ = get_final_text_(example, feature, i, min(len(feature.tokens) - 2, i + 1), do_lower_case,
-                                              tokenizer, verbose_logging)
-            _, _, end_pos = get_final_text_(example, feature, max(to+1, i - 1), i, do_lower_case,
-                                            tokenizer, verbose_logging)
-            start_pos += len(full_text)
-            end_pos += len(full_text)
-            word2char_start[word_pos] = start_pos
-            word2char_end[word_pos] = end_pos
+        for i in range(to+1, sum(feature['attention_mask']) - 1):
+            # _, start_pos, _ = get_final_text_(example, feature, i, min(sum(feature['attention_mask']) - 2, i + 1), do_lower_case,
+            #                                   tokenizer, verbose_logging)
+            # _, _, end_pos = get_final_text_(example, feature, max(to+1, i - 1), i, do_lower_case,
+            #                                 tokenizer, verbose_logging)
+            # start_pos += len(full_text)
+            # end_pos += len(full_text)
+            word2char_start[word_pos] = feature['offset_mapping'][i][0]
+            word2char_end[word_pos] = feature['offset_mapping'][i][1]
             word_pos += 1
         prev_example = example
-    full_text = full_text + ' '.join(prev_example.doc_tokens)
+    full_text = full_text + prev_example['context']
 
     metadata = {
-        'did': prev_example.doc_idx, 'context': full_text, 'title': prev_example.title,
+        'did': prev_example['doc_idx'], 'context': full_text, 'title': prev_example['title'],
         'start': start, 'start2end': start2end,
         'word2char_start': word2char_start, 'word2char_end': word2char_end,
         'filter_start': fs, 'filter_end': fe, 'len_per_para': len_per_para
@@ -198,28 +201,34 @@ def pool_func(item):
     return metadata_
 
 
-def write_phrases(all_examples, all_features, all_results, max_answer_length, do_lower_case, tokenizer, hdf5_path,
-    filter_threshold, verbose_logging, dense_offset=None, dense_scale=None, has_title=False):
+def write_phrases(all_examples, all_features, all_results, tokenizer, output_dump_file, args):
 
     assert len(all_examples) > 0
+    # unique_id to feature, example
+    id2feature = {id: feature for id, feature in enumerate(all_features)}
+    id2example_ = {id: all_examples[id2feature[id]['feature_id_to_example_id']] for id in id2feature}
 
-    id2feature = {feature.unique_id: feature for feature in all_features}
-    id2example_ = {id_: all_examples[id2feature[id_].example_index] for id_ in id2feature}
+    global features_per_example
+
+    features_per_example = collections.defaultdict(list)
+    for i, feature in enumerate(all_features):
+        features_per_example[feature["example_id"]].append(i)
 
     def add(inqueue_, outqueue_):
         for item in iter(inqueue_.get, None):
             # start_time = time()
-            args = list(item[:2]) + [
-                max_answer_length, do_lower_case, tokenizer, verbose_logging, has_title, filter_threshold
+            new_item = list(item[:2]) + [
+                args.max_answer_length, args.do_lower_case, tokenizer,
+                args.verbose_logging, args.append_title, args.filter_threshold
             ]
-            out = pool_func(args)
+            out = pool_func(new_item)
             # print(f'in {time() - start_time:.1f} sec, {inqueue_.qsize()}')
             outqueue_.put(out)
 
         outqueue_.put(None)
 
     def write(outqueue_):
-        with h5py.File(hdf5_path, 'a') as f:
+        with h5py.File(output_dump_file, 'a') as f:
             while True:
                 metadata = outqueue_.get()
                 if metadata:
@@ -234,10 +243,10 @@ def write_phrases(all_examples, all_features, all_results, max_answer_length, do
 
                     dg.attrs['context'] = metadata['context']
                     dg.attrs['title'] = metadata['title']
-                    if dense_offset is not None:
-                        metadata = compress_metadata(metadata, dense_offset, dense_scale)
-                        dg.attrs['offset'] = dense_offset
-                        dg.attrs['scale'] = dense_scale
+                    if args.dense_offset is not None:
+                        metadata = compress_metadata(metadata, args.dense_offset, args.dense_scale)
+                        dg.attrs['offset'] = args.dense_offset
+                        dg.attrs['scale'] = args.dense_scale
                     dg.create_dataset('start', data=metadata['start'])
                     dg.create_dataset('len_per_para', data=metadata['len_per_para'])
                     dg.create_dataset('start2end', data=metadata['start2end'])
@@ -264,16 +273,20 @@ def write_phrases(all_examples, all_features, all_results, max_answer_length, do
 
     start_time = time()
     for count, result in enumerate(tqdm(all_results, total=len(all_features))):
-        example = id2example[result.unique_id]
-        feature = id2feature[result.unique_id]
-        condition = len(features) > 0 and example.par_idx == 0 and feature.span_idx == 0
+        example = id2example[result['feature_id']]
+        feature = id2feature[result['feature_id']]
+        condition = (
+            len(features) > 0 and example['par_idx'] == 0 \
+            and features_per_example[result['example_id']][0] == result['feature_id'] # First span
+        )
+        assert result['feature_id'] == count, (result['feature_id'], count)
 
         if condition:
             in_ = (features, results)
             inqueue.put(in_)
-            prev_ex = id2example[results[0].unique_id]
-            if prev_ex.doc_idx % 200 == 0:
-                logger.info(f'saving {len(features)} features from doc {prev_ex.title} (doc_idx: {prev_ex.doc_idx})')
+            prev_ex = id2example[results[0]['feature_id']]
+            if prev_ex['doc_idx'] % 200 == 0:
+                logger.info(f"saving {len(features)} features from doc {prev_ex['title']} (doc_idx: {prev_ex['doc_idx']})")
                 logger.info(
                     '[%d/%d at %.1f second] ' % (count + 1, len(all_features), time() - start_time) +
                     '[inqueue, outqueue size: %d vs %d]' % (inqueue.qsize(), outqueue.qsize())
@@ -357,8 +370,7 @@ def write_filter(all_examples, all_features, all_results, tokenizer, hdf5_path, 
             # print('put')
             # in_ = (id2example_, features, results)
             in_ = (features, results)
-            inqueue.put(in_)
-            # import pdb; pdb.set_trace()
+            inqueue.put(in_)    
             prev_ex = id2example[results[0].unique_id]
             if prev_ex.doc_idx % 200 == 0:
                 logger.info(f'saving {len(features)} features from doc {prev_ex.title} (doc_idx: {prev_ex.doc_idx})')
@@ -399,7 +411,7 @@ def get_question_results(question_examples, query_eval_features, question_datalo
                 "input_ids_": batch[0],
                 "attention_mask_": batch[1],
                 "token_type_ids_": batch[2],
-                "return_query": True,
+                # "return_query": True,
             }
             feature_indices = batch[3]
             assert len(feature_indices.size()) > 0

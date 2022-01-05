@@ -23,7 +23,7 @@ from multiprocessing import Queue, Process
 from threading import Thread
 from time import time
 from tqdm import tqdm
-from transformers.tokenization_bert import BasicTokenizer
+from transformers import BasicTokenizer
 
 from .squad_utils import QuestionResult, SquadResult
 

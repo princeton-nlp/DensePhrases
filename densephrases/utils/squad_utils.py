@@ -116,21 +116,20 @@ def squad_convert_example_to_features(example, max_seq_length, doc_stride, max_q
 
     # Query features
     if not context_only:
-        all_query_tokens = []
-        for (i, token) in enumerate(example.query_tokens):
-            sub_tokens = tokenizer.tokenize(token)
-            for sub_token in sub_tokens:
-                all_query_tokens.append(sub_token)
-        all_query_tokens = all_query_tokens[:max_query_length]
+        # all_query_tokens = []
+        # for (i, token) in enumerate(example.query_tokens):
+        #     sub_tokens = tokenizer.tokenize(token)
+        #     for sub_token in sub_tokens:
+        #         all_query_tokens.append(sub_token)
+        # all_query_tokens = all_query_tokens[:max_query_length]
 
-        query_len = max_query_length
-        query_dict = tokenizer.encode_plus(
-            all_query_tokens,
+        query_dict = tokenizer(
+            example.question_text,
             max_length=max_query_length,
             return_overflowing_tokens=False,
-            pad_to_max_length=True,
-            stride=query_len,
-            truncation_strategy="only_first",
+            padding="max_length",
+            stride=max_query_length,
+            truncation="only_first",
             return_token_type_ids=True, # TODO: token type ids is zero for query
         )
 
@@ -283,7 +282,7 @@ def squad_convert_example_to_features(example, max_seq_length, doc_stride, max_q
                 encoded_dict["attention_mask_"] = query_dict["attention_mask"]
                 encoded_dict["tokens_"] = tokens_
                 encoded_dict["token_type_ids_"] = query_dict['token_type_ids']
-                encoded_dict["query_len"] = query_len
+                encoded_dict["query_len"] = max_query_length
 
             spans.append(encoded_dict)
 
@@ -1210,7 +1209,7 @@ def load_and_cache_examples(args, tokenizer, evaluate=False, output_examples=Fal
     cached_features_file = os.path.join(
         args.cache_dir,
         "cached_{}_{}_{}".format(
-            os.path.basename(args.predict_file if evaluate else args.train_file).replace('.', '_'),
+            os.path.basename(args.test_file if evaluate else args.train_file).replace('.', '_'),
             list(filter(None, args.output_dir.split("/"))).pop(),
             str(args.max_seq_length)
         ),
@@ -1228,7 +1227,7 @@ def load_and_cache_examples(args, tokenizer, evaluate=False, output_examples=Fal
     else:
         logger.info("Creating features from dataset file at %s", input_dir)
 
-        if not args.data_dir and ((evaluate and not args.predict_file) or (not evaluate and not args.train_file)):
+        if not args.data_dir and ((evaluate and not args.test_file) or (not evaluate and not args.train_file)):
             try:
                 import tensorflow_datasets as tfds
             except ImportError:
@@ -1242,7 +1241,7 @@ def load_and_cache_examples(args, tokenizer, evaluate=False, output_examples=Fal
         else:
             processor = SquadV2Processor() if args.version_2_with_negative else SquadV1Processor()
             if evaluate:
-                examples = processor.get_dev_examples(args.data_dir, filename=args.predict_file, draft=args.draft,
+                examples = processor.get_dev_examples(args.data_dir, filename=args.test_file, draft=args.draft,
                     context_only=context_only, args=args)
             else:
                 examples = processor.get_train_examples(args.data_dir, filename=args.train_file, draft=args.draft,
@@ -1264,7 +1263,7 @@ def load_and_cache_examples(args, tokenizer, evaluate=False, output_examples=Fal
                 max_query_length=args.max_query_length,
                 is_training=not evaluate,
                 return_dataset="pt",
-                threads=args.threads,
+                threads=args.preprocessing_num_workers,
                 context_only=context_only,
                 append_title=args.append_title,
                 skip_no_answer=skip_no_answer,

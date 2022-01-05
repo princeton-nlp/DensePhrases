@@ -7,18 +7,18 @@ def convert_squad_to_hf(input_file):
     data = json.load(open(input_file))['data']
     outputs = []
 
-    for article in data:
+    for doc_idx, article in enumerate(data):
         title = article['title']
-        for paragraph in article['paragraphs']:
+        for par_idx, paragraph in enumerate(article['paragraphs']):
             context = paragraph['context']
             for qa in paragraph['qas']:
-                id = qa['id']
+                id = qa['id'] if 'id' in qa else paragraph['id'] # TODO WebQuestions fix
                 question = qa['question']
                 answers = {
                     'text': [answer['text'] for answer in qa['answers']],
                     'answer_start': [answer['answer_start'] for answer in qa['answers']]
                 }
-                is_impossible = qa['is_impossible']
+                is_impossible = qa['is_impossible'] if 'is_impossible' in qa else False
                 # Add more if any
 
                 # Sanity check
@@ -27,7 +27,9 @@ def convert_squad_to_hf(input_file):
 
                 outputs.append({
                     'id': str(id),
-                    'title': title,
+                    'doc_idx': doc_idx,
+                    'par_idx': par_idx,
+                    'title': ' '.join(title.split(' ')[:10]),
                     'context': context,
                     'question': question,
                     'answers': answers,
@@ -39,6 +41,8 @@ def convert_squad_to_hf(input_file):
     print('Writing to %s\n'% output_file)
     with open(output_file, 'w') as f:
         json.dump({'data': outputs}, f)
+    
+    return output_file
 
 
 if __name__ == '__main__':

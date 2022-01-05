@@ -53,7 +53,7 @@ def evaluate(args, mips=None, query_encoder=None, tokenizer=None, q_idx=None):
     if query_encoder is None:
         logger.info(f'Query encoder will be loaded from {args.load_dir}')
         device = 'cuda' if args.cuda else 'cpu'
-        query_encoder, tokenizer, _ = load_encoder(device, args)
+        query_encoder, tokenizer, _ = load_encoder(device, args, query_only=True)
     query_vec = embed_all_query(questions, args, query_encoder, tokenizer)
 
     # Load MIPS

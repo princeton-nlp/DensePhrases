@@ -63,7 +63,7 @@ class MIPS(object):
 
         # For sentence split
         self.sentencizer = English()
-        self.sentencizer.add_pipe(self.sentencizer.create_pipe('sentencizer'))
+        self.sentencizer.add_pipe('sentencizer')
 
         # Load metadata on RAM if possible
         doc_group_path = os.path.join(

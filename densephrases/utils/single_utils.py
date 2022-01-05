@@ -11,6 +11,7 @@ from transformers import (
     AutoConfig,
     AutoTokenizer,
     AutoModel,
+    AutoModelForQuestionAnswering,
 )
 from densephrases import Encoder
 
@@ -56,9 +57,10 @@ def backward_compat(model_dict):
     return new_model_dict
 
 
-def load_encoder(device, args, phrase_only=False):
-    # Configure paths for DnesePhrases
-    args.model_type = args.model_type.lower()
+def load_encoder(device, args, phrase_only=False, query_only=False):
+    # Distributed training:
+    # The .from_pretrained methods guarantee that only one local process can concurrently
+    # download model & vocab.
     config = AutoConfig.from_pretrained(
         args.config_name if args.config_name else args.pretrained_name_or_path,
         cache_dir=args.cache_dir if args.cache_dir else None,
@@ -67,6 +69,7 @@ def load_encoder(device, args, phrase_only=False):
         args.tokenizer_name if args.tokenizer_name else args.pretrained_name_or_path,
         do_lower_case=args.do_lower_case,
         cache_dir=args.cache_dir if args.cache_dir else None,
+        use_fast=True,
     )
 
     # Prepare PLM if not load_dir
@@ -80,14 +83,9 @@ def load_encoder(device, args, phrase_only=False):
         load_class = Encoder
         logger.info(f'DensePhrases encoder initialized with {args.pretrained_name_or_path} ({pretrained.__class__})')
     else:
-        # TODO: need to update transformers so that from_pretrained maps to model hub directly
-        if args.load_dir.startswith('princeton-nlp'):
-            hf_model_path = f"https://huggingface.co/{args.load_dir}/resolve/main/pytorch_model.bin"
-        else:
-            hf_model_path = args.load_dir
         load_class = partial(
             Encoder.from_pretrained,
-            pretrained_model_name_or_path=hf_model_path,
+            pretrained_model_name_or_path=args.load_dir,
             cache_dir=args.cache_dir if args.cache_dir else None,
         )
         logger.info(f'DensePhrases encoder loaded from {args.load_dir}')
@@ -101,7 +99,19 @@ def load_encoder(device, args, phrase_only=False):
         lambda_kl=getattr(args, 'lambda_kl', 0.0),
         lambda_neg=getattr(args, 'lambda_neg', 0.0),
         lambda_flt=getattr(args, 'lambda_flt', 0.0),
+        pbn_size=getattr(args, 'pbn_size', 0.0),
+        return_phrase=phrase_only,
+        return_query=query_only,
     )
+    
+    # Load teacher for training
+    if getattr(args, 'lambda_kl', 0.0) > 0.0 and args.teacher_dir:
+        model.cross_encoder = AutoModelForQuestionAnswering.from_pretrained(
+            args.teacher_dir,
+            from_tf=bool(".ckpt" in args.teacher_dir),
+            config=config,
+            cache_dir=args.cache_dir,
+        )
 
     # Phrase only (for phrase embedding)
     if phrase_only:
@@ -112,6 +122,14 @@ def load_encoder(device, args, phrase_only=False):
             del model.query_start_encoder
             del model.query_end_encoder
         logger.info("Load only phrase encoders for embedding phrases")
+    
+    # Query only (for query embedding)
+    if query_only:
+        if hasattr(model, "module"):
+            del model.module.phrase_encoder
+        else:
+            del model.phrase_encoder
+        logger.info("Load only query encoders for embedding queries")
 
     model.to(device)
     logger.info('Number of model parameters: {:,}'.format(sum(p.numel() for p in model.parameters())))

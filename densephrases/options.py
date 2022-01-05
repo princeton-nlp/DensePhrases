@@ -6,8 +6,11 @@
 
 import argparse
 import os
-from pathlib import Path
 import logging
+
+from pathlib import Path
+from transformers import TrainingArguments, HfArgumentParser
+
 
 logger = logging.getLogger(__name__)
 
@@ -16,15 +19,16 @@ class Options():
     def __init__(self):
         self.parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
         self.initialize_parser()
+        self.use_training_args = False
 
     def add_model_options(self):
         self.parser.add_argument("--model_type", type=str, default='bert',
                         help="Model type selected in the list",)
         self.parser.add_argument("--pretrained_name_or_path", type=str, default='SpanBERT/spanbert-base-cased',
                         help="Path to pre-trained model or shortcut name selected in the list",)
-        self.parser.add_argument("--config_name", type=str, default="",
+        self.parser.add_argument("--config_name", type=str, default="SpanBERT/spanbert-base-cased",
                         help="Pretrained config name or path if not the same as model_name")
-        self.parser.add_argument("--tokenizer_name", type=str, default="",
+        self.parser.add_argument("--tokenizer_name", type=str, default="SpanBERT/spanbert-base-cased",
                         help="Pretrained tokenizer name or path if not the same as model_name",)
         self.parser.add_argument("--load_dir", type=str, default="",
                         help="load dir where the model checkpoints are saved. Set to output_dir if not specified.",)
@@ -78,18 +82,21 @@ class Options():
                         help="The input data dir. Should contain the .json files for the task.",)
         self.parser.add_argument("--cache_dir", type=str, default="",
                         help="Where do you want to store the pre-trained models and data downloaded from s3",)
-        self.parser.add_argument("--threads", type=int, default=20,
-                        help="multiple threads for converting example to features")
+        self.parser.add_argument("--preprocessing_num_workers", type=int, default=20,
+                        help="multiple processes for converting example to features")
         self.parser.add_argument("--truecase_path", type=str, default='truecase/english_with_questions.dist')
         self.parser.add_argument("--truecase", action="store_true", help="Dummy (automatic truecasing supported)")
 
     # Reading comprehension (single-passage training) options
     def add_rc_options(self):
+        self.use_training_args = True
         self.parser.add_argument("--teacher_dir", type=str, default=None,
                         help="The teacher directory where the model checkpoints are saved.",)
         self.parser.add_argument("--train_file", type=str, default=None,
                         help="The input training file. If a data dir is specified, will look for the file there",)
-        self.parser.add_argument("--predict_file", type=str, default=None,
+        self.parser.add_argument("--validation_file", type=str, default=None,
+                        help="The input validation file. If a data dir is specified, will look for the file there",)
+        self.parser.add_argument("--test_file", type=str, default=None,
                         help="The input evaluation file. If a data dir is specified, will look for the file there",)
         self.parser.add_argument("--version_2_with_negative", action="store_true",
                         help="If true, the SQuAD examples contain some that do not have an answer.",)
@@ -99,6 +106,7 @@ class Options():
                         help="model-based filtering threshold for filter testing. comma seperated values are given",)
         self.parser.add_argument("--do_train", action="store_true", help="Whether to run training.")
         self.parser.add_argument("--do_eval", action="store_true", help="Whether to run eval on the dev set.")
+        self.parser.add_argument("--do_predict", action="store_true", help="Whether to run eval on the test set.")
         self.parser.add_argument("--do_filter_test", action="store_true", help="Whether to test filters.")
         self.parser.add_argument("--lambda_kl", default=0.0, type=float, help="Lambda for distillation")
         self.parser.add_argument("--lambda_neg", default=0.0, type=float, help="Lambda for in-batch negative")
@@ -108,9 +116,9 @@ class Options():
         self.parser.add_argument("--append_title", action="store_true", help="Whether to append title in context.")
         self.parser.add_argument("--evaluate_during_training", action="store_true",
                         help="Run evaluation during training at each logging step.")
-        self.parser.add_argument("--per_gpu_train_batch_size", type=int, default=12,
+        self.parser.add_argument("--per_device_train_batch_size", type=int, default=12,
                         help="Batch size per GPU/CPU for training.")
-        self.parser.add_argument("--per_gpu_eval_batch_size", type=int, default=12,
+        self.parser.add_argument("--per_device_eval_batch_size", type=int, default=12,
                         help="Batch size per GPU/CPU for evaluation.")
         self.parser.add_argument("--learning_rate", default=3e-5, type=float,
                         help="The initial learning rate for Adam.")
@@ -128,6 +136,9 @@ class Options():
                         help="The total number of n-best predictions to generate in the json output file.",)
         self.parser.add_argument("--lang_id", type=int, default=0,
                         help="language id of input for language-specific xlm models",)
+        self.parser.add_argument("--max_train_samples", type=int, default=None, help="Max train samples for debug.")
+        self.parser.add_argument("--max_eval_samples", type=int, default=None, help="Max eval samples for debug.")
+        self.parser.add_argument("--max_predict_samples", type=int, default=None, help="Max predict samples for debug.")
         self.parser.add_argument("--logging_steps", type=int, default=5000, help="Log every X updates steps.")
         self.parser.add_argument("--save_steps", type=int, default=9999999, help="Save checkpoint every X updates steps.")
         self.parser.add_argument("--eval_all_checkpoints", action="store_true",
@@ -136,6 +147,10 @@ class Options():
         self.parser.add_argument("--wandb", action="store_true", help="Whether to use Weights and Biases logging")
         self.parser.add_argument("--overwrite_output_dir", action="store_true",
                         help="Overwrite the content of the output directory")
+        self.parser.add_argument("--overwrite_cache", action="store_true",
+                        help="Overwrite the content of the cache directory")
+        self.parser.add_argument('--pad_to_max_length', action='store_true', default=True)
+        self.parser.add_argument('--convert_squad_to_hf', action='store_true', default=True)
         self.parser.add_argument("--local_rank", type=int, default=-1, help="local_rank for distributed training on gpus")
 
         # For generating phrase vectors
@@ -176,7 +191,7 @@ class Options():
     # Query-side fine-tuning options
     def add_qsft_options(self):
         self.parser.add_argument('--train_path', default=None)
-        self.parser.add_argument('--per_gpu_train_batch_size', default=48, type=int)
+        self.parser.add_argument('--per_device_train_batch_size', default=48, type=int)
         self.parser.add_argument('--num_train_epochs', default=10, type=float)
         self.parser.add_argument("--learning_rate", default=3e-5, type=float)
         self.parser.add_argument("--warmup_steps", default=0.1, type=int)
@@ -224,16 +239,22 @@ class Options():
         logger.info(message)
 
     def parse(self):
-        opt = self.parser.parse_args()
+        if self.use_training_args:
+            dph_opt = self.parser.parse_args()
+            hf_parser = HfArgumentParser(TrainingArguments)
+            opt, _ = hf_parser.parse_args_into_dataclasses(return_remaining_strings=True)
+            opt.__dict__.update(dph_opt.__dict__)
+        else:
+            opt = self.parser.parse_args()
 
-        # Option sanity checks
+        # Option sanity check
         if hasattr(opt, 'doc_stride'):
             if opt.doc_stride >= opt.max_seq_length - opt.max_query_length:
                 logger.warning(
                     "WARNING - You've set a doc stride which may be superior to the document length in some examples." 
                 )
 
-        # Is overwriting?
+        # Overwrite check
         if hasattr(opt, 'output_dir') and hasattr(opt, 'do_train'):
             if (os.path.exists(opt.output_dir) and os.listdir(opt.output_dir) and opt.do_train
                 and not opt.overwrite_output_dir):
@@ -242,8 +263,10 @@ class Options():
                         opt.output_dir)
                 )
 
-        # Is draft?
         if opt.draft:
+            opt.max_train_samples = 1000
+            opt.max_eval_samples = 1000
+            opt.max_predict_samples = 1000
             opt.overwrite_output_dir = True
             opt.logging_steps = 999999999 # Do not log
             logger.warning(f'Overwrite model in {opt.output_dir} in draft version')

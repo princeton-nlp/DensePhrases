@@ -16,6 +16,24 @@ logger = logging.getLogger(__name__)
 
 class Encoder(PreTrainedModel):
     base_model_prefix='densephrases'
+    supports_gradient_checkpointing = True
+    _keys_to_ignore_on_load_missing = [r"position_ids"]
+
+    def _init_weights(self, module):
+        """Initialize the weights"""
+        if isinstance(module, nn.Linear):
+            # Slightly different from the TF version which uses truncated_normal for initialization
+            # cf https://github.com/pytorch/pytorch/pull/5617
+            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
+            if module.bias is not None:
+                module.bias.data.zero_()
+        elif isinstance(module, nn.Embedding):
+            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
+            if module.padding_idx is not None:
+                module.weight.data[module.padding_idx].zero_()
+        elif isinstance(module, nn.LayerNorm):
+            module.bias.data.zero_()
+            module.weight.data.fill_(1.0)
 
     def __init__(self,
                  config,
@@ -24,7 +42,10 @@ class Encoder(PreTrainedModel):
                  transformer_cls=None,
                  lambda_kl=0.0,
                  lambda_neg=0.0,
-                 lambda_flt=0.0):
+                 lambda_flt=0.0,
+                 pbn_size=0,
+                 return_phrase=False,
+                 return_query=False):
         super().__init__(config)
         self.tokenizer = tokenizer
 
@@ -35,7 +56,8 @@ class Encoder(PreTrainedModel):
         self.lambda_kl = lambda_kl
         self.lambda_neg = lambda_neg
         self.lambda_flt = lambda_flt
-        self.pre_batch = None
+        self.return_phrase = return_phrase
+        self.return_query = return_query
         self.apply(self.init_weights)
 
         # Load transformer after init
@@ -44,12 +66,16 @@ class Encoder(PreTrainedModel):
         if lambda_kl > 0:
             logger.info("Teacher initialized for distillation. Weights will be loaded.")
             self.cross_encoder = None
-            self.qa_outputs = None
 
         # Encoders: three LMs
         self.phrase_encoder = pretrained if pretrained is not None else transformer_cls(config)
         self.query_start_encoder = copy.deepcopy(self.phrase_encoder)
         self.query_end_encoder = copy.deepcopy(self.phrase_encoder)
+
+        # Pre-batch
+        self.pre_batch = None
+        if pbn_size > 0:
+            self.init_pre_batch(pbn_size)
 
     def init_pre_batch(self, pbn_size):
         """ Initialize a pre-batch queue """
@@ -122,8 +148,8 @@ class Encoder(PreTrainedModel):
         input_ids=None, attention_mask=None, token_type_ids=None,
         input_ids_=None, attention_mask_=None, token_type_ids_=None,
         start_positions=None, end_positions=None,
-        return_phrase=False, return_query=False,
         neg_input_ids=None, neg_attention_mask=None, neg_token_type_ids=None,
+        feature_id_to_example_id=None, example_id=None,
     ):
 
         # Context-side
@@ -140,7 +166,7 @@ class Encoder(PreTrainedModel):
             filter_start_logits = filter_start_logits.squeeze(2)
             filter_end_logits = filter_end_logits.squeeze(2)
 
-            if return_phrase:
+            if self.return_phrase:
                 return (start, end, filter_start_logits, filter_end_logits)
 
         # Query-side
@@ -148,7 +174,7 @@ class Encoder(PreTrainedModel):
             assert len(input_ids_.size()) == 2
             query_start, query_end = self.embed_query(input_ids_, attention_mask_, token_type_ids_)
 
-            if return_query:
+            if self.return_query:
                 return (query_start, query_end)
 
         # Gather distributed reps
@@ -284,7 +310,7 @@ class Encoder(PreTrainedModel):
                     new_input_ids, new_attention_mask, new_token_type_ids = self.merge_inputs(
                         input_ids_, attention_mask_, input_ids, attention_mask
                     )
-                    outputs_qd = self.cross_encoder(
+                    outputs_qd = self.cross_encoder.bert(
                         new_input_ids,
                         attention_mask=new_attention_mask,
                         token_type_ids=new_token_type_ids,
@@ -294,7 +320,7 @@ class Encoder(PreTrainedModel):
                     for seq_output, att_mask_, input_id in zip(tmp_sequence_output, attention_mask_, input_ids):
                         title_sep = (input_id == self.tokenizer.sep_token_id).nonzero(as_tuple=True)[0][0]
                         title_mask = torch.zeros(size=(title_sep.item(),seq_output.shape[1])).to(self.device)
-                        new_logits = self.qa_outputs(torch.cat((
+                        new_logits = self.cross_encoder.qa_outputs(torch.cat((
                             seq_output[:1], title_mask,
                             seq_output[att_mask_.sum():att_mask_.sum()+input_ids.shape[1]-1-title_sep.item()])
                         ))
@@ -364,6 +390,7 @@ class Encoder(PreTrainedModel):
                     self.pre_batch.append([gold_start.clone().detach(), gold_end.clone().detach()])
 
             outputs = (total_loss,) + outputs
+        
         return outputs  # (loss), start_logits, end_logits, filter_start_logits, filter_end_logits
 
     def train_query(
