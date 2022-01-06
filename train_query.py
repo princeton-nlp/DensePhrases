@@ -35,11 +35,7 @@ def train_query_encoder(args, mips=None):
     # Freeze one for MIPS
     device = 'cuda' if args.cuda else 'cpu'
     logger.info("Loading pretrained encoder: this one is for MIPS (fixed)")
-    pretrained_encoder, tokenizer, _ = load_encoder(device, args)
-
-    # Train a copy of it
-    logger.info("Copying target encoder")
-    target_encoder = copy.deepcopy(pretrained_encoder)
+    target_encoder, tokenizer, _ = load_encoder(device, args, query_only=True)
 
     # MIPS
     if mips is None:
@@ -67,7 +63,7 @@ def train_query_encoder(args, mips=None):
         },
     ]
     optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
-    step_per_epoch = math.ceil(len(load_qa_pairs(args.train_path, args)[1]) / args.per_gpu_train_batch_size)
+    step_per_epoch = math.ceil(len(load_qa_pairs(args.train_path, args)[1]) / args.per_device_train_batch_size)
     t_total = int(step_per_epoch // args.gradient_accumulation_steps * args.num_train_epochs)
     logger.info(f"Train for {t_total} iterations")
     scheduler = get_linear_schedule_with_warmup(
@@ -77,7 +73,7 @@ def train_query_encoder(args, mips=None):
     logger.info(f"Test takes {eval_steps} iterations")
 
     # Train arguments
-    args.per_gpu_train_batch_size = int(args.per_gpu_train_batch_size / args.gradient_accumulation_steps)
+    args.per_device_train_batch_size = int(args.per_device_train_batch_size / args.gradient_accumulation_steps)
     best_acc = -1000.0
     for ep_idx in range(int(args.num_train_epochs)):
 
@@ -89,13 +85,13 @@ def train_query_encoder(args, mips=None):
         # Load training dataset
         q_ids, questions, answers, titles = load_qa_pairs(args.train_path, args, shuffle=True)
         pbar = tqdm(get_top_phrases(
-            mips, q_ids, questions, answers, titles, pretrained_encoder, tokenizer,
-            args.per_gpu_train_batch_size, args)
+            mips, q_ids, questions, answers, titles, target_encoder, tokenizer,
+            args.per_device_train_batch_size, args)
         )
 
         for step_idx, (q_ids, questions, answers, titles, outs) in enumerate(pbar):
-            train_dataloader, _, _ = get_question_dataloader(
-                questions, tokenizer, args.max_query_length, batch_size=args.per_gpu_train_batch_size
+            train_dataloader, _ = get_question_dataloader(
+                questions, tokenizer, args.max_query_length, batch_size=args.per_device_train_batch_size
             )
             svs, evs, tgts, p_tgts = annotate_phrase_vecs(mips, q_ids, questions, answers, titles, outs, args)
 
@@ -122,14 +118,14 @@ def train_query_encoder(args, mips=None):
                     if args.gradient_accumulation_steps > 1:
                         loss = loss / args.gradient_accumulation_steps
                     if args.fp16:
-                        with amp.scale_loss(loss, optimizer) as scaled_loss:
-                            scaled_loss.backward()
+                        # TODO: implement fp16 with torch
+                        raise NotImplementedError()
                     else:
                         loss.backward()
 
                     total_loss += loss.mean().item()
                     if args.fp16:
-                        torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), args.max_grad_norm)
+                        raise NotImplementedError()
                     else:
                         torch.nn.utils.clip_grad_norm_(target_encoder.parameters(), args.max_grad_norm)
 
@@ -159,7 +155,7 @@ def train_query_encoder(args, mips=None):
         new_args.top_k = 10
         new_args.save_pred = False
         new_args.test_path = args.dev_path
-        dev_em, dev_f1, dev_emk, dev_f1k = evaluate(new_args, mips, target_encoder, tokenizer)
+        dev_em, dev_f1, _, _ = evaluate(new_args, mips, target_encoder, tokenizer)
         logger.info(f"Develoment set acc@1: {dev_em:.3f}, f1@1: {dev_f1:.3f}")
 
         # Save best model
@@ -171,10 +167,6 @@ def train_query_encoder(args, mips=None):
             target_encoder.save_pretrained(save_path)
             logger.info(f"Saved best model with acc {best_acc:.3f} into {save_path}")
 
-        if (ep_idx + 1) % 1 == 0:
-            logger.info('Updating pretrained encoder')
-            pretrained_encoder = copy.deepcopy(target_encoder)
-
     print()
     logger.info(f"Best model has acc {best_acc:.3f} saved as {save_path}")
 
@@ -182,13 +174,12 @@ def train_query_encoder(args, mips=None):
 def get_top_phrases(mips, q_ids, questions, answers, titles, query_encoder, tokenizer, batch_size, args):
     # Search
     step = batch_size
-    phrase_idxs = []
     search_fn = mips.search
     query2vec = get_query2vec(
         query_encoder=query_encoder, tokenizer=tokenizer, args=args, batch_size=batch_size
     )
     for q_idx in tqdm(range(0, len(questions), step)):
-        outs = query2vec(questions[q_idx:q_idx+step])
+        outs = list(query2vec(questions[q_idx:q_idx+step]))
         start = np.concatenate([out[0] for out in outs], 0)
         end = np.concatenate([out[1] for out in outs], 0)
         query_vec = np.concatenate([start, end], 1)
@@ -208,13 +199,6 @@ def get_top_phrases(mips, q_ids, questions, answers, titles, query_encoder, toke
 def annotate_phrase_vecs(mips, q_ids, questions, answers, titles, phrase_groups, args):
     assert mips is not None
     batch_size = len(answers)
-
-    # Phrase groups are in size of [batch, top_k, values]
-    # phrase_groups = [[(
-    #     out_['doc_idx'], out_['start_idx'], out_['end_idx'], out_['answer'],
-    #     out_['start_vec'], out_['end_vec'], out_['context'], out_['title'])
-    #     for out_ in out] for out in outs
-    # ]
     dummy_group = {
         'doc_idx': -1,
         'start_idx': 0, 'end_idx': 0,

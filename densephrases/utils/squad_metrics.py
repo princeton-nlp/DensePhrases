@@ -15,17 +15,10 @@ import math
 import re
 import string
 import tqdm
-import h5py
-import numpy as np
-import torch
 
-from multiprocessing import Queue, Process
-from threading import Thread
 from time import time
 from tqdm import tqdm
 from transformers import BasicTokenizer
-
-from .squad_utils import QuestionResult, SquadResult
 
 
 logger = logging.getLogger(__name__)

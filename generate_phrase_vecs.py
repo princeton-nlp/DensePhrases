@@ -16,16 +16,11 @@
 """ Finetuning the library models for question-answering on SQuAD (DistilBERT, Bert, XLM, XLNet)."""
 
 
-import argparse
 import logging
 import os
 import timeit
-import copy
 import h5py
-import torch
 
-from tqdm import tqdm, trange
-from torch.utils.data import DataLoader, SequentialSampler
 from transformers.data.data_collator import default_data_collator, torch_default_data_collator
 from datasets import load_dataset
 
@@ -35,9 +30,7 @@ from transformers import (
     DataCollatorWithPadding,
     default_data_collator,
 )
-from densephrases.utils.squad_utils import ContextResult, load_and_cache_examples
-from densephrases.utils.single_utils import set_seed, to_list, to_numpy, backward_compat, load_encoder
-from densephrases.utils.embed_utils import write_phrases, write_filter
+from densephrases.utils.single_utils import set_seed, load_encoder
 from densephrases import Options
 from scripts.preprocess.convert_squad_to_hf import convert_squad_to_hf
 
@@ -101,7 +94,7 @@ def dump_phrases(args, model, tokenizer, filter_only=False):
         max_seq_length = min(args.max_seq_length, tokenizer.model_max_length)
 
         # Validation preprocessing
-        def prepare_validation_features(examples, index):
+        def prepare_validation_features(examples, indexes):
             # Some of the questions have lots of whitespace on the left, which is not useful and will make the
             # truncation of the context fail (the tokenized question will take a lots of space). So we remove that
             # left whitespace
@@ -127,7 +120,7 @@ def dump_phrases(args, model, tokenizer, filter_only=False):
             
             # Inflate doc_idxs based on sample_mapping
             tokenized_examples['doc_idx'] = [offset + examples['doc_idx'][i] for i in sample_mapping]
-            tokenized_examples['feature_id_to_example_id'] = [index[i] for i in sample_mapping]
+            tokenized_examples['feature_id_to_example_id'] = [indexes[i] for i in sample_mapping]
             
             # For evaluation, we will need to convert our predictions to substrings of the context, so we keep the
             # corresponding example_id and we will store the offset mappings.

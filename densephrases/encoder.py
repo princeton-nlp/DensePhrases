@@ -58,6 +58,8 @@ class Encoder(PreTrainedModel):
         self.lambda_flt = lambda_flt
         self.return_phrase = return_phrase
         self.return_query = return_query
+        if return_query:
+            self._keys_to_ignore_on_load_missing.append("phrase_encoder")
         self.apply(self.init_weights)
 
         # Load transformer after init

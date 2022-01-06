@@ -52,9 +52,6 @@ from transformers import (
     AutoTokenizer,
     get_linear_schedule_with_warmup,
 )
-from densephrases.utils.squad_utils import get_cq_dataloader, SquadResult
-from densephrases.utils.single_utils import set_seed, to_list, to_numpy, backward_compat
-
 
 logger = logging.getLogger(__name__)
 BiEncoderPassage = collections.namedtuple("BiEncoderPassage", ["text", "title"])

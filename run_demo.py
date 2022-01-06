@@ -57,8 +57,8 @@ class DensePhrasesDemo(object):
         @app.route('/query2vec_api', methods=['POST'])
         def query2vec_api():
             batch_query = json.loads(request.form['query'])
-            start_time = time()
-            outs = query2vec(batch_query)
+            # start_time = time()
+            outs = list(query2vec(batch_query))
             # logger.info(f'query2vec {time()-start_time:.3f} for {len(batch_query)} queries: {batch_query[0]}')
             return jsonify(outs)
 

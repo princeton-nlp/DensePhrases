@@ -37,7 +37,7 @@ def embed_all_query(questions, args, query_encoder, tokenizer, batch_size=64):
 
     all_outs = []
     for q_idx in tqdm(range(0, len(questions), batch_size)):
-        outs = query2vec(questions[q_idx:q_idx+batch_size])
+        outs = list(query2vec(questions[q_idx:q_idx+batch_size]))
         all_outs += outs
     start = np.concatenate([out[0] for out in all_outs], 0)
     end = np.concatenate([out[1] for out in all_outs], 0)
@@ -394,7 +394,7 @@ if __name__ == '__main__':
         # Load MIPS & query encoder
         mips = load_phrase_index(args)
         device = 'cuda' if args.cuda else 'cpu'
-        query_encoder, tokenizer, _ = load_encoder(device, args)
+        query_encoder, tokenizer, _ = load_encoder(device, args, query_only=True)
 
         # Evaluate all test sets
         test_paths = args.test_path.split(',')
