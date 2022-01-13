@@ -57,7 +57,7 @@ def backward_compat(model_dict):
     return new_model_dict
 
 
-def load_encoder(device, args, phrase_only=False, query_only=False):
+def load_encoder(device, args, phrase_only=False, query_only=False, freeze_embedding=True):
     # Distributed training:
     # The .from_pretrained methods guarantee that only one local process can concurrently
     # download model & vocab.
@@ -104,7 +104,7 @@ def load_encoder(device, args, phrase_only=False, query_only=False):
         return_query=query_only,
     )
     
-    # Load teacher for training
+    # Load teacher for training (freeze)
     if getattr(args, 'lambda_kl', 0.0) > 0.0 and args.teacher_dir:
         model.cross_encoder = AutoModelForQuestionAnswering.from_pretrained(
             args.teacher_dir,
@@ -112,6 +112,8 @@ def load_encoder(device, args, phrase_only=False, query_only=False):
             config=config,
             cache_dir=args.cache_dir,
         )
+        for param in model.cross_encoder.parameters():
+            param.requires_grad = False
 
     # Phrase only (for phrase embedding)
     if phrase_only:
@@ -130,6 +132,12 @@ def load_encoder(device, args, phrase_only=False, query_only=False):
         else:
             del model.phrase_encoder
         logger.info("Load only query encoders for embedding queries")
+    
+    if freeze_embedding:
+        for name, param in model.named_parameters():
+            if name.endswith(".embeddings.word_embeddings.weight"):
+                param.requires_grad = False
+                logger.info(f'freezing {name}')
 
     model.to(device)
     logger.info('Number of model parameters: {:,}'.format(sum(p.numel() for p in model.parameters())))

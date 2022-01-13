@@ -21,13 +21,10 @@ Fine-tuning the library models for question answering using a slightly adapted v
 import logging
 import os
 import sys
-from typing import Optional
-
 import datasets
 from datasets import load_dataset, load_metric
 
 import transformers
-from trainer_qa import QuestionAnsweringTrainer
 from transformers import (
     DataCollatorWithPadding,
     EvalPrediction,
@@ -38,9 +35,11 @@ from transformers import (
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import check_min_version
 from transformers.utils.versions import require_version
-from utils_qa import postprocess_qa_predictions
 from densephrases import Options
+from densephrases.utils.utils_qa import postprocess_qa_predictions
+from densephrases.utils.trainer_qa import QuestionAnsweringTrainer
 from densephrases.utils.single_utils import load_encoder
+from densephrases.utils.squad_utils import TrueCaser
 from scripts.preprocess.convert_squad_to_hf import convert_squad_to_hf
 
 
@@ -170,6 +169,10 @@ def main():
     max_seq_length = min(args.max_seq_length, tokenizer.model_max_length)
     max_query_length = args.max_query_length
 
+    logger.info('Loading truecaser')
+    if args.truecase:
+        truecase = TrueCaser(os.path.join(os.environ['DATA_DIR'], args.truecase_path))
+
     # Training preprocessing
     def prepare_train_features(examples):
         # Some of the questions have lots of whitespace on the left, which is not useful and will make the
@@ -177,21 +180,30 @@ def main():
         # left whitespace
         examples[question_column_name] = [q.lstrip() for q in examples[question_column_name]]
 
-        # TODO: truecase questions?
-
         # Tokenize our examples with truncation and maybe padding, but keep the overflows using a stride. This results
         # in one example possible giving several features when a context is long, each of those features having a
         # context that overlaps a bit the context of the previous feature.
-        tokenized_examples = tokenizer(
-            examples['title' if pad_on_right else context_column_name],
-            examples[context_column_name if pad_on_right else 'title'],
-            truncation="only_second" if pad_on_right else "only_first",
-            max_length=max_seq_length,
-            stride=args.doc_stride,
-            return_overflowing_tokens=True,
-            return_offsets_mapping=True,
-            padding="max_length" if args.pad_to_max_length else False,
-        )
+        if args.append_title:
+            tokenized_examples = tokenizer(
+                examples['title' if pad_on_right else context_column_name],
+                examples[context_column_name if pad_on_right else 'title'],
+                truncation="only_second" if pad_on_right else "only_first",
+                max_length=max_seq_length,
+                stride=args.doc_stride,
+                return_overflowing_tokens=True,
+                return_offsets_mapping=True,
+                padding="max_length" if args.pad_to_max_length else False,
+            )
+        else:
+            tokenized_examples = tokenizer(
+                examples[context_column_name],
+                truncation="only_first",
+                max_length=max_seq_length,
+                stride=args.doc_stride,
+                return_overflowing_tokens=True,
+                return_offsets_mapping=True,
+                padding="max_length" if args.pad_to_max_length else False,
+            )
 
         tokenized_questions = tokenizer(
             examples[question_column_name],
@@ -225,6 +237,7 @@ def main():
 
             # Grab the sequence corresponding to that example (to know what is the context and what is the question).
             sequence_ids = tokenized_examples.sequence_ids(i)
+            context_index = 1 if pad_on_right and args.append_title else 0
 
             # One example can give several spans, this is the index of the example containing this span of text.
             sample_index = sample_mapping[i]
@@ -240,12 +253,12 @@ def main():
 
                 # Start token index of the current span in the text.
                 token_start_index = 0
-                while sequence_ids[token_start_index] != (1 if pad_on_right else 0):
+                while sequence_ids[token_start_index] != context_index:
                     token_start_index += 1
 
                 # End token index of the current span in the text.
                 token_end_index = len(input_ids) - 1
-                while sequence_ids[token_end_index] != (1 if pad_on_right else 0):
+                while sequence_ids[token_end_index] != context_index:
                     token_end_index -= 1
 
                 # Detect if the answer is out of the span (in which case this feature is labeled with the CLS index).
@@ -271,6 +284,11 @@ def main():
         if args.max_train_samples is not None:
             # We will select sample from whole data if argument is specified
             train_dataset = train_dataset.select(range(args.max_train_samples))
+        if args.truecase:
+            for idx in range(len(train_dataset)):
+                q = train_dataset[idx][question_column_name]
+                train_dataset[idx][question_column_name] = truecase.get_true_case(q) if q == q.lower() else q
+
         # Create train feature from dataset
         with args.main_process_first(desc="train dataset map pre-processing"):
             train_dataset = train_dataset.map(
@@ -296,16 +314,27 @@ def main():
         # Tokenize our examples with truncation and maybe padding, but keep the overflows using a stride. This results
         # in one example possible giving several features when a context is long, each of those features having a
         # context that overlaps a bit the context of the previous feature.
-        tokenized_examples = tokenizer(
-            examples['title' if pad_on_right else context_column_name],
-            examples[context_column_name if pad_on_right else 'title'],
-            truncation="only_second" if pad_on_right else "only_first",
-            max_length=max_seq_length,
-            stride=args.doc_stride,
-            return_overflowing_tokens=True,
-            return_offsets_mapping=True,
-            padding="max_length" if args.pad_to_max_length else False,
-        )
+        if args.append_title:
+            tokenized_examples = tokenizer(
+                examples['title' if pad_on_right else context_column_name],
+                examples[context_column_name if pad_on_right else 'title'],
+                truncation="only_second" if pad_on_right else "only_first",
+                max_length=max_seq_length,
+                stride=args.doc_stride,
+                return_overflowing_tokens=True,
+                return_offsets_mapping=True,
+                padding="max_length" if args.pad_to_max_length else False,
+            )
+        else:
+            tokenized_examples = tokenizer(
+                examples[context_column_name],
+                truncation="only_first",
+                max_length=max_seq_length,
+                stride=args.doc_stride,
+                return_overflowing_tokens=True,
+                return_offsets_mapping=True,
+                padding="max_length" if args.pad_to_max_length else False,
+            )
 
         tokenized_questions = tokenizer(
             examples[question_column_name],
@@ -332,7 +361,7 @@ def main():
         for i in range(len(tokenized_examples["input_ids"])):
             # Grab the sequence corresponding to that example (to know what is the context and what is the question).
             sequence_ids = tokenized_examples.sequence_ids(i)
-            context_index = 1 if pad_on_right else 0
+            context_index = 1 if pad_on_right and args.append_title else 0
 
             # One example can give several spans, this is the index of the example containing this span of text.
             sample_index = sample_mapping[i]
@@ -354,6 +383,11 @@ def main():
         if args.max_eval_samples is not None:
             # We will select sample from whole data
             eval_examples = eval_examples.select(range(args.max_eval_samples))
+        if args.truecase:
+            for idx in range(len(eval_examples)):
+                q = eval_examples[idx][question_column_name]
+                eval_examples[idx][question_column_name] = truecase.get_true_case(q) if q == q.lower() else q
+
         # Validation Feature Creation
         with args.main_process_first(desc="validation dataset map pre-processing"):
             eval_dataset = eval_examples.map(
@@ -375,6 +409,11 @@ def main():
         if args.max_predict_samples is not None:
             # We will select sample from whole data
             predict_examples = predict_examples.select(range(args.max_predict_samples))
+        if args.truecase:
+            for idx in range(len(predict_examples)):
+                q = predict_examples[idx][question_column_name]
+                predict_examples[idx][question_column_name] = truecase.get_true_case(q) if q == q.lower() else q
+
         # Predict Feature Creation
         with args.main_process_first(desc="prediction dataset map pre-processing"):
             predict_dataset = predict_examples.map(
@@ -428,8 +467,6 @@ def main():
 
     def compute_metrics(p: EvalPrediction):
         return metric.compute(predictions=p.predictions, references=p.label_ids)
-
-    # TODO: freeze cross_encoder, word embeddings
 
     # Initialize our Trainer
     trainer = QuestionAnsweringTrainer(

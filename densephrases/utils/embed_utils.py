@@ -31,7 +31,7 @@ id2example = None
 features_per_example = None
 
 
-def get_metadata(features, results, max_answer_length, do_lower_case, tokenizer, verbose_logging, has_title):
+def get_metadata(features, results, max_answer_length, tokenizer, has_title):
     global id2example, features_per_example
 
     assert len(features) == len(results)
@@ -182,8 +182,8 @@ def write_phrases(all_examples, all_features, all_results, tokenizer, output_dum
         for item in iter(inqueue_.get, None):
             # start_time = time()
             new_item = list(item[:2]) + [
-                args.max_answer_length, args.do_lower_case, tokenizer,
-                args.verbose_logging, args.append_title, args.filter_threshold
+                args.max_answer_length, tokenizer,
+                args.append_title, args.filter_threshold
             ]
             out = pool_func(new_item)
             # print(f'in {time() - start_time:.1f} sec, {inqueue_.qsize()}')

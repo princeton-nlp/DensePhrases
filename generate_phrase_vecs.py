@@ -25,7 +25,7 @@ from transformers.data.data_collator import default_data_collator, torch_default
 from datasets import load_dataset
 
 
-from trainer_qa import QuestionAnsweringTrainer
+from densephrases.utils.trainer_qa import QuestionAnsweringTrainer
 from transformers import (
     DataCollatorWithPadding,
     default_data_collator,
@@ -103,16 +103,27 @@ def dump_phrases(args, model, tokenizer, filter_only=False):
             # Tokenize our examples with truncation and maybe padding, but keep the overflows using a stride. This results
             # in one example possible giving several features when a context is long, each of those features having a
             # context that overlaps a bit the context of the previous feature.
-            tokenized_examples = tokenizer(
-                examples['title' if pad_on_right else context_column_name],
-                examples[context_column_name if pad_on_right else 'title'],
-                truncation="only_second" if pad_on_right else "only_first",
-                max_length=max_seq_length,
-                stride=args.doc_stride,
-                return_overflowing_tokens=True,
-                return_offsets_mapping=True,
-                padding="max_length" if args.pad_to_max_length else False,
-            )
+            if args.append_title:
+                tokenized_examples = tokenizer(
+                    examples['title' if pad_on_right else context_column_name],
+                    examples[context_column_name if pad_on_right else 'title'],
+                    truncation="only_second" if pad_on_right else "only_first",
+                    max_length=max_seq_length,
+                    stride=args.doc_stride,
+                    return_overflowing_tokens=True,
+                    return_offsets_mapping=True,
+                    padding="max_length" if args.pad_to_max_length else False,
+                )
+            else:
+                tokenized_examples = tokenizer(
+                    examples[context_column_name],
+                    truncation="only_first",
+                    max_length=max_seq_length,
+                    stride=args.doc_stride,
+                    return_overflowing_tokens=True,
+                    return_offsets_mapping=True,
+                    padding="max_length" if args.pad_to_max_length else False,
+                )
 
             # Since one example might give us several features if it has a long context, we need a map from a feature to
             # its corresponding example. This key gives us just that.
@@ -129,7 +140,7 @@ def dump_phrases(args, model, tokenizer, filter_only=False):
             for i in range(len(tokenized_examples["input_ids"])):
                 # Grab the sequence corresponding to that example (to know what is the context and what is the question).
                 sequence_ids = tokenized_examples.sequence_ids(i)
-                context_index = 1 if pad_on_right else 0
+                context_index = 1 if pad_on_right and args.append_title else 0
 
                 # One example can give several spans, this is the index of the example containing this span of text.
                 sample_index = sample_mapping[i]
