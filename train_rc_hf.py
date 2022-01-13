@@ -32,7 +32,7 @@ from transformers import (
     default_data_collator,
     set_seed,
 )
-from transformers.trainer_utils import get_last_checkpoint
+from transformers.trainer_utils import get_last_checkpoint, IntervalStrategy
 from transformers.utils import check_min_version
 from transformers.utils.versions import require_version
 from densephrases import Options
@@ -467,6 +467,14 @@ def main():
 
     def compute_metrics(p: EvalPrediction):
         return metric.compute(predictions=p.predictions, references=p.label_ids)
+    
+    # TODO: Try to merge in options.py
+    if args.evaluate_during_training:
+        args.evaluation_strategy = IntervalStrategy("steps")
+        args.eval_steps = args.save_steps
+        args.load_best_model_at_end = True
+        args.metric_for_best_model = "eval_exact_match"
+        args.greater_is_better = True
 
     # Initialize our Trainer
     trainer = QuestionAnsweringTrainer(
