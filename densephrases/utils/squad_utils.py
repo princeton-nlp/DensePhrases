@@ -1,21 +1,17 @@
-import json
 import logging
 import os
-import csv
 import math
 import pickle
 import string
 import torch
-import torch.distributed as dist
-import numpy as np
 
 from functools import partial
 from multiprocessing import Pool, cpu_count
 from time import time
 from tqdm import tqdm
 from .file_utils import is_torch_available
-from .data_utils import DataProcessor, whitespace_tokenize
-from torch.utils.data import DataLoader, SequentialSampler, Dataset, TensorDataset
+from .data_utils import whitespace_tokenize
+from torch.utils.data import DataLoader, SequentialSampler, TensorDataset
 
 
 logger = logging.getLogger(__name__)
@@ -34,7 +30,6 @@ def convert_question_to_feature(example, max_query_length):
         max_length=max_query_length,
         return_overflowing_tokens=False,
         padding="max_length",
-        stride=max_query_length,
         truncation="only_first",
         return_token_type_ids=True, # TODO: check token_type_ids of questions
     )
