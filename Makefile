@@ -79,7 +79,7 @@ large-index-sq:
 # Followings are template commands. See 'run-rc-nq' for a detailed use.
 # 1) Training phrase and question encoders on reading comprehension.
 train-rc: model-name nq-rc-data nq-param
-	python train_rc_hf.py \
+	python train_rc.py \
 		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
 		--cache_dir $(CACHE_DIR) \
 		--train_file $(DATA_DIR)/single-qa/$(TRAIN_DATA) \
@@ -238,9 +238,9 @@ run-rc-nq: model-name nq-rc-data nq-param pbn-param small-index
 
 # Testing filter thresholds
 filter-test: model-name nq-rc-data nq-param
-	python train_rc_hf.py \
+	python train_rc.py \
 		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
-		--cache_dir $(CACHE_DIR) \
+		--cache_dir $(CACHE_DIR) \ 
 		--validation_file $(DATA_DIR)/single-qa/$(DEV_DATA) \
 		--do_eval \
 		--do_filter_test \
