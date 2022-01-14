@@ -6,9 +6,6 @@ import random
 import numpy as np
 import requests
 import logging
-import math
-import copy
-import string
 
 from tqdm import tqdm
 from time import time
@@ -20,11 +17,8 @@ from tornado.ioloop import IOLoop
 from requests_futures.sessions import FuturesSession
 
 from eval_phrase_retrieval import evaluate_results, evaluate_results_kilt
-from densephrases.utils.single_utils import load_encoder
+from densephrases.utils.single_utils import load_encoder, TrueCaser
 from densephrases.utils.open_utils import load_phrase_index, load_cross_encoder, load_qa_pairs, get_query2vec
-from densephrases.utils.squad_utils import get_cq_dataloader, TrueCaser, get_bertqa_dataloader
-from densephrases.utils.squad_metrics import compute_predictions_logits
-from densephrases.utils.embed_utils import get_cq_results, get_bertqa_results
 from densephrases import Options
 
 
@@ -148,129 +142,6 @@ class DensePhrasesDemo(object):
         http_server.listen(index_port)
         IOLoop.instance().start()
 
-    def serve_bert_encoder(self, bert_port, args):
-        device = 'cuda' if args.cuda else 'cpu'
-        # bert_encoder, tokenizer, _ = load_encoder(device, args) # will be just a bert as query_encoder
-        bert_encoder, tokenizer = load_cross_encoder(device, args)
-        import binascii
-        def float_to_hex(vals):
-            strs = []
-            # offset = -40.
-            # scale = 5.
-            minv = min(vals)
-            maxv = max(vals)
-            for val in vals:
-                strs.append('{0:0{1}X}'.format(int(min((val - minv) / (maxv-minv) * 255, 255)), 2))
-            return strs
-
-        # Define query to vector function
-        def context_query_to_logit(context, query):
-            bert_encoder.eval()
-
-            # Phrase encoding style
-            dataloader, examples, features = get_cq_dataloader(
-                [context], [query], tokenizer, args.max_query_length, batch_size=64
-            )
-            cq_results = get_cq_results(
-                examples, features, dataloader, device, bert_encoder, batch_size=64
-            )
-
-            outs = []
-            for cq_idx, cq_result in enumerate(cq_results):
-                # import pdb; pdb.set_trace()
-                all_logits = (
-                    np.expand_dims(np.array(cq_result.start_logits), axis=1) +
-                    np.expand_dims(np.array(cq_result.end_logits), axis=0)
-                ).max(1).tolist()
-                out = {
-                    'context': ' '.join(features[cq_idx].tokens[0:]),
-                    'title': 'dummy',
-                    'start_logits': float_to_hex(all_logits[0:len(features[cq_idx].tokens)]),
-                    'end_logits': float_to_hex(cq_result.end_logits[0:len(features[cq_idx].tokens)]),
-                }
-                outs.append(out)
-
-            return outs
-
-        def context_query_to_answer(batch_context, batch_query):
-            bert_encoder.eval()
-
-            # Phrase encoding style
-            dataloader, examples, features = get_bertqa_dataloader(
-                batch_context, batch_query, tokenizer, args.max_query_length, batch_size=64
-            )
-            cq_results = get_bertqa_results(
-                examples, features, dataloader, device, bert_encoder, batch_size=64
-            )
-            predictions, stat = compute_predictions_logits(
-                examples,
-                features,
-                cq_results,
-                20,
-                10,
-                False,
-                '',
-                '',
-                '',
-                False,
-                False,
-                0.0,
-                tokenizer,
-                -1e8,
-                '',
-            )
-
-            return predictions
-
-        # Serve query encoder
-        app = Flask(__name__)
-        app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
-        CORS(app)
-
-        @app.route('/')
-        def index():
-            return app.send_static_file('index_single.html')
-
-        @app.route('/files/<path:path>')
-        def static_files(path):
-            return app.send_static_file('files/' + path)
-
-        args.examples_path = os.path.join('static', 'examples_context.txt')
-        @app.route('/get_examples', methods=['GET'])
-        def get_examples():
-            with open(args.examples_path, 'r') as fp:
-                examples = [line.strip() for line in fp.readlines()]
-            return jsonify(examples)
-
-        @app.route('/single_api', methods=['GET'])
-        def single_api():
-            t0 = time()
-            single_context = request.args['context']
-            single_query = request.args['query']
-            # start_time = time()
-            outs = context_query_to_logit(single_context, single_query)
-            # logger.info(f'single to logit {time()-start_time}')
-            t1 = time()
-            out = {'ret': outs, 'time': int(1000 * (t1 - t0))}
-            return jsonify(out)
-
-        @app.route('/batch_api', methods=['POST'])
-        def batch_api():
-            t0 = time()
-            batch_context = json.loads(request.form['context'])
-            batch_query = json.loads(request.form['query'])
-            # start_time = time()
-            outs = context_query_to_answer(batch_context, batch_query)
-            # logger.info(f'single to logit {time()-start_time}')
-            t1 = time()
-            out = {'ret': outs, 'time': int(1000 * (t1 - t0))}
-            return jsonify(out)
-
-        logger.info(f'Starting BertEncoder server at {self.get_address(bert_port)}')
-        http_server = HTTPServer(WSGIContainer(app))
-        http_server.listen(bert_port)
-        IOLoop.instance().start()
-
     def get_address(self, port):
         assert self.base_ip is not None and len(port) > 0
         return self.base_ip + ':' + port
@@ -382,9 +253,6 @@ if __name__ == '__main__':
     elif args.run_mode == 'p_serve':
         logger.info(f'Index address: {server.get_address(server.index_port)}')
         server.serve_phrase_index(args.index_port, args)
-
-    elif args.run_mode == 'single_serve':
-        server.serve_bert_encoder(args.query_port, args)
 
     elif args.run_mode == 'query':
         query = 'Name three famous writers'

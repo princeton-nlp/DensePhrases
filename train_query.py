@@ -13,7 +13,7 @@ import faiss
 
 from time import time
 from tqdm import tqdm
-from densephrases.utils.squad_utils import get_question_dataloader
+from densephrases.utils.embed_utils import get_question_dataloader
 from densephrases.utils.single_utils import load_encoder
 from densephrases.utils.open_utils import load_phrase_index, get_query2vec, load_qa_pairs
 from densephrases.utils.eval_utils import drqa_exact_match_score, drqa_regex_match_score, \

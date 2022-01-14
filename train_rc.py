@@ -39,7 +39,7 @@ from densephrases import Options
 from densephrases.utils.utils_qa import postprocess_qa_predictions
 from densephrases.utils.trainer_qa import QuestionAnsweringTrainer
 from densephrases.utils.single_utils import load_encoder
-from densephrases.utils.squad_utils import TrueCaser
+from densephrases.utils.data_utils import TrueCaser
 from scripts.preprocess.convert_squad_to_hf import convert_squad_to_hf
 
 

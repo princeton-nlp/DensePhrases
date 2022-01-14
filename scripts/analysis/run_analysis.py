@@ -40,7 +40,7 @@ from densephrases.utils.squad_utils import get_cq_dataloader, SquadResult
 from densephrases.utils.single_utils import set_seed, to_list, to_numpy, backward_compat
 from densephrases.utils.squad_metrics import compute_predictions_log_probs, compute_predictions_logits, squad_evaluate
 from densephrases.utils.embed_utils import write_phrases
-from densephrases.models import DensePhrases
+from densephrases import Encoder
 
 
 logger = logging.getLogger(__name__)
@@ -460,7 +460,7 @@ def main():
     )
 
     # Load pre-trained DensePhrases
-    model = DensePhrases(
+    model = Encoder(
         config=config,
         tokenizer=tokenizer,
         pretrained=None,

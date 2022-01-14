@@ -15,11 +15,14 @@ import h5py
 import numpy as np
 import torch
 
-from multiprocessing import Queue, Process
+from functools import partial
+from multiprocessing import Queue, Process, Pool, cpu_count
 from threading import Thread
 from time import time
 from tqdm import tqdm
-from densephrases.utils.single_utils import to_list
+from .single_utils import to_list
+from .file_utils import is_torch_available
+from torch.utils.data import DataLoader, SequentialSampler, TensorDataset
 
 
 logger = logging.getLogger(__name__)
@@ -280,6 +283,104 @@ def write_phrases(all_examples, all_features, all_results, tokenizer, output_dum
         print(k, v)
     for k, v in stats.items():
         print(k, v)
+
+
+def convert_question_to_feature(example, max_query_length):
+    # Query features
+    feature = tokenizer(
+        example['question_text'],
+        max_length=max_query_length,
+        return_overflowing_tokens=False,
+        padding="max_length",
+        truncation="only_first",
+        return_token_type_ids=True, # TODO: check token_type_ids of questions
+    )
+    feature['qas_id'] = example['qas_id']
+    feature['question_text'] = example['question_text']
+    # logger.info(f'prepro 0) {time()-start_time}')
+    return feature
+
+
+def convert_question_to_feature_init(tokenizer_for_convert):
+    global tokenizer
+    tokenizer = tokenizer_for_convert
+
+
+def convert_questions_to_features(
+    examples,
+    tokenizer,
+    max_query_length,
+    threads=1,
+    tqdm_enabled=True,
+):
+    """
+    convert questions to features
+    """
+
+    # Defining helper methods
+    features = []
+    threads = min(threads, cpu_count())
+    # start_time = time()
+    if threads > 1:
+        with Pool(threads, initializer=convert_question_to_feature_init, initargs=(tokenizer,)) as p:
+            annotate_ = partial(
+                convert_question_to_feature,
+                max_query_length=max_query_length,
+            )
+            features = list(
+                tqdm(
+                    p.imap(annotate_, examples, chunksize=32),
+                    total=len(examples),
+                    desc="convert squad examples to features",
+                    disable=not tqdm_enabled,
+                )
+            )
+    else:
+        convert_question_to_feature_init(tokenizer)
+        features = [convert_question_to_feature(
+            example,
+            max_query_length=max_query_length,
+        ) for example in examples]
+
+    # logger.info(f'prepro 1) {time()-start_time}')
+    new_features = []
+    unique_id = 1000000000
+    for feature in tqdm(
+        features, total=len(features), desc="add example index and unique id", disable=not tqdm_enabled
+    ):
+        feature['unique_id'] = unique_id
+        new_features.append(feature)
+        unique_id += 1
+    features = new_features
+    del new_features
+    
+    if not is_torch_available():
+        raise RuntimeError("PyTorch must be installed to return a PyTorch dataset.")
+
+    # Question-side features
+    all_input_ids_ = torch.tensor([f['input_ids'] for f in features], dtype=torch.long)
+    all_attention_masks_ = torch.tensor([f['attention_mask'] for f in features], dtype=torch.long)
+    all_token_type_ids_ = torch.tensor([f['token_type_ids'] for f in features], dtype=torch.long)
+    all_feature_index_ = torch.arange(all_input_ids_.size(0), dtype=torch.long)
+    dataset = TensorDataset(
+        all_input_ids_, all_attention_masks_, all_token_type_ids_, all_feature_index_
+    )
+    return features, dataset
+
+
+def get_question_dataloader(questions, tokenizer, max_query_length=64, batch_size=64):
+    examples = [{'qas_id': q_idx, 'question_text': q} for q_idx, q in enumerate(questions)]
+    features, dataset = convert_questions_to_features(
+        examples=examples,
+        tokenizer=tokenizer,
+        max_query_length=max_query_length,
+        threads=1,
+        tqdm_enabled=False,
+    )
+    eval_sampler = SequentialSampler(dataset)
+    eval_dataloader = DataLoader(dataset, sampler=eval_sampler, batch_size=batch_size)
+
+    return eval_dataloader, features
 
 
 def get_question_results(query_eval_features, question_dataloader, device, model):

@@ -6,7 +6,7 @@ import os
 from densephrases import Options
 from densephrases.utils.single_utils import load_encoder
 from densephrases.utils.open_utils import load_phrase_index, get_query2vec, load_qa_pairs
-from densephrases.utils.squad_utils import TrueCaser
+from densephrases.utils.data_utils import TrueCaser
 
 logger = logging.getLogger(__name__)
 
