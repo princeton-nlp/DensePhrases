@@ -36,7 +36,7 @@ paq-rc-data:
 	
 # Choose hyperparameter
 pbn-param:
-	$(eval PBN_OPTIONS=--pbn_size 2 --pbn_tolerance 0)
+	$(eval PBN_OPTIONS=--pbn_size 2)
 nq-param:
 	$(eval BS=48)
 	$(eval LR=3e-5)
@@ -79,32 +79,38 @@ large-index-sq:
 # Followings are template commands. See 'run-rc-nq' for a detailed use.
 # 1) Training phrase and question encoders on reading comprehension.
 train-rc: model-name nq-rc-data nq-param
-	python train_rc.py \
-		--model_type bert \
+	python train_rc_hf.py \
 		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
-		--data_dir $(DATA_DIR)/single-qa \
 		--cache_dir $(CACHE_DIR) \
-		--train_file $(TRAIN_DATA) \
-		--predict_file $(DEV_DATA) \
+		--train_file $(DATA_DIR)/single-qa/$(TRAIN_DATA) \
+		--validation_file $(DATA_DIR)/single-qa/$(DEV_DATA) \
 		--do_train \
 		--do_eval \
-		--fp16 \
-		--per_gpu_train_batch_size $(BS) \
+		--per_device_train_batch_size $(BS) \
 		--learning_rate $(LR) \
-		--num_train_epochs 2.0 \
+		--fp16 \
+		--num_train_epochs 2 \
 		--max_seq_length $(MAX_SEQ_LEN) \
+		--doc_stride 128 \
 		--lambda_kl $(LAMBDA_KL) \
 		--lambda_neg $(LAMBDA_NEG) \
 		--lambda_flt 1.0 \
 		--filter_threshold -2.0 \
 		--append_title \
 		--evaluate_during_training \
-		--teacher_dir $(SAVE_DIR)/$(TEACHER_NAME) \
 		--output_dir $(SAVE_DIR)/$(MODEL_NAME) \
+		--teacher_dir $(SAVE_DIR)/$(TEACHER_NAME) \
 		--overwrite_output_dir \
+		--overwrite_cache \
 		$(OPTIONS)
 
-# 1-1) Sams as train-rc but with DDP
+### Unimplemented features
+# Save best model only?
+# 4. filter_threshold for RC
+# OpenQA WanDB
+# fix options.py
+
+# 1-1) Sams as train-rc but with DDP #TODO fix
 train-rc-ddp:
 	OMP_NUM_THREADS=20 python -m torch.distributed.launch \
 		--nnode=1 --node_rank=0 --nproc_per_node=4 train_rc.py \
@@ -117,7 +123,7 @@ train-rc-ddp:
 		--do_train \
 		--do_eval \
 		--fp16 \
-		--per_gpu_train_batch_size $(BS) \
+		--per_device_train_batch_size $(BS) \
 		--learning_rate $(LR) \
 		--num_train_epochs 2.0 \
 		--max_seq_length $(MAX_SEQ_LEN) \
@@ -187,7 +193,7 @@ draft: model-name nq-rc-data nq-param pbn-param small-index
 		TEACHER_NAME=$(TEACHER_NAME) MODEL_NAME=$(MODEL_NAME) \
 		BS=$(BS) LR=$(LR) MAX_SEQ_LEN=$(MAX_SEQ_LEN) \
 		LAMBDA_KL=$(LAMBDA_KL) LAMBDA_NEG=$(LAMBDA_NEG) \
-		OPTIONS='$(PBN_OPTIONS) --draft'
+		OPTIONS='$(PBN_OPTIONS) $(OPTIONS) --draft'
 	make gen-vecs \
 		DEV_DATA=$(DEV_DATA) MODEL_NAME=$(MODEL_NAME)
 	make index-vecs \
@@ -209,13 +215,14 @@ run-rc-nq: model-name nq-rc-data nq-param pbn-param small-index
 		TRAIN_DATA=$(TRAIN_QG_DATA) DEV_DATA=$(DEV_DATA) \
 		TEACHER_NAME=$(TEACHER_NAME) MODEL_NAME=$(MODEL_NAME)_tmp \
 		BS=$(BS) LR=$(LR) MAX_SEQ_LEN=$(MAX_SEQ_LEN) \
-		LAMBDA_KL=$(LAMBDA_KL) LAMBDA_NEG=$(LAMBDA_NEG)
+		LAMBDA_KL=$(LAMBDA_KL) LAMBDA_NEG=$(LAMBDA_NEG) \
+		OPTIONS='$(OPTIONS)'
 	make train-rc \
 		TRAIN_DATA=$(TRAIN_DATA) DEV_DATA=$(DEV_DATA) \
 		TEACHER_NAME=$(TEACHER_NAME) MODEL_NAME=$(MODEL_NAME) \
 		BS=$(BS) LR=$(LR) MAX_SEQ_LEN=$(MAX_SEQ_LEN) \
 		LAMBDA_KL=$(LAMBDA_KL) LAMBDA_NEG=$(LAMBDA_NEG) \
-		OPTIONS='$(PBN_OPTIONS) --load_dir $(SAVE_DIR)/$(MODEL_NAME)_tmp'
+		OPTIONS='$(PBN_OPTIONS) $(OPTIONS) --load_dir $(SAVE_DIR)/$(MODEL_NAME)_tmp'
 	make gen-vecs \
 		DEV_DATA=$(DEV_DATA) MODEL_NAME=$(MODEL_NAME)
 	make index-vecs \
@@ -246,24 +253,6 @@ filter-test: model-name nq-rc-data
 # Training cross encoder
 train-cross: model-name nq-rc-data
 	python train_cross_encoder.py \
-		--model_type bert \
-		--model_name_or_path SpanBERT/spanbert-large-cased \
-		--do_train \
-		--do_eval \
-		--cache_dir $(CACHE_DIR) \
-		--train_file $(DATA_DIR)/single-qa/$(TRAIN_DATA) \
-		--predict_file $(DATA_DIR)/single-qa/$(DEV_DATA) \
-		--per_gpu_train_batch_size 8 \
-		--learning_rate 1e-5 \
-		--num_train_epochs 2.0 \
-		--max_seq_length 384 \
-		--doc_stride 128 \
-		--output_dir $(SAVE_DIR)/$(MODEL_NAME)
-
-# --dataset_name squad
-
-train-cross-hf: model-name nq-rc-data
-	python train_cross_hf.py \
 		--model_name_or_path SpanBERT/spanbert-base-cased \
 		--train_file $(DATA_DIR)/single-qa/$(TRAIN_DATA) \
 		--validation_file $(DATA_DIR)/single-qa/$(DEV_DATA) \
@@ -277,31 +266,6 @@ train-cross-hf: model-name nq-rc-data
 		--save_steps 5000 \
 		--output_dir $(SAVE_DIR)/$(MODEL_NAME)
 
-# Holy shit!
-train-rc-hf: model-name nq-rc-data nq-param
-	python train_rc_hf.py \
-		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
-		--cache_dir $(CACHE_DIR) \
-		--train_file $(DATA_DIR)/single-qa/$(TRAIN_DATA) \
-		--validation_file $(DATA_DIR)/single-qa/$(DEV_DATA) \
-		--do_train \
-		--do_eval \
-		--per_device_train_batch_size $(BS) \
-		--learning_rate $(LR) \
-		--fp16 \
-		--num_train_epochs 2 \
-		--max_seq_length $(MAX_SEQ_LEN) \
-		--doc_stride 128 \
-		--lambda_kl $(LAMBDA_KL) \
-		--lambda_neg $(LAMBDA_NEG) \
-		--lambda_flt 1.0 \
-		--output_dir $(SAVE_DIR)/$(MODEL_NAME) \
-		--teacher_dir $(SAVE_DIR)/$(TEACHER_NAME) \
-		--overwrite_output_dir \
-		--overwrite_cache \
-		$(OPTIONS)
-# --load_dir princeton-nlp/densephrases-multi \
-# --draft \
 
 ############################## Large-scale Dump & Indexing ###############################
 
@@ -435,7 +399,7 @@ train-query: dump-dir model-name nq-open-data large-index
 		--train_path $(DATA_DIR)/$(TRAIN_DATA) \
 		--dev_path $(DATA_DIR)/$(DEV_DATA) \
 		--test_path $(DATA_DIR)/$(TEST_DATA) \
-		--per_gpu_train_batch_size 12 \
+		--per_device_train_batch_size 12 \
 		--eval_batch_size 12 \
 		--learning_rate 3e-5 \
 		--num_train_epochs 5 \

@@ -112,7 +112,6 @@ class Options():
         self.parser.add_argument("--lambda_neg", default=0.0, type=float, help="Lambda for in-batch negative")
         self.parser.add_argument("--lambda_flt", default=0.0, type=float, help="Lambda for filtering")
         self.parser.add_argument("--pbn_size", default=0, type=int, help="pre-batch negative size")
-        self.parser.add_argument("--pbn_tolerance", default=9999, type=int, help="pre-batch tolerance epoch")
         self.parser.add_argument("--append_title", action="store_true", help="Whether to append title in context.")
         self.parser.add_argument("--evaluate_during_training", action="store_true",
                         help="Run evaluation during training at each logging step.")

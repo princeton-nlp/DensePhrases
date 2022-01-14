@@ -468,13 +468,15 @@ def main():
     def compute_metrics(p: EvalPrediction):
         return metric.compute(predictions=p.predictions, references=p.label_ids)
     
-    # TODO: Try to merge in options.py
     if args.evaluate_during_training:
         args.evaluation_strategy = IntervalStrategy("steps")
+        args.save_steps = int(len(train_dataset) // args.per_device_train_batch_size * args.num_train_epochs) // 10
         args.eval_steps = args.save_steps
         args.load_best_model_at_end = True
+        args.save_total_limit = 5
         args.metric_for_best_model = "eval_exact_match"
         args.greater_is_better = True
+        logger.info(f"Will save the model for every {args.save_steps} steps")
 
     # Initialize our Trainer
     trainer = QuestionAnsweringTrainer(
