@@ -42,7 +42,14 @@ class QuestionAnsweringTrainer(Trainer):
         self.eval_examples = eval_examples
         self.post_process_function = post_process_function
 
-    def evaluate(self, eval_dataset=None, eval_examples=None, ignore_keys=None, metric_key_prefix: str = "eval"):
+    def evaluate(
+        self,
+        eval_dataset=None,
+        eval_examples=None,
+        ignore_keys=None,
+        metric_key_prefix: str = "eval",
+        filter_threshold: int = -1e5,
+    ):
         eval_dataset = self.eval_dataset if eval_dataset is None else eval_dataset
         eval_dataloader = self.get_eval_dataloader(eval_dataset)
         eval_examples = self.eval_examples if eval_examples is None else eval_examples
@@ -64,10 +71,11 @@ class QuestionAnsweringTrainer(Trainer):
             self.compute_metrics = compute_metrics
 
         if self.post_process_function is not None and self.compute_metrics is not None:
-            eval_preds = self.post_process_function(
-                eval_examples, eval_dataset, (output.predictions[0], output.predictions[1])
+            eval_preds, save_rate = self.post_process_function(
+                eval_examples, eval_dataset, output.predictions, filter_threshold=filter_threshold
             )
             metrics = self.compute_metrics(eval_preds)
+            metrics['save_rate'] = save_rate
 
             # Prefix all keys with metric_key_prefix + '_'
             for key in list(metrics.keys()):
@@ -85,7 +93,14 @@ class QuestionAnsweringTrainer(Trainer):
         self.control = self.callback_handler.on_evaluate(self.args, self.state, self.control, metrics)
         return metrics
 
-    def predict(self, predict_dataset, predict_examples, ignore_keys=None, metric_key_prefix: str = "test"):
+    def predict(
+        self,
+        predict_dataset,
+        predict_examples,
+        ignore_keys=None,
+        metric_key_prefix: str = "test",
+        filter_threshold: int = -1e5,
+    ):
         predict_dataloader = self.get_test_dataloader(predict_dataset)
 
         # Temporarily disable metric computation, we will do it in the loop here.
@@ -108,8 +123,8 @@ class QuestionAnsweringTrainer(Trainer):
         if self.post_process_function is None or self.compute_metrics is None:
             return output
 
-        predictions = self.post_process_function(
-            predict_examples, predict_dataset, (output.predictions[0], output.predictions[1]), "predict"
+        predictions, _ = self.post_process_function(
+            predict_examples, predict_dataset, output.predictions, "predict", filter_threshold=filter_threshold
         )
         metrics = self.compute_metrics(predictions)
 

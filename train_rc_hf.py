@@ -438,9 +438,9 @@ def main():
     )
 
     # Post-processing:
-    def post_processing_function(examples, features, predictions, stage="eval"):
+    def post_processing_function(examples, features, predictions, stage="eval", filter_threshold=-1e5):
         # Post-processing: we match the start logits and end logits to answers in the original context.
-        predictions = postprocess_qa_predictions(
+        predictions, save_rate = postprocess_qa_predictions(
             examples=examples,
             features=features,
             predictions=predictions,
@@ -451,6 +451,7 @@ def main():
             output_dir=args.output_dir,
             log_level=log_level,
             prefix=stage,
+            filter_threshold=filter_threshold,
         )
         # Format the result to the format the metric expects.
         if args.version_2_with_negative:
@@ -461,7 +462,7 @@ def main():
             formatted_predictions = [{"id": k, "prediction_text": v} for k, v in predictions.items()]
 
         references = [{"id": ex["id"], "answers": ex[answer_column_name]} for ex in examples]
-        return EvalPrediction(predictions=formatted_predictions, label_ids=references)
+        return EvalPrediction(predictions=formatted_predictions, label_ids=references), save_rate
 
     metric = load_metric("squad_v2" if args.version_2_with_negative else "squad")
 
@@ -539,6 +540,25 @@ def main():
 
         trainer.log_metrics("predict", metrics)
         trainer.save_metrics("predict", metrics)
+    
+    # Filter test
+    if args.do_filter_test:
+        thresholds = [float(th) for th in args.filter_threshold_list.split(',')]
+        logger.info(f'Testing following filter thresholds: {thresholds}')
+
+        results = []
+        for idx, threshold in enumerate(thresholds):
+            logger.info(f"Filter={threshold:.2f}")
+            metrics = trainer.evaluate(filter_threshold=threshold)
+            metrics['threshold'] = threshold
+            results.append(metrics)
+
+        logger.info("Filter Results")
+        for idx in range(len(results)):
+            out_str = ''
+            for key, val in results[idx].items():
+                out_str += f'{key}: {val:.2f} '
+            logger.info(out_str)
 
     kwargs = {"finetuned_from": args.pretrained_name_or_path, "tasks": "question-answering"}
 

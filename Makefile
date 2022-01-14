@@ -237,18 +237,22 @@ run-rc-nq: model-name nq-rc-data nq-param pbn-param small-index
 		OPTIONS=$(OPTIONS)
 
 # Testing filter thresholds
-filter-test: model-name nq-rc-data
-	python train_rc.py \
-		--model_type bert \
+filter-test: model-name nq-rc-data nq-param
+	python train_rc_hf.py \
 		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
-		--data_dir $(DATA_DIR)/single-qa \
 		--cache_dir $(CACHE_DIR) \
-		--predict_file $(DEV_DATA) \
+		--validation_file $(DATA_DIR)/single-qa/$(DEV_DATA) \
+		--do_eval \
 		--do_filter_test \
+		--max_seq_length $(MAX_SEQ_LEN) \
+		--doc_stride 128 \
 		--append_title \
 		--filter_threshold_list " -4,-3,-2,-1,-0.5,0,1" \
 		--load_dir $(SAVE_DIR)/$(MODEL_NAME) \
 		--output_dir $(SAVE_DIR)/$(MODEL_NAME) \
+		--overwrite_cache \
+		--draft \
+		$(OPTIONS)
 
 # Training cross encoder
 train-cross: model-name nq-rc-data

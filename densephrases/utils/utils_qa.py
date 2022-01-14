@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 def postprocess_qa_predictions(
     examples,
     features,
-    predictions: Tuple[np.ndarray, np.ndarray],
+    predictions: Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray],
     version_2_with_negative: bool = False,
     n_best_size: int = 20,
     max_answer_length: int = 30,
@@ -39,6 +39,7 @@ def postprocess_qa_predictions(
     output_dir: Optional[str] = None,
     prefix: Optional[str] = None,
     log_level: Optional[int] = logging.WARNING,
+    filter_threshold: float = -1e5,
 ):
     """
     Post-processes the predictions of a question-answering model to convert them to answers that are substrings of the
@@ -47,9 +48,9 @@ def postprocess_qa_predictions(
     Args:
         examples: The non-preprocessed dataset (see the main script for more information).
         features: The processed dataset (see the main script for more information).
-        predictions (:obj:`Tuple[np.ndarray, np.ndarray]`):
+        predictions (:obj:`Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]`):
             The predictions of the model: two arrays containing the start logits and the end logits respectively. Its
-            first dimension must match the number of elements of :obj:`features`.
+            first dimension must match the number of elements of :obj:`features`. Also includes filter start/end logits.
         version_2_with_negative (:obj:`bool`, `optional`, defaults to :obj:`False`):
             Whether or not the underlying dataset contains examples with no answers.
         n_best_size (:obj:`int`, `optional`, defaults to 20):
@@ -73,9 +74,9 @@ def postprocess_qa_predictions(
         log_level (:obj:`int`, `optional`, defaults to ``logging.WARNING``):
             ``logging`` log level (e.g., ``logging.WARNING``)
     """
-    if len(predictions) != 2:
+    if len(predictions) != 4:
         raise ValueError("`predictions` should be a tuple with two elements (start_logits, end_logits).")
-    all_start_logits, all_end_logits = predictions
+    all_start_logits, all_end_logits, all_filter_start_logits, all_filter_end_logits = predictions
 
     if len(predictions[0]) != len(features):
         raise ValueError(f"Got {len(predictions[0])} predictions and {len(features)} features.")
@@ -91,6 +92,8 @@ def postprocess_qa_predictions(
     all_nbest_json = collections.OrderedDict()
     if version_2_with_negative:
         scores_diff_json = collections.OrderedDict()
+    total_count = 0.0
+    saved_count = 0.0
 
     # Logging.
     logger.setLevel(log_level)
@@ -109,6 +112,8 @@ def postprocess_qa_predictions(
             # We grab the predictions of the model for this feature.
             start_logits = all_start_logits[feature_index]
             end_logits = all_end_logits[feature_index]
+            filter_start_logits = all_filter_start_logits[feature_index]
+            filter_end_logits = all_filter_end_logits[feature_index]
             # This is what will allow us to map some the positions in our logits to span of texts in the original
             # context.
             offset_mapping = features[feature_index]["offset_mapping"]
@@ -147,6 +152,11 @@ def postprocess_qa_predictions(
                     # provided).
                     if token_is_max_context is not None and not token_is_max_context.get(str(start_index), False):
                         continue
+
+                    total_count += 1
+                    if filter_start_logits[start_index] < filter_threshold or filter_end_logits[end_index] < filter_threshold:
+                        continue
+                    saved_count += 1
                     prelim_predictions.append(
                         {
                             "offsets": (offset_mapping[start_index][0], offset_mapping[end_index][1]),
@@ -239,7 +249,7 @@ def postprocess_qa_predictions(
             with open(null_odds_file, "w") as writer:
                 writer.write(json.dumps(scores_diff_json, indent=4) + "\n")
 
-    return all_predictions
+    return all_predictions, saved_count/total_count
 
 
 def postprocess_qa_predictions_with_beam_search(
