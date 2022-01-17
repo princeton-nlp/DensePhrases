@@ -151,7 +151,7 @@ class Encoder(PreTrainedModel):
         input_ids_=None, attention_mask_=None, token_type_ids_=None,
         start_positions=None, end_positions=None,
         neg_input_ids=None, neg_attention_mask=None, neg_token_type_ids=None,
-        feature_id_to_example_id=None, example_id=None,
+        example_id=None,
     ):
 
         # Context-side

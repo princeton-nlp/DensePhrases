@@ -206,7 +206,7 @@ class QuestionAnsweringTrainer(Trainer):
             # import pdb; pdb.set_trace()
             for item_idx, (start, end, filter_start, filter_end) in enumerate(zip(*mini_batch)):
                 yield {
-                    'example_id': examples[inputs['feature_id_to_example_id'][item_idx].item()]['id'],
+                    'example_id': inputs['example_id'][item_idx].item(),
                     'feature_id': feature_id, # dataloader should not be shuffled
                     'start': to_numpy(start),
                     'end': to_numpy(end),
@@ -215,7 +215,7 @@ class QuestionAnsweringTrainer(Trainer):
                 }
                 feature_id += 1
     
-    def generate_phrase_vecs(self, dataset, examples, output_dump_file, args, ignore_keys=None):
+    def generate_phrase_vecs(self, dataset, examples, output_dump_file, offset, args, ignore_keys=None):
         predict_dataloader = self.get_test_dataloader(dataset)
 
         eval_loop = self.yield_phrases_loop
@@ -226,4 +226,4 @@ class QuestionAnsweringTrainer(Trainer):
             ignore_keys=ignore_keys,
         )
 
-        write_phrases(examples, dataset, output, self.tokenizer, output_dump_file, args)
+        write_phrases(examples, dataset, output, self.tokenizer, output_dump_file, offset, args)

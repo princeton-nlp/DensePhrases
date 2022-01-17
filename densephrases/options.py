@@ -22,8 +22,6 @@ class Options():
         self.use_training_args = False
 
     def add_model_options(self):
-        self.parser.add_argument("--model_type", type=str, default='bert',
-                        help="Model type selected in the list",)
         self.parser.add_argument("--pretrained_name_or_path", type=str, default='SpanBERT/spanbert-base-cased',
                         help="Path to pre-trained model or shortcut name selected in the list",)
         self.parser.add_argument("--config_name", type=str, default="SpanBERT/spanbert-base-cased",

@@ -138,9 +138,8 @@ train-rc-ddp:
 		$(OPTIONS)
 
 # 2) Trained phrase encoders can be used to generate phrase vectors
-gen-vecs:
+gen-vecs: model-name nq-rc-data
 	python generate_phrase_vecs.py \
-		--model_type bert \
 		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
 		--cache_dir $(CACHE_DIR) \
 		--test_file $(DATA_DIR)/single-qa/$(DEV_DATA) \
@@ -174,7 +173,6 @@ compress-meta:
 eval-index: dump-dir model-name large-index nq-open-data
 	python eval_phrase_retrieval.py \
 		--run_mode eval \
-		--model_type bert \
 		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
 		--cuda \
 		--cache_dir $(CACHE_DIR) \
@@ -186,6 +184,19 @@ eval-index: dump-dir model-name large-index nq-open-data
 		--aggregate \
 		$(OPTIONS)
 
+# Wrapper for index => compress => eval
+index-compress-eval: model-name nq-rc-data medium1-index
+	make index-vecs \
+		DUMP_DIR=$(DUMP_DIR) \
+		NUM_CLUSTERS=$(NUM_CLUSTERS) INDEX_TYPE=$(INDEX_TYPE)
+	make compress-meta \
+		DUMP_DIR=$(DUMP_DIR)
+	make eval-index \
+		DUMP_DIR=$(DUMP_DIR) \
+		NUM_CLUSTERS=$(NUM_CLUSTERS) INDEX_TYPE=$(INDEX_TYPE) \
+		MODEL_LANE=$(MODEL_NAME) TEST_DATA=$(SOD_DATA) \
+		OPTIONS=$(OPTIONS)
+
 # Sample usage (If this runs without an error, you are all set!)
 draft: model-name nq-rc-data nq-param pbn-param small-index
 	make train-rc \
@@ -196,12 +207,7 @@ draft: model-name nq-rc-data nq-param pbn-param small-index
 		OPTIONS='$(PBN_OPTIONS) $(OPTIONS) --draft'
 	make gen-vecs \
 		DEV_DATA=$(DEV_DATA) MODEL_NAME=$(MODEL_NAME)
-	make index-vecs \
-		DUMP_DIR=$(SAVE_DIR)/$(MODEL_NAME)/dump \
-		NUM_CLUSTERS=$(NUM_CLUSTERS) INDEX_TYPE=$(INDEX_TYPE)
-	make compress-meta \
-		DUMP_DIR=$(SAVE_DIR)/$(MODEL_NAME)/dump
-	make eval-index \
+	make index-compress-eval \
 		DUMP_DIR=$(SAVE_DIR)/$(MODEL_NAME)/dump \
 		NUM_CLUSTERS=$(NUM_CLUSTERS) INDEX_TYPE=$(INDEX_TYPE) \
 		MODEL_LANE=$(MODEL_NAME) TEST_DATA=$(SOD_DATA) \
@@ -225,12 +231,7 @@ run-rc-nq: model-name nq-rc-data nq-param pbn-param small-index
 		OPTIONS='$(PBN_OPTIONS) $(OPTIONS) --load_dir $(SAVE_DIR)/$(MODEL_NAME)_tmp'
 	make gen-vecs \
 		DEV_DATA=$(DEV_DATA) MODEL_NAME=$(MODEL_NAME)
-	make index-vecs \
-		DUMP_DIR=$(SAVE_DIR)/$(MODEL_NAME)/dump \
-		NUM_CLUSTERS=$(NUM_CLUSTERS) INDEX_TYPE=$(INDEX_TYPE)
-	make compress-meta \
-		DUMP_DIR=$(SAVE_DIR)/$(MODEL_NAME)/dump
-	make eval-index \
+	make index-compress-eval \
 		DUMP_DIR=$(SAVE_DIR)/$(MODEL_NAME)/dump \
 		NUM_CLUSTERS=$(NUM_CLUSTERS) INDEX_TYPE=$(INDEX_TYPE) \
 		MODEL_LANE=$(MODEL_NAME) TEST_DATA=$(SOD_DATA) \
@@ -285,19 +286,20 @@ endif
 
 # Dump phrase vectors in parallel. Dump will be saved in $(SAVE_DIR)/$(MODEL_NAME)_(data_name)/dump.
 gen-vecs-parallel: model-name
+	mkdir -p $(SAVE_DIR)/logs
 	nohup python scripts/parallel/dump_phrases.py \
-		--model_type bert \
 		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
 		--cache_dir $(CACHE_DIR) \
-		--data_dir $(DATA_DIR)/wikidump \
-		--data_name wiki-dev \
+		--test_dir $(DATA_DIR)/wikidump \
+		--dump_name wiki-dev \
 		--load_dir $(SAVE_DIR)/$(MODEL_NAME) \
 		--output_dir $(SAVE_DIR)/$(MODEL_NAME) \
 		--filter_threshold 1.0 \
 		--append_title \
 		--start $(START) \
 		--end $(END) \
-		> $(SAVE_DIR)/logs/$(MODEL_NAME)_$(START)-$(END).log &
+		--num_procs 4 \
+	> $(SAVE_DIR)/logs/$(MODEL_NAME)_$(START)-$(END).log &
 
 # Parallel add for large-scale on-disk IVFSQ (start, end = file idx)
 index-add: dump-dir large-index-sq
@@ -420,7 +422,6 @@ train-query: dump-dir model-name nq-open-data large-index
 eval-index-all: dump-dir model-name large-index all-open-data
 	python eval_phrase_retrieval.py \
 		--run_mode eval_all \
-		--model_type bert \
 		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
 		--cuda \
 		--dump_dir $(DUMP_DIR) \
@@ -488,7 +489,6 @@ single-serve:
 eval-index-psg: dump-dir model-name large-index nq-open-data
 	python eval_phrase_retrieval.py \
 		--run_mode eval \
-		--model_type bert \
 		--pretrained_name_or_path SpanBERT/spanbert-base-cased \
 		--cuda \
 		--dump_dir $(DUMP_DIR) \

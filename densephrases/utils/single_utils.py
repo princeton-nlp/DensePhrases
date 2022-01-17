@@ -2,7 +2,8 @@ import random
 import torch
 import logging
 import copy
-import os
+import pdb
+import sys
 import numpy as np
 
 from functools import partial
@@ -142,3 +143,17 @@ def load_encoder(device, args, phrase_only=False, query_only=False, freeze_embed
     model.to(device)
     logger.info('Number of model parameters: {:,}'.format(sum(p.numel() for p in model.parameters())))
     return model, tokenizer, config
+
+
+class ForkedPdb(pdb.Pdb):
+    """A Pdb subclass that may be used
+    from a forked multiprocessing child
+
+    """
+    def interaction(self, *args, **kwargs):
+        _stdin = sys.stdin
+        try:
+            sys.stdin = open('/dev/stdin')
+            pdb.Pdb.interaction(self, *args, **kwargs)
+        finally:
+            sys.stdin = _stdin

@@ -14,13 +14,15 @@ import tqdm
 import h5py
 import numpy as np
 import torch
+import sys
+import pdb
 
 from functools import partial
 from multiprocessing import Queue, Process, Pool, cpu_count
 from threading import Thread
 from time import time
 from tqdm import tqdm
-from .single_utils import to_list
+from .single_utils import to_list, ForkedPdb
 from .file_utils import is_torch_available
 from torch.utils.data import DataLoader, SequentialSampler, TensorDataset
 
@@ -30,12 +32,12 @@ logger = logging.getLogger(__name__)
 quant_stat = {}
 b_quant_stat = {}
 
-id2example = None
-features_per_example = None
+fid2example = None
+eid2fids = None
 
 
 def get_metadata(features, results, max_answer_length, tokenizer, has_title):
-    global id2example, features_per_example
+    global fid2example, eid2fids
 
     assert len(features) == len(results)
 
@@ -52,7 +54,7 @@ def get_metadata(features, results, max_answer_length, tokenizer, has_title):
     )
 
     if max_answer_length is None:
-        example = id2example[results[-1]['feature_id']]
+        example = fid2example[results[-1]['feature_id']]
         metadata = {
             'did': example['doc_idx'], 'title': example['title'],
             'filter_start': fs, 'filter_end': fe
@@ -82,16 +84,17 @@ def get_metadata(features, results, max_answer_length, tokenizer, has_title):
     sep = ' [PAR] '
     full_text = ""
     prev_example = None
+    # ForkedPdb().set_trace()
     word_pos = 0
     for f_idx, (feature, to) in enumerate(zip(features, toffs)):
         result = results[f_idx]
-        example = id2example[result['feature_id']]
-        if prev_example is not None and features_per_example[result['example_id']][0] == result['feature_id']:
+        example = fid2example[result['feature_id']]
+        if prev_example is not None and eid2fids[result['example_id']][0] == result['feature_id']:
             full_text = full_text + prev_example['context'] + sep
 
         for i in range(to+1, sum(feature['attention_mask']) - 1):
-            word2char_start[word_pos] = feature['offset_mapping'][i][0]
-            word2char_end[word_pos] = feature['offset_mapping'][i][1]
+            word2char_start[word_pos] = feature['offset_mapping'][i][0] + len(full_text)
+            word2char_end[word_pos] = feature['offset_mapping'][i][1] + len(full_text)
             word_pos += 1
         prev_example = example
     full_text = full_text + prev_example['context']
@@ -168,18 +171,16 @@ def pool_func(item):
     return metadata_
 
 
-def write_phrases(all_examples, all_features, all_results, tokenizer, output_dump_file, args):
-
+def write_phrases(all_examples, all_features, all_results, tokenizer, output_dump_file, offset, args):
+    global fid2example, eid2fids
     assert len(all_examples) > 0
+
     # unique_id to feature, example
-    id2feature = {id: feature for id, feature in enumerate(all_features)}
-    id2example_ = {id: all_examples[id2feature[id]['feature_id_to_example_id']] for id in id2feature}
-
-    global features_per_example
-
-    features_per_example = collections.defaultdict(list)
+    fid2feature = {id: feature for id, feature in enumerate(all_features)}
+    fid2example = {id: all_examples[fid2feature[id]['example_id']] for id in fid2feature}
+    eid2fids = collections.defaultdict(list)
     for i, feature in enumerate(all_features):
-        features_per_example[feature["example_id"]].append(i)
+        eid2fids[feature["example_id"]].append(i)
 
     def add(inqueue_, outqueue_):
         for item in iter(inqueue_.get, None):
@@ -200,7 +201,7 @@ def write_phrases(all_examples, all_features, all_results, tokenizer, output_dum
                 metadata = outqueue_.get()
                 if metadata:
                     # start_time = time()
-                    did = str(metadata['did'])
+                    did = str(offset + metadata['did'])
                     if did in f:
                         logger.info('%s exists; replacing' % did)
                         del f[did]
@@ -232,11 +233,10 @@ def write_phrases(all_examples, all_features, all_results, tokenizer, output_dum
     results = []
     inqueue = Queue(maxsize=50)
     outqueue = Queue(maxsize=50)
-    NUM_THREAD = 10
+    NUM_THREAD = 50
     in_p_list = [Process(target=add, args=(inqueue, outqueue)) for _ in range(NUM_THREAD)]
     out_p_list = [Thread(target=write, args=(outqueue,)) for _ in range(NUM_THREAD)]
-    global id2example
-    id2example = id2example_
+    
     for in_p in in_p_list:
         in_p.start()
     for out_p in out_p_list:
@@ -244,20 +244,20 @@ def write_phrases(all_examples, all_features, all_results, tokenizer, output_dum
 
     start_time = time()
     for count, result in enumerate(tqdm(all_results, total=len(all_features))):
-        example = id2example[result['feature_id']]
-        feature = id2feature[result['feature_id']]
+        example = fid2example[result['feature_id']]
+        feature = fid2feature[result['feature_id']]
         condition = (
             len(features) > 0 and example['par_idx'] == 0 \
-            and features_per_example[result['example_id']][0] == result['feature_id'] # First span
+            and eid2fids[result['example_id']][0] == result['feature_id'] # First span
         )
         assert result['feature_id'] == count, (result['feature_id'], count)
 
         if condition:
             in_ = (features, results)
             inqueue.put(in_)
-            prev_ex = id2example[results[0]['feature_id']]
+            prev_ex = fid2example[results[0]['feature_id']]
             if prev_ex['doc_idx'] % 200 == 0:
-                logger.info(f"saving {len(features)} features from doc {prev_ex['title']} (doc_idx: {prev_ex['doc_idx']})")
+                logger.info(f"saving {len(features)} features from doc {prev_ex['title']} (doc_idx: {offset + prev_ex['doc_idx']})")
                 logger.info(
                     '[%d/%d at %.1f second] ' % (count + 1, len(all_features), time() - start_time) +
                     '[inqueue, outqueue size: %d vs %d]' % (inqueue.qsize(), outqueue.qsize())

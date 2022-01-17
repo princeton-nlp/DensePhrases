@@ -11,29 +11,38 @@ def convert_squad_to_hf(input_file):
         title = article['title']
         for par_idx, paragraph in enumerate(article['paragraphs']):
             context = paragraph['context']
-            for qa in paragraph['qas']:
-                id = qa['id'] if 'id' in qa else paragraph['id'] # TODO WebQuestions fix
-                question = qa['question']
-                answers = {
-                    'text': [answer['text'] for answer in qa['answers']],
-                    'answer_start': [answer['answer_start'] for answer in qa['answers']]
-                }
-                is_impossible = qa['is_impossible'] if 'is_impossible' in qa else False
-                # Add more if any
 
-                # Sanity check
-                for answer in qa['answers']:
-                    assert context[answer['answer_start']:answer['answer_start']+len(answer['text'])] == answer['text']
+            if 'qas' in paragraph:
+                for qa in paragraph['qas']:
+                    id = qa['id'] if 'id' in qa else paragraph['id'] # TODO WebQuestions fix
+                    question = qa['question']
+                    answers = {
+                        'text': [answer['text'] for answer in qa['answers']],
+                        'answer_start': [answer['answer_start'] for answer in qa['answers']]
+                    }
+                    is_impossible = qa['is_impossible'] if 'is_impossible' in qa else False
+                    # Add more if any
 
+                    # Sanity check
+                    for answer in qa['answers']:
+                        assert context[answer['answer_start']:answer['answer_start']+len(answer['text'])] == answer['text']
+
+                    outputs.append({
+                        'id': str(id),
+                        'doc_idx': doc_idx,
+                        'par_idx': par_idx,
+                        'title': ' '.join(title.split(' ')[:10]),
+                        'context': context,
+                        'question': question,
+                        'answers': answers,
+                        'is_impossible': is_impossible
+                    })
+            else:
                 outputs.append({
-                    'id': str(id),
                     'doc_idx': doc_idx,
                     'par_idx': par_idx,
                     'title': ' '.join(title.split(' ')[:10]),
                     'context': context,
-                    'question': question,
-                    'answers': answers,
-                    'is_impossible': is_impossible
                 })
     
     output_file = os.path.join(os.path.dirname(input_file), os.path.splitext(os.path.basename(input_file))[0] + '_hf.json')
