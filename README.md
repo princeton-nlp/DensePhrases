@@ -13,6 +13,7 @@ Please see our ACL paper ([Learning Dense Representations of Phrases at Scale](h
 **\*\*\*\*\* Try out our online demo of DensePhrases [here](http://densephrases.korea.ac.kr)! \*\*\*\*\***
 
 ### Updates
+* \[**Jan 18, 2022**\] [DensePhrases v1.1.0](https://github.com/princeton-nlp/DensePhrases/tree/v1.1.0) released for `transformers==4.13.0` (see [notes](https://github.com/princeton-nlp/DensePhrases/releases)).
 * \[**Nov 22, 2021**\] [Test prediction files](#model-list) of `densephrases-multi-query-*` added.
 * \[**Oct 10, 2021**\] See our [blog post on phrase retrieval](https://princeton-nlp.github.io/phrase-retrieval-and-beyond/) to learn more about phrase retrieval!
 * \[**Sep 23, 2021**\] More examples on [entity linking](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/entity-linking), [knowledge-grounded dialouge](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/knowledge-dialogue), and [slot filling](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/slot-filling).
@@ -75,6 +76,12 @@ cd DensePhrases
 pip install -r requirements.txt
 python setup.py develop
 ```
+
+`main` branch uses `python==3.7` and `transformers==2.9.0`. See below for other versions of DensePhrases.
+|              Release              | Note | Description |
+|:----------------------------------:|:--------:|:--------|
+| [v1.0.0](https://github.com/princeton-nlp/DensePhrases/tree/v1.0.0) | [link](https://github.com/princeton-nlp/DensePhrases/releases/tag/v1.0.0) | `transformers==2.9.0`, same as `main`| 
+| [v1.1.0](https://github.com/princeton-nlp/DensePhrases/tree/v1.1.0) | [link](https://github.com/princeton-nlp/DensePhrases/releases/tag/v1.1.0) |`transformers==4.13.0` |
 
 ## Resources
 Before downloading the required files below, please set the default directories as follows and ensure that you have enough storage to download and unzip the files:
