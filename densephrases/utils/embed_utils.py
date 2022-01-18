@@ -14,8 +14,6 @@ import tqdm
 import h5py
 import numpy as np
 import torch
-import sys
-import pdb
 
 from functools import partial
 from multiprocessing import Queue, Process, Pool, cpu_count
@@ -138,6 +136,7 @@ def float_to_int8(num, offset, factor):
 
 def int8_to_float(num, offset, factor):
     return num.astype(np.float32) / factor + offset
+
 
 def compress_metadata(metadata, dense_offset, dense_scale, record_histogram=False):
     for key in ['start']:
