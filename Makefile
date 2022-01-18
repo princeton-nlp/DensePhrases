@@ -464,6 +464,11 @@ p-serve: dump-dir large-index
 		--query_port $(Q_PORT) \
 		--index_port $(I_PORT) > $(SAVE_DIR)/logs/p-serve_$(I_PORT).log &
 
+# Serve demo
+serve-demo: model-name dump-dir large-index
+	CUDA_VISIBLE_DEVICES=4 make q-serve MODEL_NAME=$(MODEL_NAME) Q_PORT=$(Q_PORT)
+	CUDA_VISIBLE_DEVICES=4 make p-serve DUMP_DIR=$(DUMP_DIR) Q_PORT=$(Q_PORT) I_PORT=$(I_PORT)
+
 # Evaluation using the open QA demo (used for benchmark)
 eval-demo: nq-open-data
 	python run_demo.py \
@@ -474,14 +479,6 @@ eval-demo: nq-open-data
 		--save_pred \
 		$(OPTIONS)
 
-# (Optional) Serve single-passage RC demo
-single-serve:
-	nohup python run_demo.py \
-		--run_mode single_serve \
-		--cuda \
-		--cache_dir $(CACHE_DIR) \
-		--load_dir $(SAVE_DIR)/$(MODEL_NAME) \
-		--query_port $(Q_PORT) > $(SAVE_DIR)/logs/s-serve_$(Q_PORT).log &
 
 ############################## Passage-level evaluation ###################################
 
