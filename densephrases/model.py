@@ -5,7 +5,7 @@ import os
 
 from densephrases import Options
 from densephrases.utils.single_utils import load_encoder
-from densephrases.utils.open_utils import load_phrase_index, get_query2vec, load_qa_pairs
+from densephrases.utils.open_utils import load_phrase_index, get_query2vec
 from densephrases.utils.data_utils import TrueCaser
 
 logger = logging.getLogger(__name__)
@@ -67,7 +67,7 @@ class DensePhrases(object):
             query = [self.truecase.get_true_case(query) if query == query.lower() else query for query in batch_query]
 
         # Get question vector
-        outs = self.query2vec(batch_query)
+        outs = list(self.query2vec(batch_query))
         start = np.concatenate([out[0] for out in outs], 0)
         end = np.concatenate([out[1] for out in outs], 0)
         query_vec = np.concatenate([start, end], 1)
@@ -110,7 +110,7 @@ class DensePhrases(object):
 
     def set_encoder(self, load_dir, device='cuda'):
         self.args.load_dir = load_dir
-        self.model, self.tokenizer, self.config = load_encoder(device, self.args)
+        self.model, self.tokenizer, self.config = load_encoder(device, self.args, query_only=True)
         self.query2vec = get_query2vec(
             query_encoder=self.model, tokenizer=self.tokenizer, args=self.args, batch_size=64
         )

@@ -466,8 +466,8 @@ p-serve: dump-dir large-index
 
 # Serve demo
 serve-demo: model-name dump-dir large-index
-	CUDA_VISIBLE_DEVICES=4 make q-serve MODEL_NAME=$(MODEL_NAME) Q_PORT=$(Q_PORT)
-	CUDA_VISIBLE_DEVICES=4 make p-serve DUMP_DIR=$(DUMP_DIR) Q_PORT=$(Q_PORT) I_PORT=$(I_PORT)
+	CUDA_VISIBLE_DEVICES=0 make q-serve MODEL_NAME=$(MODEL_NAME) Q_PORT=$(Q_PORT)
+	CUDA_VISIBLE_DEVICES=0 make p-serve DUMP_DIR=$(DUMP_DIR) Q_PORT=$(Q_PORT) I_PORT=$(I_PORT)
 
 # Evaluation using the open QA demo (used for benchmark)
 eval-demo: nq-open-data
