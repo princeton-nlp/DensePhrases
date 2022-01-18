@@ -107,7 +107,6 @@ class QuestionAnsweringTrainer(Trainer):
         compute_metrics = self.compute_metrics
         self.compute_metrics = None
         eval_loop = self.prediction_loop if self.args.use_legacy_prediction_loop else self.evaluation_loop
-        # import pdb; pdb.set_trace()
         try:
             output = eval_loop(
                 predict_dataloader,
@@ -203,7 +202,6 @@ class QuestionAnsweringTrainer(Trainer):
 
             # Prediction step (loss, logits, labels) => get only (start, end, filter_start_logits, filter_end_logits)
             mini_batch = self.prediction_step(model, inputs, prediction_loss_only, ignore_keys=ignore_keys)[1]
-            # import pdb; pdb.set_trace()
             for item_idx, (start, end, filter_start, filter_end) in enumerate(zip(*mini_batch)):
                 yield {
                     'example_id': inputs['example_id'][item_idx].item(),

@@ -187,7 +187,7 @@ def get_top_phrases(mips, q_ids, questions, answers, titles, query_encoder, toke
         outs = search_fn(
             query_vec,
             q_texts=questions[q_idx:q_idx+step], nprobe=args.nprobe,
-            top_k=args.top_k, return_idxs=True,
+            top_k=args.top_k, return_vecs=True,
             max_answer_length=args.max_answer_length, aggregate=args.aggregate, agg_strat=args.agg_strat,
         )
         yield (
@@ -198,7 +198,7 @@ def get_top_phrases(mips, q_ids, questions, answers, titles, query_encoder, toke
 
 def annotate_phrase_vecs(mips, q_ids, questions, answers, titles, phrase_groups, args):
     assert mips is not None
-    batch_size = len(answers)
+    batch_size = len(q_ids)
     dummy_group = {
         'doc_idx': -1,
         'start_idx': 0, 'end_idx': 0,

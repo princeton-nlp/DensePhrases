@@ -36,6 +36,7 @@ def load_phrase_index(args, ignore_logging=False):
         phrase_dump_dir=phrase_dump_dir,
         index_path=index_path,
         idx2id_path=idx2id_path,
+        nprobe=args.nprobe,
         cuda=args.cuda,
         logging_level=logging.WARNING if ignore_logging else (logging.DEBUG if args.verbose_logging else logging.INFO),
     )
