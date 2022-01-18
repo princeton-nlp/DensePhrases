@@ -17,7 +17,8 @@ from tornado.ioloop import IOLoop
 from requests_futures.sessions import FuturesSession
 
 from eval_phrase_retrieval import evaluate_results, evaluate_results_kilt
-from densephrases.utils.single_utils import load_encoder, TrueCaser
+from densephrases.utils.single_utils import load_encoder
+from densephrases.utils.data_utils import TrueCaser
 from densephrases.utils.open_utils import load_phrase_index, load_cross_encoder, load_qa_pairs, get_query2vec
 from densephrases import Options
 
@@ -38,7 +39,7 @@ class DensePhrasesDemo(object):
     def serve_query_encoder(self, query_port, args, inmemory=False, batch_size=64, query_encoder=None, tokenizer=None):
         device = 'cuda' if args.cuda else 'cpu'
         if query_encoder is None:
-            query_encoder, tokenizer, _ = load_encoder(device, args)
+            query_encoder, tokenizer, _ = load_encoder(device, args, query_only=True)
         query2vec = get_query2vec(
             query_encoder=query_encoder, tokenizer=tokenizer, args=args, batch_size=batch_size
         )
@@ -196,7 +197,6 @@ class DensePhrasesDemo(object):
         evidences = []
         titles = []
         scores = []
-        all_tokens = []
         start_time = None
         num_q = 0
         for q_idx in tqdm(range(0, len(questions), step)):
@@ -214,12 +214,10 @@ class DensePhrasesDemo(object):
             evidence = [[ret['context'] for ret in out] if len(out) > 0 else [''] for out in result['ret']]
             title = [[ret['title'] for ret in out] if len(out) > 0 else [''] for out in result['ret']]
             score = [[ret['score'] for ret in out] if len(out) > 0 else [-1e10] for out in result['ret']]
-            q_tokens = [out[0]['query_tokens'] if len(out) > 0 else '' for out in result['ret']]
             predictions += prediction
             evidences += evidence
             titles += title
             scores += score
-        latency = time()-start_time
         logger.info(f'{time()-start_time:.3f} sec for {num_q} questions => {num_q/(time()-start_time):.1f} Q/Sec')
         eval_fn = evaluate_results if not args.is_kilt else evaluate_results_kilt
         eval_fn(
