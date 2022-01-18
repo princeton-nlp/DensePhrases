@@ -13,6 +13,7 @@ Please see our ACL paper ([Learning Dense Representations of Phrases at Scale](h
 **\*\*\*\*\* Try out our online demo of DensePhrases [here](http://densephrases.korea.ac.kr)! \*\*\*\*\***
 
 ### Updates
+* \[**Jan 18, 2022**\] [DensePhrases v1.1.0](https://github.com/princeton-nlp/DensePhrases/tree/v1.1.0) released for `transformers==4.13.0` (see [notes](https://github.com/princeton-nlp/DensePhrases/releases)).
 * \[**Nov 22, 2021**\] [Test prediction files](#model-list) of `densephrases-multi-query-*` added.
 * \[**Oct 10, 2021**\] See our [blog post on phrase retrieval](https://princeton-nlp.github.io/phrase-retrieval-and-beyond/) to learn more about phrase retrieval!
 * \[**Sep 23, 2021**\] More examples on [entity linking](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/entity-linking), [knowledge-grounded dialouge](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/knowledge-dialogue), and [slot filling](https://github.com/princeton-nlp/DensePhrases/tree/main/examples/slot-filling).
