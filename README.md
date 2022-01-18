@@ -58,21 +58,13 @@ We provide more [examples](https://github.com/princeton-nlp/DensePhrases/tree/ma
 
 ## Installation
 ```bash
-# Install torch with conda (please check your CUDA version)
-conda create -n densephrases python=3.7
-conda activate densephrases
-conda install pytorch=1.9.0 cudatoolkit=11.0 -c pytorch
-
-# Install apex
-git clone https://www.github.com/nvidia/apex.git
-cd apex
-python setup.py install
-cd ..
+# Install from environment.yml (python >= 3.8, transformers==4.13.0)
+conda env create --file environment.yml
+conda activate densephrases-v1.1.0
 
 # Install DensePhrases
-git clone -b v1.0.0 https://github.com/princeton-nlp/DensePhrases.git
+git clone -b v1.1.0 https://github.com/princeton-nlp/DensePhrases.git
 cd DensePhrases
-pip install -r requirements.txt
 python setup.py develop
 ```
 
