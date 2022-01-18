@@ -390,7 +390,7 @@ def get_question_results(query_eval_features, question_dataloader, device, model
         batch = tuple(t.to(device) for t in batch)
         assert len(batch) == 4
 
-        with torch.no_grad():
+        with torch.inference_mode():
             inputs = {
                 "input_ids_": batch[0],
                 "attention_mask_": batch[1],

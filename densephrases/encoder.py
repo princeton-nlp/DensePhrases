@@ -308,7 +308,7 @@ class Encoder(PreTrainedModel):
             # 2) Distillation loss with a cross-encoder model
             if self.lambda_kl > 0:
                 self.cross_encoder.eval()
-                with torch.no_grad():
+                with torch.inference_mode():
                     new_input_ids, new_attention_mask, new_token_type_ids = self.merge_inputs(
                         input_ids_, attention_mask_, input_ids, attention_mask
                     )

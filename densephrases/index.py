@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class MIPS(object):
-    def __init__(self, phrase_dump_dir, index_path, idx2id_path, nprobe, fast=True, cuda=False, logging_level=logging.INFO):
+    def __init__(self, phrase_dump_dir, index_path, idx2id_path, nprobe, fast=False, cuda=False, logging_level=logging.INFO):
         self.phrase_dump_dir = phrase_dump_dir
 
         # Read index
@@ -220,7 +220,7 @@ class MIPS(object):
                 end_idxs[b_idx].extend(b_end_idxs[b_idx][matching_idxs[1]])
                 scores[b_idx].extend(s_scores[matching_idxs[0]] + b_end_scores[b_idx][matching_idxs[1]])
 
-            max_idx = max([len(doc_idx) for doc_idx in doc_idxs])
+            max_idx = top_k**2
             for doc_idx, start_idx, end_idx, score in zip(doc_idxs, start_idxs, end_idxs, scores):
                 while len(doc_idx) != max_idx:
                     doc_idx.append(-1)
@@ -369,7 +369,7 @@ class MIPS(object):
                     float(groups_all[default_doc]['offset']), float(groups_all[default_doc]['scale']), each_end
                 )
 
-            with torch.no_grad():
+            with torch.inference_mode():
                 end = torch.FloatTensor(end).to(self.device)
                 end = end.matmul(self.R) if not get_from_hdf5 else end
                 query_end = torch.FloatTensor(query_end).to(self.device)
@@ -394,7 +394,7 @@ class MIPS(object):
                     float(groups_all[default_doc]['offset']), float(groups_all[default_doc]['scale']), each_start
                 )
 
-            with torch.no_grad():
+            with torch.inference_mode():
                 start = torch.FloatTensor(start).to(self.device)
                 start = start.matmul(self.R) if not get_from_hdf5 else start
                 query_start = torch.FloatTensor(query_start).to(self.device)

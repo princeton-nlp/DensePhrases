@@ -71,7 +71,7 @@ class DensePhrasesDemo(object):
         CORS(app)
 
         def batch_search(batch_query, max_answer_length=20, top_k=10,
-                         nprobe=64, return_idxs=False):
+                         nprobe=64, return_vecs=False):
             t0 = time()
             outs, _ = self.embed_query(batch_query)()
             start = np.concatenate([out[0] for out in outs], 0)
@@ -81,7 +81,7 @@ class DensePhrasesDemo(object):
             rets = mips.search(
                 query_vec, q_texts=batch_query, nprobe=nprobe,
                 top_k=top_k, max_answer_length=max_answer_length,
-                return_idxs=return_idxs, aggregate=True,
+                return_vecs=return_vecs, aggregate=True,
             )
             for ret_idx, ret in enumerate(rets):
                 for rr in ret:
