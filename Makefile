@@ -411,7 +411,7 @@ train-query: dump-dir model-name nq-open-data large-index
 		--num_train_epochs 5 \
 		--dump_dir $(DUMP_DIR) \
 		--index_name start/$(NUM_CLUSTERS)_flat_$(INDEX_TYPE) \
-		--load_dir $(SAVE_DIR)/densephrases-multi \
+		--load_dir princeton-nlp/densephrases-multi \
 		--output_dir $(SAVE_DIR)/$(MODEL_NAME) \
 		--top_k 100 \
 		--cuda \
