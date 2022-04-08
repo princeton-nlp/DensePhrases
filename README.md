@@ -69,6 +69,12 @@ cd DensePhrases
 python setup.py develop
 ```
 
+`main` branch uses `python==3.7` and `transformers==2.9.0`. See below for other versions of DensePhrases.
+|              Release              | Note | Description |
+|:----------------------------------:|:--------:|:--------|
+| [v1.0.0](https://github.com/princeton-nlp/DensePhrases/tree/v1.0.0) | [link](https://github.com/princeton-nlp/DensePhrases/releases/tag/v1.0.0) | `transformers==2.9.0`, same as `main`| 
+| [v1.1.0](https://github.com/princeton-nlp/DensePhrases/tree/v1.1.0) | [link](https://github.com/princeton-nlp/DensePhrases/releases/tag/v1.1.0) |`transformers==4.13.0` |
+
 ## Resources
 Before downloading the required files below, please set the default directories as follows and ensure that you have enough storage to download and unzip the files:
 ```bash

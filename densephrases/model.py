@@ -77,7 +77,7 @@ class DensePhrases(object):
         if retrieval_unit not in agg_strats:
             raise NotImplementedError(f'"{retrieval_unit}" not supported. Choose one of {agg_strats.keys()}.')
         search_top_k = top_k
-        if retrieval_unit in ['sentece', 'paragraph', 'document']:
+        if retrieval_unit in ['sentence', 'paragraph', 'document']:
             search_top_k *= 2
         rets = self.mips.search(
             query_vec, q_texts=batch_query, nprobe=256,
