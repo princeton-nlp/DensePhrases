@@ -105,8 +105,6 @@ train-rc: model-name nq-rc-data nq-param
 		$(OPTIONS)
 
 ### Unimplemented features
-# Save best model only?
-# 4. filter_threshold for RC
 # OpenQA WanDB
 # fix options.py
 

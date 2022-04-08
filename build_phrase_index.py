@@ -103,7 +103,6 @@ def train_index(start_data, quantizer_path, trained_index_path, num_clusters,
         start_index = faiss.IndexIVFScalarQuantizer(
             quantizer, ds, num_clusters, faiss.ScalarQuantizer.QT_4bit, faiss.METRIC_INNER_PRODUCT
         )
-
     # Default index type
     elif 'OPQ' in fine_quant:
         code_size = int(fine_quant[fine_quant.index('OPQ')+3:])
