@@ -86,7 +86,7 @@ python /n/fs/nlp-jl5167/miniconda3/envs/fid/lib/python3.6/site-packages/torch/di
     --model_path $SAVE_DIR/fid-data/pretrained_models/nq_reader_base-dph-c5-d4/checkpoint/best_dev \
     --eval_data $SAVE_DIR/$TEST_DATA \
     --per_gpu_batch_size 1 \
-    --n_context 100 \
+    --n_context 5 \
     --write_results \
     --name nq_reader_base-dph-c5-d4 \
     --checkpoint_dir $SAVE_DIR/fid-data/pretrained_models \
