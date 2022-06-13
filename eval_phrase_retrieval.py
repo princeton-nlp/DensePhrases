@@ -1,20 +1,16 @@
 import json
-import argparse
 import torch
 import os
 import random
 import numpy as np
-import requests
 import logging
-import math
 import copy
 import string
-import faiss
-import csv
+import wandb
 import subprocess
 
-from time import time
 from tqdm import tqdm
+from collections import defaultdict
 
 from densephrases.utils.eval_utils import normalize_answer, f1_score, exact_match_score, drqa_exact_match_score, \
         drqa_regex_match_score, drqa_metric_max_over_ground_truths, drqa_normalize
@@ -113,7 +109,7 @@ def evaluate_results(predictions, qids, questions, answers, args, evidences, sco
 
     # Get em/f1
     f1s, ems = [], []
-    for prediction, groundtruth in zip(top1_preds, answers):
+    for prediction, groundtruth in tqdm(zip(top1_preds, answers)):
         if len(groundtruth)==0:
             f1s.append(0)
             ems.append(0)
@@ -124,19 +120,26 @@ def evaluate_results(predictions, qids, questions, answers, args, evidences, sco
     if not args.regex:
         logger.info('EM: %.2f, F1: %.2f'%(final_em * 100, final_f1 * 100))
 
-    # Top 1/k em (or regex em)
+    if args.type2id_path:
+        with open(args.type2id_path) as f:
+            type2ids = json.load(f)
+        id2type = {str(id_): type_ for type_, ids in type2ids.items() for id_ in ids}
+
+    # Top 1/k em (or regex em) TODO: this is very slow
     exact_match_topk = 0
     exact_match_top1 = 0
     f1_score_topk = 0
     f1_score_top1 = 0
-    redundant_topk = 0
+    # redundant_topk = 0
     pred_out = {}
-    for i in range(len(predictions)):
+    per_type_metrics = defaultdict(lambda: defaultdict(list))
+    for i in tqdm(range(len(predictions)), desc='Top-k evaluation'):
+        qtype = id2type[qids[i]] if args.type2id_path else 'None'
         # For debugging
         if i < 3:
-            logger.info(f'{i+1}) {questions[i]}')
+            logger.info(f'{i+1}) {questions[i]} (type = {qtype})')
             logger.info(f'=> groundtruths: {answers[i]}, top 5 prediction: {predictions[i][:5]}')
-
+        
         match_fn = drqa_regex_match_score if args.regex else drqa_exact_match_score
         em_topk = max([drqa_metric_max_over_ground_truths(
             match_fn, prediction, answers[i]
@@ -146,12 +149,14 @@ def evaluate_results(predictions, qids, questions, answers, args, evidences, sco
         )
         exact_match_topk += em_topk
         exact_match_top1 += em_top1
+        per_type_metrics[qtype]['EM'].append(em_top1)
+        per_type_metrics[qtype][f'EM@{args.top_k}'].append(em_topk)
 
         # Compute top-k redundancy (could be ill-defined for regex)
-        rd_topk = sum([drqa_metric_max_over_ground_truths(
-            match_fn, prediction, [predictions[i][0]]
-        ) for prediction in predictions[i][:args.top_k]])
-        redundant_topk += rd_topk
+        # rd_topk = sum([drqa_metric_max_over_ground_truths(
+        #     match_fn, prediction, [predictions[i][0]]
+        # ) for prediction in predictions[i][:args.top_k]])
+        # redundant_topk += rd_topk
 
         f1_topk = 0
         f1_top1 = 0
@@ -165,28 +170,64 @@ def evaluate_results(predictions, qids, questions, answers, args, evidences, sco
             )
             f1_score_topk += f1_topk
             f1_score_top1 += f1_top1
+            per_type_metrics[qtype]['F1'].append(f1_top1)
+            per_type_metrics[qtype][f'F1@{args.top_k}'].append(f1_topk)
 
         # Score statistics
         assert len(predictions[i]) <= args.top_k
         pred_out[qids[i]] = {
+                'id': qids[i],
+                'question_type': qtype,
                 'question': questions[i],
                 'answer': answers[i], 'prediction': predictions[i], 'score': scores[i], 'title': titles[i],
                 'evidence': evidences[i] if evidences is not None else '',
                 'em_top1': bool(em_top1), f'em_top{args.top_k}': bool(em_topk),
                 'f1_top1': f1_top1, f'f1_top{args.top_k}': f1_topk,
                 'se_pos': se_positions[i] if se_positions is not None else (-1, -1),
-                'rd_topk': rd_topk,
+                # 'rd_topk': rd_topk,
         }
 
     total = len(predictions)
-    exact_match_top1 = 100.0 * exact_match_top1 / total
-    f1_score_top1 = 100.0 * f1_score_top1 / total
-    logger.info({'exact_match_top1': exact_match_top1, 'f1_score_top1': f1_score_top1})
-    exact_match_topk = 100.0 * exact_match_topk / total
-    f1_score_topk = 100.0 * f1_score_topk / total
-    logger.info({f'exact_match_top{args.top_k}': exact_match_topk, f'f1_score_top{args.top_k}': f1_score_topk})
-    redundant_topk = redundant_topk / total
-    logger.info({f'redundancy of top{args.top_k}': redundant_topk})
+    exact_match_top1 = f'{100.0 * exact_match_top1 / total:.2f}'
+    exact_match_topk = f'{100.0 * exact_match_topk / total:.2f}'
+    f1_score_top1 = f'{100.0 * f1_score_top1 / total:.2f}'
+    f1_score_topk = f'{100.0 * f1_score_topk / total:.2f}'
+    logger.info(f"Micro Average\t| EM\tEM@{args.top_k}\tF1\tF1@{args.top_k}")
+    logger.info(f"{total} Qs\t| " + ' '.join([exact_match_top1, exact_match_topk, f1_score_top1, f1_score_topk]))
+    print()
+    
+    macro_metric = defaultdict(list)
+    for qtype, metrics in sorted(per_type_metrics.items()):
+        metric_str = '\t'.join(list(metrics.keys()))
+        logger.info(f'Type {qtype}\t| {metric_str}')
+        agg_scores = {metric: f'{100*sum(scores)/len(scores):.2f}' for metric, scores in metrics.items()}
+        score_str = ' '.join(list(agg_scores.values()))
+        logger.info(f'Results\t| {score_str}')
+        num_str = ' '.join([f'{len(scores)}' for scores in metrics.values()])
+        logger.info(f'# of Qs\t| {num_str}')
+        for metric in metrics.keys():
+            macro_metric[metric].append(float(agg_scores[metric]))
+        print()
+    
+    logger.info(f"Macro Average\t| EM\tEM@{args.top_k}\tF1\tF1@{args.top_k}")
+    logger.info(f"Results\t| " + ' '.join([f'{sum(scores)/len(scores):.2f}' for scores in macro_metric.values()]))
+    print()
+    # redundant_topk = redundant_topk / total
+    # logger.info({f'redundancy of top{args.top_k}': redundant_topk})
+
+    if args.wandb:
+        wandb.init(name=os.environ["MODEL_NAME"], project="Multi-type (open)", mode="online")
+        wandb.config.update(args)
+        wandb.log({
+            "eval/exact_match": exact_match_top1, 
+            "eval/exact_match_k": exact_match_topk,
+            "eval/f1": f1_score_top1,
+            "eval/f1_k": f1_score_topk,
+            }
+        )
+        for qtype, metrics in sorted(per_type_metrics.items()):
+            for metric, scores in metrics.items():
+                wandb.log(({f"eval/{qtype}/{metric}": float(f"{100*sum(scores)/len(scores):.2f}")}))
 
     # Dump predictions
     if len(args.load_dir) == 0:

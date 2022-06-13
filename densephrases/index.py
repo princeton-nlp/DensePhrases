@@ -7,8 +7,10 @@ import faiss
 import torch
 import blosc
 import pickle
+import heapq
 import numpy as np
 
+from collections import defaultdict
 from time import time
 from tqdm import tqdm
 from spacy.lang.en import English
@@ -40,6 +42,7 @@ class MIPS(object):
         self.offset = None
         self.scale = None
         self.doc_groups = None
+        self.fast = True
 
         # Options
         logger.setLevel(logging_level)
@@ -207,6 +210,18 @@ class MIPS(object):
         b_start_doc_idxs, b_start_idxs = self.get_idxs(start_I)
         b_end_doc_idxs, b_end_idxs = self.get_idxs(end_I)
 
+        if self.fast:
+            b_doc2se = [defaultdict(lambda: defaultdict(list)) for _ in range(batch_size)]
+            # O(bk)
+            for b_idx, (s_doc_idxs, s_idxs, s_scores) in enumerate(zip(b_start_doc_idxs, b_start_idxs, b_start_scores)):
+                for k, (s_doc_idx, e_doc_idx) in enumerate(zip(s_doc_idxs, b_end_doc_idxs[b_idx])):
+                    b_doc2se[b_idx][s_doc_idx]['start'].append((s_idxs[k], s_scores[k]))
+                    b_doc2se[b_idx][e_doc_idx]['end'].append((b_end_idxs[b_idx][k], b_end_scores[b_idx][k]))
+            
+            logger.debug(f'2) {time()-start_time:.3f}s: get index (fast)')
+            # temporarily put b_end_scores => b_doc2se
+            return b_start_doc_idxs, b_start_idxs, start_I, b_end_doc_idxs, b_end_idxs, end_I, b_start_scores, b_doc2se
+
         # Number of unique docs
         num_docs = sum(
             [len(set(s_doc.flatten().tolist() + e_doc.flatten().tolist()))
@@ -223,17 +238,21 @@ class MIPS(object):
         # Reshape for phrase
         num_queries = query.shape[0]
         query = np.reshape(np.tile(np.expand_dims(query, 1), [1, top_k, 1]), [-1, query.shape[1]])
-        q_idxs = np.reshape(np.tile(np.expand_dims(np.arange(num_queries), 1), [1, top_k*2]), [-1])
         start_doc_idxs = np.reshape(start_doc_idxs, [-1])
         start_idxs = np.reshape(start_idxs, [-1])
         end_doc_idxs = np.reshape(end_doc_idxs, [-1])
         end_idxs = np.reshape(end_idxs, [-1])
-        start_scores = np.reshape(start_scores, [-1])
-        end_scores = np.reshape(end_scores, [-1])
+        start_scores = np.reshape(start_scores, [-1])        
         if orig_start_idxs is not None:
             orig_start_idxs = np.reshape(orig_start_idxs, [-1])
             orig_end_idxs = np.reshape(orig_end_idxs, [-1])
         assert len(start_doc_idxs) == len(start_idxs) == len(end_idxs) == len(start_scores)
+        
+        # TODO: clean
+        if self.fast:
+            b_doc2se = end_scores
+        else:
+            end_scores = np.reshape(end_scores, [-1])
 
         # Set default vec
         start_time = time()
@@ -241,7 +260,7 @@ class MIPS(object):
         bs = query_start.shape[1]
         default_doc = [doc_idx for doc_idx in set(start_doc_idxs.tolist() + end_doc_idxs.tolist()) if doc_idx >= 0][0]
         default_vec = np.zeros(bs).astype(np.float32)
-
+        
         # Get metadata from HDF5
         if (self.doc_groups is None) or (orig_start_idxs is None):
             self.open_dumps()
@@ -278,29 +297,29 @@ class MIPS(object):
                 doc_idx: self.decompress_meta(str(doc_idx))
                 for doc_idx in set(start_doc_idxs.tolist() + end_doc_idxs.tolist()) if doc_idx >= 0
             }
-            groups_start = []
-            for doc_idx, start_idx in zip(start_doc_idxs, orig_start_idxs):
-                reconsts = []
-                for ii in range(start_idx, start_idx+max_answer_length):
-                    try:
-                        reconst = self.reconst_fn(ii)
-                    except:
-                        reconst = np.zeros(bs)
-                    reconsts.append(reconst)
-                groups_start.append({'end': np.array(reconsts)})
-            groups_end = []
-            for doc_idx, end_idx in zip(end_doc_idxs, orig_end_idxs):
-                reconsts = []
-                for ii in range(end_idx-max_answer_length+1, end_idx+1):
-                    try:
-                        reconst = self.reconst_fn(ii)
-                    except:
-                        reconst = np.zeros(bs)
-                    reconsts.append(reconst)
-                groups_end.append({'start': np.array(reconsts)})
-                
-            self.dequant = lambda offset, scale, x: x # no need for dequantization when using reconstruct()
-        logger.debug(f'1) {time()-start_time:.3f}s: reconstruct vecs')
+            if not self.fast:
+                groups_start = []
+                for doc_idx, start_idx in zip(start_doc_idxs, orig_start_idxs):
+                    reconsts = []
+                    for ii in range(start_idx, start_idx+max_answer_length):
+                        try:
+                            reconst = self.reconst_fn(ii)
+                        except:
+                            reconst = np.zeros(bs)
+                        reconsts.append(reconst)
+                    groups_start.append({'end': np.array(reconsts)})
+                groups_end = []
+                for doc_idx, end_idx in zip(end_doc_idxs, orig_end_idxs):
+                    reconsts = []
+                    for ii in range(end_idx-max_answer_length+1, end_idx+1):
+                        try:
+                            reconst = self.reconst_fn(ii)
+                        except:
+                            reconst = np.zeros(bs)
+                        reconsts.append(reconst)
+                    groups_end.append({'start': np.array(reconsts)})
+                self.dequant = lambda offset, scale, x: x # no need for dequantization when using reconstruct()
+            logger.debug(f'1) {time()-start_time:.3f}s: reconstruct vecs')
 
         def valid_phrase(start_idx, end_idx, doc_idx, max_ans_len):
             if doc_idx < 0:
@@ -320,88 +339,133 @@ class MIPS(object):
 
             return True
 
-        # Find end for start_idxs
-        start_time = time()
-        ends = [group_start['end'] for start_idx, group_start in zip(start_idxs, groups_start)]
-        new_end_idxs = [[
-            start_idx+i
-            if valid_phrase(start_idx, start_idx+i, doc_idx, max_answer_length) else -1 for i in range(max_answer_length)
-            ] for start_idx, doc_idx in zip(start_idxs, start_doc_idxs)
-        ]
-        end_mask = -1e9 * (np.array(new_end_idxs) < 0)  # [Q, L]
-        end = np.zeros((query.shape[0], max_answer_length, default_vec.shape[0]), dtype=np.float32)
-        for end_idx, each_end in enumerate(ends):
-            end[end_idx, :each_end.shape[0], :] = self.dequant(
-                float(groups_all[default_doc]['offset']), float(groups_all[default_doc]['scale']), each_end
-            )
+        if self.fast:
+            results = [[] for _ in range(num_queries)]
+            # O(b x dselog(dse))
+            # If changed to heap, O(b x dselog(se) + bdselog(se)) => slightly worse
+            for b_idx, doc2se in enumerate(b_doc2se):
+                for doc_idx, se_dict in doc2se.items():
+                    if len(se_dict['start']) == 0 or len(se_dict['end']) == 0:
+                        continue
+                    doc_len = len(groups_all[doc_idx]['f2o_start'])
+                    for s_idx, s_score in se_dict['start']:
+                        for e_idx, e_score in se_dict['end']:
+                            if 0 <= s_idx <= e_idx < doc_len:
+                                # if len(results[b_idx]) < top_k:
+                                #     heapq.heappush(results[b_idx], (s_score+e_score, doc_idx, s_idx, e_idx))
+                                # else:
+                                #     heapq.heappushpop(results[b_idx], (s_score+e_score, doc_idx, s_idx, e_idx))
+                                results[b_idx].append((s_score+e_score, doc_idx, s_idx, e_idx))
+                results[b_idx] = sorted(results[b_idx], key=lambda x: -x[0])[:top_k]
+            logger.debug(f'2) {time()-start_time:.3f}s: phrase validity (fast)')
 
-        with torch.no_grad():
-            end = torch.FloatTensor(end).to(self.device)
-            end = end.matmul(self.R) # for OPQ
-            query_end = torch.FloatTensor(query_end).to(self.device)
-            new_end_scores = (query_end.unsqueeze(1) * end).sum(2).cpu().numpy()
-        scores1 = np.expand_dims(start_scores, 1) + new_end_scores + end_mask  # [Q, L]
-        pred_end_idxs = np.stack([each[idx] for each, idx in zip(new_end_idxs, np.argmax(scores1, 1))], 0)  # [Q]
-        pred_end_vecs = np.stack([each[idx] for each, idx in zip(end.cpu().numpy(), np.argmax(scores1, 1))], 0)
-        logger.debug(f'2) {time()-start_time:.3f}s: find end')
+            if return_idxs:
+                # TODO: implement reconstruction for fast setup
+                start_vecs = None
+                end_vecs = None
+                pass
 
-        # Find start fot end_idxs
-        start_time = time()
-        starts = [group_end['start'] for end_idx, group_end in zip(end_idxs, groups_end)]
-        new_start_idxs = [[
-            end_idx-i
-            if valid_phrase(end_idx-i, end_idx, doc_idx, max_answer_length) else -1 for i in range(max_answer_length-1,-1,-1)
-            ] for end_idx, doc_idx in zip(end_idxs, end_doc_idxs)
-        ]
-        start_mask = -1e9 * (np.array(new_start_idxs) < 0)  # [Q, L]
-        start = np.zeros((query.shape[0], max_answer_length, default_vec.shape[0]), dtype=np.float32)
-        for start_idx, each_start in enumerate(starts):
-            start[start_idx, -each_start.shape[0]:, :] = self.dequant(
-                float(groups_all[default_doc]['offset']), float(groups_all[default_doc]['scale']), each_start
-            )
+            out = [[{
+                'context': groups_all[doc_idx]['context'], 'title': [groups_all[doc_idx]['title']], 'doc_idx': doc_idx,
+                'start_pos': groups_all[doc_idx]['word2char_start'][groups_all[doc_idx]['f2o_start'][start_idx]].item(),
+                'end_pos': (groups_all[doc_idx]['word2char_end'][groups_all[doc_idx]['f2o_start'][end_idx]].item()
+                    if (len(groups_all[doc_idx]['word2char_end']) > 0) and (end_idx >= 0)
+                    else groups_all[doc_idx]['word2char_start'][groups_all[doc_idx]['f2o_start'][start_idx]].item() + 1),
+                'start_idx': start_idx, 'end_idx': end_idx, 'score': float(score),
+                'start_vec': start_vecs[group_idx] if return_idxs else None,
+                'end_vec': end_vecs[group_idx] if return_idxs else None,
+                } if doc_idx >= 0 else {
+                    'score': -1e8, 'context': 'dummy', 'start_pos': 0, 'end_pos': 0, 'title': ['']}
+                for group_idx, (score, doc_idx, start_idx, end_idx) in enumerate(result)] for result in results
+            ]
+            for b_each in out:
+                for each in b_each:
+                    each['answer'] = each['context'][each['start_pos']:each['end_pos']]
+            out = [[self.adjust(each) for each in b_out] for b_out in out]
+            return out
+        else:
+            # Find end for start_idxs
+            start_time = time()
+            ends = [group_start['end'] for start_idx, group_start in zip(start_idxs, groups_start)]
+            new_end_idxs = [[
+                start_idx+i
+                if valid_phrase(start_idx, start_idx+i, doc_idx, max_answer_length) else -1 for i in range(max_answer_length)
+                ] for start_idx, doc_idx in zip(start_idxs, start_doc_idxs)
+            ]
+            end_mask = -1e9 * (np.array(new_end_idxs) < 0)  # [Q, L]
+            end = np.zeros((query.shape[0], max_answer_length, default_vec.shape[0]), dtype=np.float32)
+            for end_idx, each_end in enumerate(ends):
+                end[end_idx, :each_end.shape[0], :] = self.dequant(
+                    float(groups_all[default_doc]['offset']), float(groups_all[default_doc]['scale']), each_end
+                )
 
-        with torch.no_grad():
-            start = torch.FloatTensor(start).to(self.device)
-            start = start.matmul(self.R) # for OPQ
-            query_start = torch.FloatTensor(query_start).to(self.device)
-            new_start_scores = (query_start.unsqueeze(1) * start).sum(2).cpu().numpy()
-        scores2 = new_start_scores + np.expand_dims(end_scores, 1) + start_mask  # [Q, L]
-        pred_start_idxs = np.stack([each[idx] for each, idx in zip(new_start_idxs, np.argmax(scores2, 1))], 0)  # [Q]
-        pred_start_vecs = np.stack([each[idx] for each, idx in zip(start.cpu().numpy(), np.argmax(scores2, 1))], 0)
-        logger.debug(f'3) {time()-start_time:.3f}s: find start')
+            with torch.no_grad():
+                end = torch.FloatTensor(end).to(self.device)
+                end = end.matmul(self.R) # for OPQ
+                query_end = torch.FloatTensor(query_end).to(self.device)
+                new_end_scores = (query_end.unsqueeze(1) * end).sum(2).cpu().numpy()
+            scores1 = np.expand_dims(start_scores, 1) + new_end_scores + end_mask  # [Q, L]
+            pred_end_idxs = np.stack([each[idx] for each, idx in zip(new_end_idxs, np.argmax(scores1, 1))], 0)  # [Q]
+            pred_end_vecs = np.stack([each[idx] for each, idx in zip(end.cpu().numpy(), np.argmax(scores1, 1))], 0)
+            logger.debug(f'2) {time()-start_time:.3f}s: find end')
 
-        # Get start/end idxs of phrases
-        start_time = time()
-        doc_idxs = np.concatenate((np.expand_dims(start_doc_idxs, 1), np.expand_dims(end_doc_idxs, 1)), axis=1).flatten()
-        start_idxs = np.concatenate((np.expand_dims(start_idxs, 1), np.expand_dims(pred_start_idxs, 1)), axis=1).flatten()
-        end_idxs = np.concatenate((np.expand_dims(pred_end_idxs, 1), np.expand_dims(end_idxs, 1)), axis=1).flatten()
-        max_scores = np.concatenate((np.max(scores1, 1, keepdims=True), np.max(scores2, 1, keepdims=True)), axis=1).flatten()
+            # Find start fot end_idxs
+            start_time = time()
+            starts = [group_end['start'] for end_idx, group_end in zip(end_idxs, groups_end)]
+            new_start_idxs = [[
+                end_idx-i
+                if valid_phrase(end_idx-i, end_idx, doc_idx, max_answer_length) else -1 for i in range(max_answer_length-1,-1,-1)
+                ] for end_idx, doc_idx in zip(end_idxs, end_doc_idxs)
+            ]
+            start_mask = -1e9 * (np.array(new_start_idxs) < 0)  # [Q, L]
+            start = np.zeros((query.shape[0], max_answer_length, default_vec.shape[0]), dtype=np.float32)
+            for start_idx, each_start in enumerate(starts):
+                start[start_idx, -each_start.shape[0]:, :] = self.dequant(
+                    float(groups_all[default_doc]['offset']), float(groups_all[default_doc]['scale']), each_start
+                )
 
-        # Prepare for reconstructed vectors for query-side fine-tuning
-        if return_idxs:
-            start_vecs = np.concatenate(
-                (np.expand_dims(np.stack([group_start['end'][0] for group_start in groups_start]), 1),
-                 np.expand_dims(pred_start_vecs, 1)), axis=1
-            ).reshape(-1, pred_start_vecs.shape[-1]).dot(self.R.cpu().numpy())
-            end_vecs = np.concatenate(
-                (np.expand_dims(pred_end_vecs, 1),
-                 np.expand_dims(np.stack([group_end['start'][-1] for group_end in groups_end]), 1)), axis=1
-            ).reshape(-1, pred_end_vecs.shape[-1]).dot(self.R.cpu().numpy())
+            with torch.no_grad():
+                start = torch.FloatTensor(start).to(self.device)
+                start = start.matmul(self.R) # for OPQ
+                query_start = torch.FloatTensor(query_start).to(self.device)
+                new_start_scores = (query_start.unsqueeze(1) * start).sum(2).cpu().numpy()
+            scores2 = new_start_scores + np.expand_dims(end_scores, 1) + start_mask  # [Q, L]
+            pred_start_idxs = np.stack([each[idx] for each, idx in zip(new_start_idxs, np.argmax(scores2, 1))], 0)  # [Q]
+            pred_start_vecs = np.stack([each[idx] for each, idx in zip(start.cpu().numpy(), np.argmax(scores2, 1))], 0)
+            logger.debug(f'3) {time()-start_time:.3f}s: find start')
 
-        out = [{
-            'context': groups_all[doc_idx]['context'], 'title': [groups_all[doc_idx]['title']], 'doc_idx': doc_idx,
-            'start_pos': groups_all[doc_idx]['word2char_start'][groups_all[doc_idx]['f2o_start'][start_idx]].item(),
-            'end_pos': (groups_all[doc_idx]['word2char_end'][groups_all[doc_idx]['f2o_start'][end_idx]].item()
-                if (len(groups_all[doc_idx]['word2char_end']) > 0) and (end_idx >= 0)
-                else groups_all[doc_idx]['word2char_start'][groups_all[doc_idx]['f2o_start'][start_idx]].item() + 1),
-            'start_idx': start_idx, 'end_idx': end_idx, 'score': score,
-            'start_vec': start_vecs[group_idx] if return_idxs else None,
-            'end_vec': end_vecs[group_idx] if return_idxs else None,
-            } if doc_idx >= 0 else {
-                'score': -1e8, 'context': 'dummy', 'start_pos': 0, 'end_pos': 0, 'title': ['']}
-            for group_idx, (doc_idx, start_idx, end_idx, score) in enumerate(zip(
-                doc_idxs.tolist(), start_idxs.tolist(), end_idxs.tolist(), max_scores.tolist()))
-        ]
+            # Get start/end idxs of phrases
+            start_time = time()
+            doc_idxs = np.concatenate((np.expand_dims(start_doc_idxs, 1), np.expand_dims(end_doc_idxs, 1)), axis=1).flatten()
+            start_idxs = np.concatenate((np.expand_dims(start_idxs, 1), np.expand_dims(pred_start_idxs, 1)), axis=1).flatten()
+            end_idxs = np.concatenate((np.expand_dims(pred_end_idxs, 1), np.expand_dims(end_idxs, 1)), axis=1).flatten()
+            max_scores = np.concatenate((np.max(scores1, 1, keepdims=True), np.max(scores2, 1, keepdims=True)), axis=1).flatten()
+
+            # Prepare for reconstructed vectors for query-side fine-tuning
+            if return_idxs:
+                start_vecs = np.concatenate(
+                    (np.expand_dims(np.stack([group_start['end'][0] for group_start in groups_start]), 1),
+                    np.expand_dims(pred_start_vecs, 1)), axis=1
+                ).reshape(-1, pred_start_vecs.shape[-1]).dot(self.R.cpu().numpy())
+                end_vecs = np.concatenate(
+                    (np.expand_dims(pred_end_vecs, 1),
+                    np.expand_dims(np.stack([group_end['start'][-1] for group_end in groups_end]), 1)), axis=1
+                ).reshape(-1, pred_end_vecs.shape[-1]).dot(self.R.cpu().numpy())
+
+            out = [{
+                'context': groups_all[doc_idx]['context'], 'title': [groups_all[doc_idx]['title']], 'doc_idx': doc_idx,
+                'start_pos': groups_all[doc_idx]['word2char_start'][groups_all[doc_idx]['f2o_start'][start_idx]].item(),
+                'end_pos': (groups_all[doc_idx]['word2char_end'][groups_all[doc_idx]['f2o_start'][end_idx]].item()
+                    if (len(groups_all[doc_idx]['word2char_end']) > 0) and (end_idx >= 0)
+                    else groups_all[doc_idx]['word2char_start'][groups_all[doc_idx]['f2o_start'][start_idx]].item() + 1),
+                'start_idx': start_idx, 'end_idx': end_idx, 'score': score,
+                'start_vec': start_vecs[group_idx] if return_idxs else None,
+                'end_vec': end_vecs[group_idx] if return_idxs else None,
+                } if doc_idx >= 0 else {
+                    'score': -1e8, 'context': 'dummy', 'start_pos': 0, 'end_pos': 0, 'title': ['']}
+                for group_idx, (doc_idx, start_idx, end_idx, score) in enumerate(zip(
+                    doc_idxs.tolist(), start_idxs.tolist(), end_idxs.tolist(), max_scores.tolist()))
+            ]
 
         for each in out:
             each['answer'] = each['context'][each['start_pos']:each['end_pos']]
@@ -412,6 +476,9 @@ class MIPS(object):
             out = [self.adjust_sent(each) for each in out]
 
         # Sort output
+        if self.fast: # makes top_k^2 queries
+            top_k *= (top_k/2)
+        q_idxs = np.reshape(np.tile(np.expand_dims(np.arange(num_queries), 1), [1, int(top_k*2)]), [-1])
         new_out = [[] for _ in range(num_queries)]
         for idx, each_out in zip(q_idxs, out):
             new_out[idx].append(each_out)
@@ -435,6 +502,9 @@ class MIPS(object):
                 da = f'{normalize_answer(result["answer"])}'
             else:
                 raise NotImplementedError("wrong aggregation strategy")
+            
+            # if len(result['answer'].split()) > 10:
+            #     result['answer'] = result['context']
 
             if da not in doc_ans:
                 doc_ans[da] = r_idx
@@ -475,8 +545,8 @@ class MIPS(object):
             outs = [
                 self.aggregate_results(results, top_k, q_text, agg_strat) for results, q_text in zip(outs, q_texts)
             ]
-        if start_doc_idxs.shape[1] != top_k:
-            logger.info(f"Warning.. {doc_idxs.shape[1]} only retrieved")
-            top_k = start_doc_idxs.shape[1]
+        if (len(start_doc_idxs[0]) != top_k) and (len(start_doc_idxs[0]) != top_k*top_k):
+            logger.info(f"Warning.. {len(start_doc_idxs[0])} only retrieved")
+            top_k = len(start_doc_idxs[0])
 
         return outs

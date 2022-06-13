@@ -82,6 +82,8 @@ class Options():
                         help="multiple threads for converting example to features")
         self.parser.add_argument("--truecase_path", type=str, default='truecase/english_with_questions.dist')
         self.parser.add_argument("--truecase", action="store_true", help="Dummy (automatic truecasing supported)")
+        self.parser.add_argument("--type2id_path", type=str, default=None, help='question type information')
+        self.parser.add_argument("--wandb", action="store_true", help="Whether to use Weights and Biases logging")
 
     # Reading comprehension (single-passage training) options
     def add_rc_options(self):
@@ -133,7 +135,6 @@ class Options():
         self.parser.add_argument("--eval_all_checkpoints", action="store_true",
                         help="Evaluate all checkpoints starting with the same prefix as model_name",)
         self.parser.add_argument("--no_cuda", action="store_true", help="Whether not to use CUDA when available")
-        self.parser.add_argument("--wandb", action="store_true", help="Whether to use Weights and Biases logging")
         self.parser.add_argument("--overwrite_output_dir", action="store_true",
                         help="Overwrite the content of the output directory")
         self.parser.add_argument("--local_rank", type=int, default=-1, help="local_rank for distributed training on gpus")
@@ -143,7 +144,7 @@ class Options():
         self.parser.add_argument("--filter_only", action="store_true", help="Whether to generate filter logits only")
         self.parser.add_argument('--dense_offset', type=float, default=-2)
         self.parser.add_argument('--dense_scale', type=float, default=20)
-        self.parser.add_argument("--filter_threshold", type=float, default=-1e8, help="model-based filtering threshold.",)
+        self.parser.add_argument("--filter_threshold", type=float, default=-9999, help="model-based filtering threshold.",)
 
     def add_retrieval_options(self):
         self.parser.add_argument('--run_mode', default='eval')

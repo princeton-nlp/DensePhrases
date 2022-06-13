@@ -27,6 +27,7 @@ from transformers.tokenization_bert import BasicTokenizer
 
 from .squad_utils import QuestionResult, SquadResult
 from .squad_metrics import get_final_text_
+from .single_utils import ForkedPdb
 
 
 logger = logging.getLogger(__name__)
@@ -39,6 +40,11 @@ id2example = None
 
 def get_metadata(features, results, max_answer_length, do_lower_case, tokenizer, verbose_logging, has_title):
     global id2example
+
+    assert len(features) == len(results)
+    if len(features) == 2:
+        # ForkedPdb().set_trace()
+        pass
 
     # Get rid of titles + save start only (as start and end are shared)
     roberta_add = 1 if "roberta" in str(type(tokenizer)) else 0
@@ -67,16 +73,17 @@ def get_metadata(features, results, max_answer_length, do_lower_case, tokenizer,
     )
 
     len_per_para = [len(f.input_ids[to+1:len(f.tokens)-1]) for to, f in zip(toffs, features)]
-    curr_size = 0
-
+    # curr_size = 0
     # Start2end map
-    start2end = -1 * np.ones([np.shape(start)[0], max_answer_length], dtype=np.int32)
-    idx = 0
-    for feature, result, to in zip(features, results, toffs):
-        for i in range(to+1, len(feature.tokens) - 1):
-            for j in range(i, min(i + max_answer_length, len(feature.tokens) - 1)):
-                start2end[idx, j - i] = idx + j - i
-            idx += 1
+    # max_answer_length = min(max_answer_length, np.shape(start)[0])
+    # start2end = -1 * np.ones([np.shape(start)[0], max_answer_length], dtype=np.int32)
+    # idx = 0
+    # for feature, result, to in zip(features, results, toffs):
+    #     for i in range(to+1, len(feature.tokens) - 1):
+    #         for j in range(i, min(i + max_answer_length, len(feature.tokens) - 1)):
+    #             start2end[idx, j - i] = idx + j - i
+    #         idx += 1
+    # assert idx == len(start2end)
 
     word2char_start = np.zeros([start.shape[0]], dtype=np.int32)
     word2char_end = np.zeros([start.shape[0]], dtype=np.int32)
@@ -106,7 +113,7 @@ def get_metadata(features, results, max_answer_length, do_lower_case, tokenizer,
 
     metadata = {
         'did': prev_example.doc_idx, 'context': full_text, 'title': prev_example.title,
-        'start': start, 'start2end': start2end,
+        'start': start, # 'start2end': start2end,
         'word2char_start': word2char_start, 'word2char_end': word2char_end,
         'filter_start': fs, 'filter_end': fe, 'len_per_para': len_per_para
     }
@@ -118,21 +125,21 @@ def filter_metadata(metadata, threshold):
     start_idxs, = np.where(metadata['filter_start'] > threshold)
     end_idxs, = np.where(metadata['filter_end'] > threshold)
     all_idxs = np.array(sorted(list(set(np.concatenate([start_idxs, end_idxs])))))
-    end_long2short = {long: short for short, long in enumerate(all_idxs) if long in end_idxs} # fixed for end_idx
+    # end_long2short = {long: short for short, long in enumerate(all_idxs) if long in end_idxs} # fixed for end_idx
     # print(all_idxs)
     # print(end_long2short)
 
     if len(all_idxs) == 0:
         all_idxs = np.where(metadata['filter_start'] > -999999)[0][:1] # just get all
-        end_long2short = {long: short for short, long in enumerate(all_idxs)}
+        # end_long2short = {long: short for short, long in enumerate(all_idxs)}
         print('all idxs were filtered, so use only one vector for this:', len(all_idxs))
     metadata['start'] = metadata['start'][all_idxs] # union of start/end
     metadata['f2o_start'] = all_idxs
-    metadata['start2end'] = metadata['start2end'][all_idxs]
-    # print(metadata['start2end'])
-    for i, each in enumerate(metadata['start2end']):
-        for j, long in enumerate(each.tolist()):
-            metadata['start2end'][i, j] = end_long2short[long] if long in end_long2short else -1
+    # metadata['start2end'] = metadata['start2end'][all_idxs]
+    # # print(metadata['start2end'])
+    # for i, each in enumerate(metadata['start2end']):
+    #     for j, long in enumerate(each.tolist()):
+    #         metadata['start2end'][i, j] = end_long2short[long] if long in end_long2short else -1
     # print(metadata['start2end'])
 
     return metadata
@@ -240,7 +247,7 @@ def write_phrases(all_examples, all_features, all_results, max_answer_length, do
                         dg.attrs['scale'] = dense_scale
                     dg.create_dataset('start', data=metadata['start'])
                     dg.create_dataset('len_per_para', data=metadata['len_per_para'])
-                    dg.create_dataset('start2end', data=metadata['start2end'])
+                    # dg.create_dataset('start2end', data=metadata['start2end'])
                     dg.create_dataset('word2char_start', data=metadata['word2char_start'])
                     dg.create_dataset('word2char_end', data=metadata['word2char_end'])
                     dg.create_dataset('f2o_start', data=metadata['f2o_start'])
@@ -354,11 +361,8 @@ def write_filter(all_examples, all_features, all_results, tokenizer, hdf5_path, 
         condition = len(features) > 0 and example.par_idx == 0 and feature.span_idx == 0
 
         if condition:
-            # print('put')
-            # in_ = (id2example_, features, results)
             in_ = (features, results)
             inqueue.put(in_)
-            # import pdb; pdb.set_trace()
             prev_ex = id2example[results[0].unique_id]
             if prev_ex.doc_idx % 200 == 0:
                 logger.info(f'saving {len(features)} features from doc {prev_ex.title} (doc_idx: {prev_ex.doc_idx})')

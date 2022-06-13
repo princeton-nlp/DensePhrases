@@ -43,19 +43,25 @@ logger = logging.getLogger(__name__)
 
 
 def dump_phrases(args, model, tokenizer, filter_only=False):
-    output_path = 'dump/phrase' if not filter_only else 'dump/filter'
-    if not os.path.exists(os.path.join(args.output_dir, output_path)):
-        os.makedirs(os.path.join(args.output_dir, output_path))
-
     start_time = timeit.default_timer()
+
+    dirname = os.path.dirname(args.predict_file)
     if ':' not in args.predict_file:
+        basename = os.path.splitext(os.path.basename(args.predict_file))[0]
+        output_path = f'dumps/{dirname}_{basename}_{args.filter_threshold}/phrase' if not filter_only else f'dumps/{dirname}_{basename}/filter'
+        if not os.path.exists(os.path.join(args.output_dir, output_path)):
+            os.makedirs(os.path.join(args.output_dir, output_path))
+
         predict_files = [args.predict_file]
         offsets = [0]
         output_dump_file = os.path.join(
             args.output_dir, f"{output_path}/{os.path.splitext(os.path.basename(args.predict_file))[0]}.hdf5"
         )
     else:
-        dirname = os.path.dirname(args.predict_file)
+        output_path = f'dumps/{dirname}_{args.filter_threshold}/phrase' if not filter_only else f'dumps/{dirname}/filter'
+        if not os.path.exists(os.path.join(args.output_dir, output_path)):
+            os.makedirs(os.path.join(args.output_dir, output_path))
+
         basename = os.path.basename(args.predict_file)
         start, end = list(map(int, basename.split(':')))
         output_dump_file = os.path.join(

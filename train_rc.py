@@ -264,7 +264,7 @@ def train(args, train_dataset, model, tokenizer):
                         logger.setLevel(logging.WARNING)
                         results, _ = evaluate(args, model, tokenizer, prefix=global_step)
                         wandb.log(
-                            {"Eval EM": results['exact'], "Eval F1": results['f1']}, step=global_step,
+                            {"eval/exact_match": results['exact'], "eval/f1": results['f1']}, step=global_step,
                         )
                         logger.setLevel(logging.INFO)
 
@@ -474,7 +474,7 @@ def main():
 
     # Set wandb
     if args.do_train or args.do_eval:
-        wandb.init(project="DensePhrases (single)", mode="online" if args.wandb else "disabled")
+        wandb.init(name=os.environ["MODEL_NAME"], project="huggingface", mode="online")
         wandb.config.update(args)
 
     # Load config, tokenizer
@@ -584,7 +584,7 @@ def main():
         result, _ = evaluate(args, model, tokenizer, prefix='final')
         result = dict((k + "_final", v) for k, v in result.items())
         wandb.log(
-                {"Eval EM": result['exact_final'], "Eval F1": result['f1_final'], "loss": tr_loss}, step=global_step,
+                {"eval/exact_match": result['exact_final'], "eval/f1": result['f1_final'], "loss": tr_loss}, step=global_step,
         )
         logger.info("Results: {}".format(result))
 

@@ -808,7 +808,7 @@ class SquadProcessor(DataProcessor):
             input_data = json.load(reader)["data"]
         return self._create_examples(input_data, "dev", draft, context_only=context_only, args=args)
 
-    def _create_examples(self, input_data, set_type, draft, context_only, draft_num_examples=1002, min_len=0, max_len=2500,
+    def _create_examples(self, input_data, set_type, draft, context_only, draft_num_examples=1000, min_len=0, max_len=2500,
             skip_no_answer=False, args=None):
         is_training = set_type == "train"
         examples = []
@@ -827,6 +827,9 @@ class SquadProcessor(DataProcessor):
             par_idx = 0
             for _, paragraph in enumerate(entry["paragraphs"]):
                 context_text = paragraph["context"]
+                if len(context_text) == 0:
+                    impossible_cnt += 1
+                    continue
                 if ' ' in context_text: # non-breaking space '\xa0' to ' '
                     context_text = context_text.replace(' ', ' ')
                 total_cnt += 1
@@ -891,13 +894,30 @@ class SquadProcessor(DataProcessor):
                             assert type(qa["answers"]) == dict or type(qa["answers"]) == list, type(qa["answers"])
                             if type(qa["answers"]) == dict:
                                 qa["answers"] = [qa["answers"]]
-                            answer = qa["answers"][0]
-                            answer_text = answer["text"]
-                            start_position_character = answer["answer_start"]
-                            if ' ' in answer_text:
-                                answer_text = answer_text.replace(' ', ' ')
-                            assert context_text[start_position_character:start_position_character+len(answer_text)] == \
-                                    answer_text
+                            qtype = str(qa["question_type"])
+
+                            if qtype in ["3"]:
+                                qa["answers"][0]["text"] = context_text
+                            
+                            if qtype in ["3", "4", "5"]:
+                                assert qa["answers"][0]["text"].replace(' ', ' ') == context_text
+                                assert qa["answers"][0]["answer_start"] == 0
+
+                            if qa["answers"][0]["answer_start"] >= 0:
+                                answer = qa["answers"][0]
+                                answer_text = answer["text"]
+                                start_position_character = answer["answer_start"]
+                                if ' ' in answer_text:
+                                    answer_text = answer_text.replace(' ', ' ')
+                                if context_text[start_position_character:start_position_character+len(answer_text)] != answer_text:
+                                    import pdb; pdb.set_trace()
+                                assert context_text[start_position_character:start_position_character+len(answer_text)] == \
+                                        answer_text
+                            else:
+                                is_impossible = True
+                                impossible_cnt += 1
+                                # if skip_no_answer:
+                                continue
                         else:
                             answers = qa["answers"]
                     else:
