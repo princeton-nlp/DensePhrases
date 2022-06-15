@@ -216,6 +216,10 @@ class Encoder(PreTrainedModel):
             neg_end_logits = (all_query_end.unsqueeze(1) * all_neg_end.unsqueeze(0)).sum(-1).view(
                 all_query_end.shape[0], all_neg_end.shape[0], all_neg_end.shape[1]
             ).max(-1)[0]
+        
+        if self.training:
+            context_start_pos = torch.stack([(id_== self.tokenizer.sep_token_id).nonzero(as_tuple=True)[0][0]+1 for id_ in input_ids])
+            context_end_pos = attention_mask.sum(1) - 2
 
         # In-batch, pre-batch negatives; diagonal blocks have the gold logits
         if self.training and self.lambda_neg > 0:
@@ -234,12 +238,12 @@ class Encoder(PreTrainedModel):
 
             # Phrase-level in-batch
             gold_start = torch.stack(
-                [st[start_pos:start_pos+1] if start_pos > 0 else st[0:1]
-                    for st, start_pos in zip(all_start, all_start_positions)]
+                [st[start_pos:start_pos+1] if start_pos > 0 else st[0:1] # st[csp:csp+1]
+                    for st, start_pos, csp in zip(all_start, all_start_positions, context_start_pos)]
             )
             gold_end = torch.stack(
-                [en[end_pos:end_pos+1] if end_pos > 0 else en[0:1]
-                    for en, end_pos in zip(all_end, all_end_positions)]
+                [en[end_pos:end_pos+1] if end_pos > 0 else en[0:1] # en[cep:cep+1]
+                    for en, end_pos, cep in zip(all_end, all_end_positions, context_end_pos)]
             )
             inb_start_logits = (all_query_start.unsqueeze(1) * gold_start.unsqueeze(0)).sum(-1).view(
                 all_query_start.shape[0], -1
@@ -269,6 +273,8 @@ class Encoder(PreTrainedModel):
             ignored_index = start_logits.size(1)
             start_positions.clamp_(0, ignored_index)
             end_positions.clamp_(0, ignored_index)
+            # start_positions[start_positions==0] = context_start_pos[start_positions==0]
+            # end_positions[end_positions==0] = context_end_pos[end_positions==0]
 
             # 1) Single-passage loss
             loss_fct = CrossEntropyLoss(ignore_index=ignored_index)
@@ -351,6 +357,8 @@ class Encoder(PreTrainedModel):
                 # Do not train filter on unanswerables
                 assert all((start_positions > 0) == (end_positions > 0))
                 ans_mask = (start_positions > 0).float()
+                # type12_mask = ((start_positions == context_start_pos) & (end_positions == context_end_pos) == False)
+                # ans_mask = ans_mask * type12_mask
                 filter_loss = (filter_loss * ans_mask).sum() / (ans_mask.sum() + 1e-9)
                 total_loss = total_loss + filter_loss * self.lambda_flt
 
@@ -370,7 +378,7 @@ class Encoder(PreTrainedModel):
         self,
         input_ids_=None, attention_mask_=None, token_type_ids_=None,
         start_vecs=None, end_vecs=None,
-        targets=None, p_targets=None,
+        targets=None, p_targets=None, R=None,
     ):
         # Skip if no targets for phrases
         if start_vecs is not None:
@@ -381,8 +389,8 @@ class Encoder(PreTrainedModel):
         query_start, query_end = self.embed_query(input_ids_, attention_mask_, token_type_ids_)
 
         # Start/end dense logits
-        start_logits = query_start.matmul(start_vecs.transpose(1, 2)).squeeze(1)
-        end_logits = query_end.matmul(end_vecs.transpose(1, 2)).squeeze(1)
+        start_logits = query_start.matmul(start_vecs.matmul(R).transpose(1, 2)).squeeze(1)
+        end_logits = query_end.matmul(end_vecs.matmul(R).transpose(1, 2)).squeeze(1)
         logits = start_logits + end_logits
 
         # L_phrase: MML over phrase-level annotation

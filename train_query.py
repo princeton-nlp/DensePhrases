@@ -115,6 +115,7 @@ def train_query_encoder(args, mips=None):
                     end_vecs=evs_t,
                     targets=tgts_t,
                     p_targets=p_tgts_t,
+                    R=mips.R,
                 )
 
                 # Optimize, get acc and report
@@ -226,9 +227,9 @@ def annotate_phrase_vecs(mips, q_ids, questions, answers, titles, phrase_groups,
 
     # Pad phrase groups (two separate top-k coming from start/end, so pad with top_k*2)
     for b_idx, phrase_idx in enumerate(phrase_groups):
-        while len(phrase_groups[b_idx]) < args.top_k*2:
+        while len(phrase_groups[b_idx]) < args.top_k:#*2
             phrase_groups[b_idx].append(dummy_group)
-        assert len(phrase_groups[b_idx]) == args.top_k*2
+        assert len(phrase_groups[b_idx]) == args.top_k#*2
 
     # Flatten phrase groups
     flat_phrase_groups = [phrase for phrase_group in phrase_groups for phrase in phrase_group]
@@ -244,8 +245,8 @@ def annotate_phrase_vecs(mips, q_ids, questions, answers, titles, phrase_groups,
     end_vecs = end_vecs * zero_mask
 
     # Reshape
-    start_vecs = np.reshape(start_vecs, (batch_size, args.top_k*2, -1))
-    end_vecs = np.reshape(end_vecs, (batch_size, args.top_k*2, -1))
+    start_vecs = np.reshape(start_vecs, (batch_size, args.top_k, -1)) #*2
+    end_vecs = np.reshape(end_vecs, (batch_size, args.top_k, -1)) #*2
 
     # Dummy targets
     targets = [[None for phrase in phrase_group] for phrase_group in phrase_groups]

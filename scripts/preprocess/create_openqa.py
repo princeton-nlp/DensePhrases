@@ -25,11 +25,10 @@ def preprocess_openqa(input_file, input_type, out_dir):
                         if type(qa['answers']) == dict:
                             qa['answers'] = [qa['answers']]
                         if qa['question_type'] in [3, 4, 5]:
-                            qa['answers'][0]['text'] = paragraph['context'] # nonbreakable space?
-                            if len(paragraph['context']) == 0:
-                                continue
+                            if 'context' in paragraph and len(qa['answers']) > 0:
+                                qa['answers'][0]['text'] = paragraph['context'] # nonbreakable space?
                         data_to_save.append({
-                            'id': os.path.splitext(os.path.basename(input_file))[0] + '_' + str(qa['id']),
+                            'id': str(qa['id']),
                             'question': qa['question'],
                             'answers': [ans['text'] for ans in qa['answers']],
                             'question_type': qa['question_type'] if 'question_type' in qa else 'None',

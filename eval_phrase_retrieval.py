@@ -193,15 +193,18 @@ def evaluate_results(predictions, qids, questions, answers, args, evidences, sco
     f1_score_top1 = f'{100.0 * f1_score_top1 / total:.2f}'
     f1_score_topk = f'{100.0 * f1_score_topk / total:.2f}'
     logger.info(f"Micro Average\t| EM\tEM@{args.top_k}\tF1\tF1@{args.top_k}")
-    logger.info(f"{total} Qs\t| " + ' '.join([exact_match_top1, exact_match_topk, f1_score_top1, f1_score_topk]))
+    micro_str = ' '.join([exact_match_top1, exact_match_topk, f1_score_top1, f1_score_topk])
+    logger.info(f"{total} Qs\t| " + micro_str)
     print()
     
     macro_metric = defaultdict(list)
+    per_type_strs = []
     for qtype, metrics in sorted(per_type_metrics.items()):
         metric_str = '\t'.join(list(metrics.keys()))
         logger.info(f'Type {qtype}\t| {metric_str}')
         agg_scores = {metric: f'{100*sum(scores)/len(scores):.2f}' for metric, scores in metrics.items()}
-        score_str = ' '.join(list(agg_scores.values()))
+        score_str = ' '.join(list(agg_scores.values())) + (' -' if qtype in ['3', '5'] else '')
+        per_type_strs.append(score_str)
         logger.info(f'Results\t| {score_str}')
         num_str = ' '.join([f'{len(scores)}' for scores in metrics.values()])
         logger.info(f'# of Qs\t| {num_str}')
@@ -210,8 +213,11 @@ def evaluate_results(predictions, qids, questions, answers, args, evidences, sco
         print()
     
     logger.info(f"Macro Average\t| EM\tEM@{args.top_k}\tF1\tF1@{args.top_k}")
-    logger.info(f"Results\t| " + ' '.join([f'{sum(scores)/len(scores):.2f}' for scores in macro_metric.values()]))
+    macro_str = ' '.join([f'{sum(scores)/len(scores):.2f}' for scores in macro_metric.values()])
+    logger.info(f"Results\t| " + macro_str)
     print()
+    logger.info("Result string (macro/micro/per-type)")
+    logger.info(f"{macro_str} {micro_str} {' '.join(per_type_strs)}")
     # redundant_topk = redundant_topk / total
     # logger.info({f'redundancy of top{args.top_k}': redundant_topk})
 
@@ -219,10 +225,10 @@ def evaluate_results(predictions, qids, questions, answers, args, evidences, sco
         wandb.init(name=os.environ["MODEL_NAME"], project="Multi-type (open)", mode="online")
         wandb.config.update(args)
         wandb.log({
-            "eval/exact_match": exact_match_top1, 
-            "eval/exact_match_k": exact_match_topk,
-            "eval/f1": f1_score_top1,
-            "eval/f1_k": f1_score_topk,
+            "eval/exact_match": float(exact_match_top1),
+            "eval/exact_match_k": float(exact_match_topk),
+            "eval/f1": float(f1_score_top1),
+            "eval/f1_k": float(f1_score_topk),
             }
         )
         for qtype, metrics in sorted(per_type_metrics.items()):
@@ -249,7 +255,7 @@ def evaluate_results(predictions, qids, questions, answers, args, evidences, sco
     if args.eval_psg:
         evaluate_results_psg(pred_path, args)
 
-    return exact_match_top1, f1_score_top1, exact_match_topk, f1_score_topk
+    return float(exact_match_top1), float(f1_score_top1), float(exact_match_topk), float(f1_score_topk)
 
 
 def evaluate_results_kilt(predictions, qids, questions, answers, args, evidences, scores, titles, se_positions=None):

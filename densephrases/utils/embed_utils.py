@@ -50,13 +50,14 @@ def get_metadata(features, results, max_answer_length, do_lower_case, tokenizer,
     roberta_add = 1 if "roberta" in str(type(tokenizer)) else 0
     toffs = [(f.input_ids.index(tokenizer.sep_token_id))*int(has_title) + roberta_add for f in features]
 
-    # Filter reps
-    fs = np.concatenate(
-        [result.sft_logits[to+1:len(feature.tokens) - 1] for feature, result, to in zip(features, results, toffs)], axis=0
-    )
-    fe = np.concatenate(
-        [result.eft_logits[to+1:len(feature.tokens) - 1] for feature, result, to in zip(features, results, toffs)], axis=0
-    )
+    # Filter reps (always keep start/end of a paragraph)
+    fs = [result.sft_logits[to+1:len(feature.tokens) - 1] for feature, result, to in zip(features, results, toffs)]
+    fe = [result.eft_logits[to+1:len(feature.tokens) - 1] for feature, result, to in zip(features, results, toffs)]
+    for idx in range(len(fs)):
+        fs[idx][0] = fs[idx][-1] = 999
+        fe[idx][0] = fe[idx][-1] = 999
+    fs = np.concatenate(fs, axis=0)
+    fe = np.concatenate(fe, axis=0)
 
     if max_answer_length is None:
         example = id2example[features[-1].unique_id]
@@ -71,6 +72,7 @@ def get_metadata(features, results, max_answer_length, do_lower_case, tokenizer,
         [result.start_vecs[to+1:len(feature.tokens) - 1] for feature, result, to in zip(features, results, toffs)],
         axis=0
     )
+    assert len(fs) == len(fe) == len(start)
 
     len_per_para = [len(f.input_ids[to+1:len(f.tokens)-1]) for to, f in zip(toffs, features)]
     # curr_size = 0

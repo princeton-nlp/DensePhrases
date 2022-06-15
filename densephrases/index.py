@@ -58,6 +58,7 @@ class MIPS(object):
             quantizer_gpu = faiss.index_cpu_to_all_gpus(quantizer)
             index_ivf.quantizer = quantizer_gpu
             self.R = self.R.to(self.device)
+            self.R.requires_grad = False
             logger.info(f"N probe: {index_ivf.nprobe}")
         else:
             self.device = torch.device("cpu")
@@ -215,8 +216,8 @@ class MIPS(object):
             # O(bk)
             for b_idx, (s_doc_idxs, s_idxs, s_scores) in enumerate(zip(b_start_doc_idxs, b_start_idxs, b_start_scores)):
                 for k, (s_doc_idx, e_doc_idx) in enumerate(zip(s_doc_idxs, b_end_doc_idxs[b_idx])):
-                    b_doc2se[b_idx][s_doc_idx]['start'].append((s_idxs[k], s_scores[k]))
-                    b_doc2se[b_idx][e_doc_idx]['end'].append((b_end_idxs[b_idx][k], b_end_scores[b_idx][k]))
+                    b_doc2se[b_idx][s_doc_idx]['start'].append((s_idxs[k], start_I[b_idx][k], s_scores[k]))
+                    b_doc2se[b_idx][e_doc_idx]['end'].append((b_end_idxs[b_idx][k], end_I[b_idx][k], b_end_scores[b_idx][k]))
             
             logger.debug(f'2) {time()-start_time:.3f}s: get index (fast)')
             # temporarily put b_end_scores => b_doc2se
@@ -348,22 +349,40 @@ class MIPS(object):
                     if len(se_dict['start']) == 0 or len(se_dict['end']) == 0:
                         continue
                     doc_len = len(groups_all[doc_idx]['f2o_start'])
-                    for s_idx, s_score in se_dict['start']:
-                        for e_idx, e_score in se_dict['end']:
+                    for s_idx, s_orig, s_score in se_dict['start']:
+                        for e_idx, e_orig, e_score in se_dict['end']:
                             if 0 <= s_idx <= e_idx < doc_len:
                                 # if len(results[b_idx]) < top_k:
                                 #     heapq.heappush(results[b_idx], (s_score+e_score, doc_idx, s_idx, e_idx))
                                 # else:
                                 #     heapq.heappushpop(results[b_idx], (s_score+e_score, doc_idx, s_idx, e_idx))
-                                results[b_idx].append((s_score+e_score, doc_idx, s_idx, e_idx))
+                                results[b_idx].append((s_score+e_score, doc_idx, s_idx, s_orig, e_idx, e_orig))
                 results[b_idx] = sorted(results[b_idx], key=lambda x: -x[0])[:top_k]
             logger.debug(f'2) {time()-start_time:.3f}s: phrase validity (fast)')
 
             if return_idxs:
-                # TODO: implement reconstruction for fast setup
-                start_vecs = None
-                end_vecs = None
-                pass
+                b_start_vecs = []
+                b_end_vecs = []
+                for result in results:
+                    start_vecs = []
+                    end_vecs = []
+                    for k, (_, _, _, s_orig, _, e_orig) in enumerate(result):
+                        try:
+                            start_vecs.append(self.reconst_fn(int(s_orig)))
+                            end_vecs.append(self.reconst_fn(int(e_orig)))
+                        except Exception as e:
+                            logger.info(f"{e}: reconstruction failed for {s_orig} or {e_orig}")
+                            start_vecs.append(np.zeros(bs))
+                            end_vecs.append(np.zeros(bs))
+                    while len(start_vecs) < top_k:
+                        start_vecs.append(np.zeros(bs))
+                        end_vecs.append(np.zeros(bs))
+                    assert len(start_vecs) == len(end_vecs) == top_k
+                    b_start_vecs.append(np.array(start_vecs))
+                    b_end_vecs.append(np.array(end_vecs))
+                # R = self.R.cpu().numpy()
+                b_start_vecs = np.array(b_start_vecs)# .dot(R)
+                b_end_vecs = np.array(b_end_vecs)# .dot(R)
 
             out = [[{
                 'context': groups_all[doc_idx]['context'], 'title': [groups_all[doc_idx]['title']], 'doc_idx': doc_idx,
@@ -372,16 +391,17 @@ class MIPS(object):
                     if (len(groups_all[doc_idx]['word2char_end']) > 0) and (end_idx >= 0)
                     else groups_all[doc_idx]['word2char_start'][groups_all[doc_idx]['f2o_start'][start_idx]].item() + 1),
                 'start_idx': start_idx, 'end_idx': end_idx, 'score': float(score),
-                'start_vec': start_vecs[group_idx] if return_idxs else None,
-                'end_vec': end_vecs[group_idx] if return_idxs else None,
+                'start_vec': b_start_vecs[b_idx][k_idx] if return_idxs else None,
+                'end_vec': b_end_vecs[b_idx][k_idx] if return_idxs else None,
                 } if doc_idx >= 0 else {
                     'score': -1e8, 'context': 'dummy', 'start_pos': 0, 'end_pos': 0, 'title': ['']}
-                for group_idx, (score, doc_idx, start_idx, end_idx) in enumerate(result)] for result in results
+                for k_idx, (score, doc_idx, start_idx, _, end_idx, _) in enumerate(result)] for b_idx, result in enumerate(results)
             ]
             for b_each in out:
                 for each in b_each:
                     each['answer'] = each['context'][each['start_pos']:each['end_pos']]
             out = [[self.adjust(each) for each in b_out] for b_out in out]
+            out = [list(filter(lambda x: '[PAR]' not in x['context'] and '[PAR]' not in x['answer'], out_)) for out_ in out]
             return out
         else:
             # Find end for start_idxs

@@ -117,7 +117,7 @@ def load_qa_pairs(data_path, args, q_idx=None, draft_num_examples=100, shuffle=F
         question = item['question']
         if '[START_ENT]' in question:
             question = question[max(question.index('[START_ENT]')-300, 0):question.index('[END_ENT]')+300]
-        answer = item['answers']
+        answer = [answer.replace(' ', ' ') for answer in item['answers']]
         title = item.get('titles', [''])
         if len(answer) == 0:
             continue
